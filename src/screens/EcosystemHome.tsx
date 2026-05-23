@@ -3,6 +3,7 @@ import { ecosystemModules } from '../data/ecosystem';
 import { cn } from '../lib/utils';
 import { AfriSellIcon } from '../components/AfriSellIcon';
 import { getModuleIconName } from '../lib/moduleIcons';
+import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 
 const statusStyles = {
   Live: 'bg-[#15EA3E] text-black',
@@ -11,8 +12,10 @@ const statusStyles = {
 };
 
 export default function EcosystemHome() {
+  const { profile, user } = useFirebaseAuth();
   const featuredModules = ecosystemModules.slice(0, 4);
   const secondaryModules = ecosystemModules.slice(4);
+  const firstName = (profile?.displayName || user?.displayName || 'Utilisateur').split(' ')[0];
 
   return (
     <div className="min-h-full bg-[#050705] px-4 pb-7 pt-4 text-white">
@@ -22,7 +25,7 @@ export default function EcosystemHome() {
             <img src="/afrissel-icon.jpeg" alt="AfriSell" className="h-8 w-8 rounded-xl object-cover" />
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriSell</p>
           </div>
-          <h1 className="mt-2 text-2xl font-black tracking-normal">Bonjour Charmant</h1>
+          <h1 className="mt-2 text-2xl font-black tracking-normal">Bonjour {firstName}</h1>
         </div>
         <Link to="/profile" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Profil">
           <AfriSellIcon name="profile" size={19} />
