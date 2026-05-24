@@ -4,6 +4,7 @@ import { cn } from '../lib/utils';
 import BottomNavigation from './BottomNavigation';
 import BottomSheet from './BottomSheet';
 import { InvertedAfricaLogo } from './InvertedAfricaLogo';
+import PwaInstallPrompt from './PwaInstallPrompt';
 
 interface PhoneWrapperProps {
   children: React.ReactNode;
@@ -41,6 +42,8 @@ export default function PhoneWrapper({ children }: PhoneWrapperProps) {
         {!isImmersive && <BottomNavigation />}
 
         {!isImmersive && <BottomSheet />}
+
+        {!isImmersive && <PwaInstallPrompt />}
 
         <div className="pointer-events-none absolute bottom-1 left-1/2 z-50 hidden h-1 w-24 -translate-x-1/2 rounded-full bg-white/20 md:block"></div>
       </div>

@@ -2,9 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   User,
   createUserWithEmailAndPassword,
+  browserLocalPersistence,
+  getRedirectResult,
   onAuthStateChanged,
+  setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile
 } from 'firebase/auth';
@@ -87,6 +91,7 @@ let authStore: AuthStoreState = {
 };
 let unsubscribeAuthState: (() => void) | null = null;
 let authSyncVersion = 0;
+let redirectResultHandled = false;
 
 const emitAuthStore = () => {
   authListeners.forEach((listener) => listener());
@@ -327,6 +332,36 @@ const ensureAuthListener = () => {
   unsubscribeAuthState = onAuthStateChanged(firebaseAuth, (currentUser) => {
     void syncCurrentUser(currentUser);
   });
+  void consumeGoogleRedirectResult();
+};
+
+const isMobileOrStandalone = () => {
+  if (typeof window === 'undefined') return false;
+  const userAgent = window.navigator.userAgent;
+  const isTouchMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+    ('standalone' in window.navigator && Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone));
+
+  return isTouchMobile || isStandalone;
+};
+
+const consumeGoogleRedirectResult = async () => {
+  if (redirectResultHandled) return;
+  redirectResultHandled = true;
+
+  try {
+    await setPersistence(firebaseAuth, browserLocalPersistence);
+    const credential = await getRedirectResult(firebaseAuth);
+    if (credential?.user) {
+      await syncCurrentUser(credential.user);
+    }
+  } catch (error) {
+    console.error('Retour Google AfriSell impossible:', error);
+    updateAuthStore({
+      loading: false,
+      authError: error instanceof Error ? error.message : 'Connexion Google impossible.'
+    });
+  }
 };
 
 export const useFirebaseAuth = () => {
@@ -346,8 +381,31 @@ export const useFirebaseAuth = () => {
   const actions = useMemo(() => ({
     signInWithGoogle: async () => {
       updateAuthStore({ authError: '' });
-      const credential = await signInWithPopup(firebaseAuth, googleProvider);
-      await syncCurrentUser(credential.user);
+      await setPersistence(firebaseAuth, browserLocalPersistence);
+
+      if (isMobileOrStandalone()) {
+        await signInWithRedirect(firebaseAuth, googleProvider);
+        return;
+      }
+
+      try {
+        const credential = await signInWithPopup(firebaseAuth, googleProvider);
+        await syncCurrentUser(credential.user);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const shouldUseRedirect = [
+          'auth/popup-blocked',
+          'auth/popup-closed-by-user',
+          'auth/cancelled-popup-request',
+          'auth/operation-not-supported-in-this-environment'
+        ].some((code) => message.includes(code));
+
+        if (!shouldUseRedirect) {
+          throw error;
+        }
+
+        await signInWithRedirect(firebaseAuth, googleProvider);
+      }
     },
     signInWithEmail: async (email: string, password: string) => {
       updateAuthStore({ authError: '' });
