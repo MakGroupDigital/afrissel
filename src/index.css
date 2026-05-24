@@ -17,19 +17,19 @@
   }
 
   .abc-like-burst {
-    animation: abc-like-burst 820ms ease-out forwards;
+    animation: abc-like-burst 1300ms ease-out forwards;
   }
 
   .abc-like-ring {
-    animation: abc-like-ring 820ms ease-out forwards;
+    animation: abc-like-ring 1250ms ease-out forwards;
   }
 
   .abc-like-pop {
-    animation: abc-like-pop 620ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: abc-like-pop 1050ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   .abc-like-spark {
-    animation: abc-like-spark 780ms ease-out forwards;
+    animation: abc-like-spark 1180ms ease-out forwards;
   }
 }
 

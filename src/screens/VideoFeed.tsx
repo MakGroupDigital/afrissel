@@ -14,6 +14,7 @@ import { useAppStore } from '../store/useAppStore';
 import { cn } from '../lib/utils';
 
 type QuickPanel = 'cart' | 'orders' | 'following' | null;
+const ABC_SOUND_PREF_KEY = 'afrisell:abc-sound-enabled';
 
 function CreatorAvatar({ content }: { content: AfriMarketContent }) {
   const initials = content.authorName
@@ -36,19 +37,50 @@ function CreatorAvatar({ content }: { content: AfriMarketContent }) {
   );
 }
 
-function FeedMedia({ content, soundEnabled }: { content: AfriMarketContent; soundEnabled: boolean }) {
+function FeedMedia({
+  content,
+  soundEnabled,
+  isActive
+}: {
+  content: AfriMarketContent;
+  soundEnabled: boolean;
+  isActive: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const firstMedia = content.media[0];
   const isVideo = firstMedia?.resourceType === 'video';
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isVideo) return undefined;
+
+    video.muted = !soundEnabled || !isActive;
+
+    if (isActive) {
+      void video.play().catch(() => {
+        video.muted = true;
+        void video.play().catch(() => undefined);
+      });
+    } else {
+      video.pause();
+    }
+
+    return () => {
+      video.pause();
+    };
+  }, [isActive, isVideo, soundEnabled, firstMedia?.secureUrl, firstMedia?.mediaUrl]);
 
   if (isVideo) {
     return (
       <video
+        ref={videoRef}
         src={firstMedia.secureUrl || firstMedia.mediaUrl}
         className="h-full w-full object-cover"
-        autoPlay
-        muted={!soundEnabled}
+        autoPlay={isActive}
+        muted={!soundEnabled || !isActive}
         loop
         playsInline
+        preload={isActive ? 'auto' : 'metadata'}
         controls={false}
       />
     );
@@ -70,6 +102,7 @@ function FeedItem({
   isOwnContent,
   isFollowed,
   isLiked,
+  isActive,
   soundEnabled,
   likeBurstActive,
   isChromeHidden,
@@ -79,13 +112,15 @@ function FeedItem({
   onComment,
   onShare,
   onToggleSound,
-  onToggleChrome
+  onToggleChrome,
+  onVisible
 }: {
   key?: React.Key;
   content: AfriMarketContent;
   isOwnContent: boolean;
   isFollowed: boolean;
   isLiked: boolean;
+  isActive: boolean;
   soundEnabled: boolean;
   likeBurstActive: boolean;
   isChromeHidden: boolean;
@@ -96,19 +131,41 @@ function FeedItem({
   onShare: () => void;
   onToggleSound: () => void;
   onToggleChrome: () => void;
+  onVisible: () => void;
 }) {
+  const itemRef = useRef<HTMLElement | null>(null);
   const isVideo = content.media[0]?.resourceType === 'video';
   const stopControlClick = (event: React.MouseEvent) => {
     event.stopPropagation();
   };
 
+  useEffect(() => {
+    const element = itemRef.current;
+    if (!element) return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.65) {
+          onVisible();
+        }
+      },
+      {
+        threshold: [0.65, 0.82]
+      }
+    );
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [onVisible]);
+
   return (
     <article
+      ref={itemRef}
       onClick={onToggleChrome}
       className="relative flex h-full w-full snap-start items-center justify-center overflow-hidden bg-black"
     >
       <div className="absolute inset-0">
-        <FeedMedia content={content} soundEnabled={soundEnabled} />
+        <FeedMedia content={content} soundEnabled={soundEnabled} isActive={isActive} />
         {!isChromeHidden && <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/18 to-black" />}
       </div>
 
@@ -697,11 +754,32 @@ export default function VideoFeed() {
   const cart = useAppStore((state) => state.cart);
   const [isPublishing, setIsPublishing] = useState(false);
   const [commentContent, setCommentContent] = useState<AfriMarketContent | null>(null);
-  const [soundEnabledByContent, setSoundEnabledByContent] = useState<Record<string, boolean>>({});
+  const [isSoundEnabled, setIsSoundEnabled] = useState(() => (
+    window.localStorage.getItem(ABC_SOUND_PREF_KEY) === '1'
+  ));
   const [likeBurstContentId, setLikeBurstContentId] = useState('');
   const [isFeedChromeHidden, setIsFeedChromeHidden] = useState(false);
   const [quickPanel, setQuickPanel] = useState<QuickPanel>(null);
+  const [activeContentId, setActiveContentId] = useState('');
   const followedCount = Object.keys(followedAuthors).length;
+  const isPlaybackBlocked = Boolean(isPublishing || commentContent || quickPanel);
+
+  useEffect(() => {
+    window.localStorage.setItem(ABC_SOUND_PREF_KEY, isSoundEnabled ? '1' : '0');
+  }, [isSoundEnabled]);
+
+  useEffect(() => {
+    if (!abcContents.length) {
+      setActiveContentId('');
+      return;
+    }
+
+    setActiveContentId((current) => (
+      current && abcContents.some((content) => content.id === current)
+        ? current
+        : abcContents[0].id
+    ));
+  }, [abcContents]);
 
   const handleShare = async (content: AfriMarketContent) => {
     const shareUrl = `${window.location.origin}/feed?post=${content.id}`;
@@ -730,7 +808,7 @@ export default function VideoFeed() {
       setLikeBurstContentId(content.id);
       window.setTimeout(() => {
         setLikeBurstContentId((current) => current === content.id ? '' : current);
-      }, 880);
+      }, 1350);
 
       if (content.isSellable) {
         addToCart(toCheckoutProduct(content));
@@ -799,7 +877,8 @@ export default function VideoFeed() {
               isOwnContent={content.authorId === user?.uid}
               isFollowed={Boolean(followedAuthors[content.authorId])}
               isLiked={Boolean(likedContents[content.id])}
-              soundEnabled={Boolean(soundEnabledByContent[content.id])}
+              isActive={!isPlaybackBlocked && activeContentId === content.id}
+              soundEnabled={isSoundEnabled}
               likeBurstActive={likeBurstContentId === content.id}
               isChromeHidden={isFeedChromeHidden}
               onBuy={() => openCheckout(toCheckoutProduct(content))}
@@ -807,11 +886,9 @@ export default function VideoFeed() {
               onLike={() => handleLike(content)}
               onComment={() => setCommentContent(content)}
               onShare={() => handleShare(content)}
-              onToggleSound={() => setSoundEnabledByContent((current) => ({
-                ...current,
-                [content.id]: !current[content.id]
-              }))}
+              onToggleSound={() => setIsSoundEnabled((current) => !current)}
               onToggleChrome={() => setIsFeedChromeHidden((current) => !current)}
+              onVisible={() => setActiveContentId(content.id)}
             />
           ))}
         </div>

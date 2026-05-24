@@ -81,6 +81,7 @@ type AuthStoreState = {
 };
 
 const DATABASE_TIMEOUT_MS = 6000;
+const GOOGLE_REDIRECT_PENDING_KEY = 'afrisell:google-redirect-pending';
 const authListeners = new Set<() => void>();
 
 let authStore: AuthStoreState = {
@@ -103,6 +104,21 @@ const updateAuthStore = (patch: Partial<AuthStoreState>) => {
     ...patch
   };
   emitAuthStore();
+};
+
+const hasPendingGoogleRedirect = () => (
+  typeof window !== 'undefined' &&
+  window.sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) === '1'
+);
+
+const setPendingGoogleRedirect = () => {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1');
+};
+
+const clearPendingGoogleRedirect = () => {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
 };
 
 const withDatabaseTimeout = <T,>(operation: Promise<T>, label: string): Promise<T> =>
@@ -297,6 +313,16 @@ const syncCurrentUser = async (currentUser: User | null) => {
   });
 
   if (!currentUser) {
+    if (hasPendingGoogleRedirect()) {
+      updateAuthStore({
+        user: null,
+        profile: null,
+        loading: true,
+        authError: ''
+      });
+      return;
+    }
+
     updateAuthStore({
       user: null,
       profile: null,
@@ -348,15 +374,42 @@ const isMobileOrStandalone = () => {
 const consumeGoogleRedirectResult = async () => {
   if (redirectResultHandled) return;
   redirectResultHandled = true;
+  const wasPendingRedirect = hasPendingGoogleRedirect();
 
   try {
+    if (wasPendingRedirect) {
+      updateAuthStore({ loading: true, authError: '' });
+    }
+
     await setPersistence(firebaseAuth, browserLocalPersistence);
     const credential = await getRedirectResult(firebaseAuth);
-    if (credential?.user) {
-      await syncCurrentUser(credential.user);
+    const redirectedUser = credential?.user || firebaseAuth.currentUser;
+
+    if (redirectedUser) {
+      clearPendingGoogleRedirect();
+      await syncCurrentUser(redirectedUser);
+      return;
+    }
+
+    if (wasPendingRedirect) {
+      window.setTimeout(() => {
+        const restoredUser = firebaseAuth.currentUser;
+        clearPendingGoogleRedirect();
+
+        if (restoredUser) {
+          void syncCurrentUser(restoredUser);
+          return;
+        }
+
+        updateAuthStore({
+          loading: false,
+          authError: 'Connexion Google terminee, mais le compte n a pas ete restaure sur cet appareil. Reessaie une fois.'
+        });
+      }, 3200);
     }
   } catch (error) {
     console.error('Retour Google AfriSell impossible:', error);
+    clearPendingGoogleRedirect();
     updateAuthStore({
       loading: false,
       authError: error instanceof Error ? error.message : 'Connexion Google impossible.'
@@ -384,7 +437,13 @@ export const useFirebaseAuth = () => {
       await setPersistence(firebaseAuth, browserLocalPersistence);
 
       if (isMobileOrStandalone()) {
-        await signInWithRedirect(firebaseAuth, googleProvider);
+        setPendingGoogleRedirect();
+        try {
+          await signInWithRedirect(firebaseAuth, googleProvider);
+        } catch (error) {
+          clearPendingGoogleRedirect();
+          throw error;
+        }
         return;
       }
 
