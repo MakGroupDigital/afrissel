@@ -4,6 +4,7 @@ import { Product } from '../store/useAppStore';
 import { CloudinaryUploadResult, uploadMediaToCloudinary } from '../lib/cloudinary';
 import { realtimeDb } from '../lib/firebase';
 import { useFirebaseAuth } from './useFirebaseAuth';
+import { isOfflineNow, offlineCacheKey, readOfflineCache, writeOfflineCache } from '../lib/offlineCache';
 
 export type AfriMarketMedia = CloudinaryUploadResult & {
   id: string;
@@ -250,19 +251,37 @@ const shouldSyncWithMarket = (content: AfriMarketContent) => (
   content.media.every((item) => item.resourceType === 'image')
 );
 
+const ABC_CACHE_KEY = offlineCacheKey('abcPosts');
+const MARKET_CACHE_KEY = offlineCacheKey('marketProducts');
+const scopedCacheKey = (scope: string, uid?: string) => offlineCacheKey(scope, uid || 'guest');
+
 export const useAfriMarket = () => {
   const { user, profile } = useFirebaseAuth();
-  const [abcContents, setAbcContents] = useState<AfriMarketContent[]>([]);
-  const [marketProducts, setMarketProducts] = useState<AfriMarketContent[]>([]);
+  const [abcContents, setAbcContents] = useState<AfriMarketContent[]>(() => readOfflineCache(ABC_CACHE_KEY, []));
+  const [marketProducts, setMarketProducts] = useState<AfriMarketContent[]>(() => readOfflineCache(MARKET_CACHE_KEY, []));
   const [followedAuthors, setFollowedAuthors] = useState<Record<string, boolean>>({});
   const [likedContents, setLikedContents] = useState<Record<string, boolean>>({});
   const [commentsByContent, setCommentsByContent] = useState<Record<string, AfriMarketComment[]>>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !readOfflineCache<AfriMarketContent[]>(ABC_CACHE_KEY, []).length);
   const [error, setError] = useState('');
 
   useEffect(() => {
     setLoading(true);
     setError('');
+    const cachedAbc = readOfflineCache<AfriMarketContent[]>(ABC_CACHE_KEY, []);
+    const cachedMarket = readOfflineCache<AfriMarketContent[]>(MARKET_CACHE_KEY, []);
+    const cachedFollows = readOfflineCache<Record<string, boolean>>(scopedCacheKey('follows', user?.uid), {});
+    const cachedLikes = readOfflineCache<Record<string, boolean>>(scopedCacheKey('contentLikesByUser', user?.uid), {});
+
+    if (cachedAbc.length) setAbcContents(cachedAbc);
+    if (cachedMarket.length) setMarketProducts(cachedMarket);
+    if (Object.keys(cachedFollows).length) setFollowedAuthors(cachedFollows);
+    if (Object.keys(cachedLikes).length) setLikedContents(cachedLikes);
+
+    if (isOfflineNow()) {
+      setLoading(false);
+      setError(cachedAbc.length || cachedMarket.length ? 'Mode hors ligne: dernieres donnees disponibles.' : 'Mode hors ligne: aucune donnee locale disponible.');
+    }
 
     const abcRef = ref(realtimeDb, 'abcPosts');
     const marketRef = ref(realtimeDb, 'marketProducts');
@@ -272,17 +291,27 @@ export const useAfriMarket = () => {
     const unsubscribeAbc = onValue(
       abcRef,
       (snapshot) => {
+        const fallback = readOfflineCache<AfriMarketContent[]>(ABC_CACHE_KEY, []);
+        if (!snapshot.exists() && isOfflineNow() && fallback.length) {
+          setAbcContents(fallback);
+          setLoading(false);
+          return;
+        }
+
         const data = snapshot.val() as Record<string, RawContent> | null;
         const nextContents = Object.entries(data || {})
           .map(([id, content]) => normalizeContent(id, content))
           .filter((content) => content.status !== 'deleted' && content.status !== 'hidden')
           .sort((first, second) => getTimestamp(second.createdAt) - getTimestamp(first.createdAt));
         setAbcContents(nextContents);
+        writeOfflineCache(ABC_CACHE_KEY, nextContents);
         setLoading(false);
       },
       (abcError) => {
         console.error('Chargement ABC impossible:', abcError);
-        setError('ABC est indisponible pour le moment.');
+        const fallback = readOfflineCache<AfriMarketContent[]>(ABC_CACHE_KEY, []);
+        if (fallback.length) setAbcContents(fallback);
+        setError(fallback.length ? 'Mode hors ligne: dernieres publications ABC affichees.' : 'ABC est indisponible pour le moment.');
         setLoading(false);
       }
     );
@@ -290,6 +319,12 @@ export const useAfriMarket = () => {
     const unsubscribeMarket = onValue(
       marketRef,
       (snapshot) => {
+        const fallback = readOfflineCache<AfriMarketContent[]>(MARKET_CACHE_KEY, []);
+        if (!snapshot.exists() && isOfflineNow() && fallback.length) {
+          setMarketProducts(fallback);
+          return;
+        }
+
         const data = snapshot.val() as Record<string, RawContent> | null;
         const nextProducts = Object.entries(data || {})
           .map(([id, content]) => normalizeContent(id, content))
@@ -300,28 +335,45 @@ export const useAfriMarket = () => {
           ))
           .sort((first, second) => getTimestamp(second.createdAt) - getTimestamp(first.createdAt));
         setMarketProducts(nextProducts);
+        writeOfflineCache(MARKET_CACHE_KEY, nextProducts);
       },
       (marketError) => {
         console.error('Chargement Market impossible:', marketError);
-        setError('Le marche est indisponible pour le moment.');
+        const fallback = readOfflineCache<AfriMarketContent[]>(MARKET_CACHE_KEY, []);
+        if (fallback.length) setMarketProducts(fallback);
+        setError(fallback.length ? 'Mode hors ligne: derniers articles Market affiches.' : 'Le marche est indisponible pour le moment.');
       }
     );
 
     const unsubscribeFollows = followsRef
       ? onValue(followsRef, (snapshot) => {
+          const fallback = readOfflineCache<Record<string, boolean>>(scopedCacheKey('follows', user?.uid), {});
+          if (!snapshot.exists() && isOfflineNow() && Object.keys(fallback).length) {
+            setFollowedAuthors(fallback);
+            return;
+          }
+
           const data = snapshot.val() as Record<string, unknown> | null;
           setFollowedAuthors(
             Object.fromEntries(Object.keys(data || {}).map((authorId) => [authorId, true]))
           );
+          writeOfflineCache(scopedCacheKey('follows', user?.uid), Object.fromEntries(Object.keys(data || {}).map((authorId) => [authorId, true])));
         })
       : undefined;
 
     const unsubscribeLikes = likesRef
       ? onValue(likesRef, (snapshot) => {
+          const fallback = readOfflineCache<Record<string, boolean>>(scopedCacheKey('contentLikesByUser', user?.uid), {});
+          if (!snapshot.exists() && isOfflineNow() && Object.keys(fallback).length) {
+            setLikedContents(fallback);
+            return;
+          }
+
           const data = snapshot.val() as Record<string, unknown> | null;
           setLikedContents(
             Object.fromEntries(Object.keys(data || {}).map((contentId) => [contentId, true]))
           );
+          writeOfflineCache(scopedCacheKey('contentLikesByUser', user?.uid), Object.fromEntries(Object.keys(data || {}).map((contentId) => [contentId, true])));
         })
       : undefined;
 
@@ -482,10 +534,28 @@ export const useAfriMarket = () => {
   const watchComments = (contentId: string) => {
     if (!contentId) return () => undefined;
 
+    const commentsCacheKey = offlineCacheKey('abcPostComments', contentId);
+    const cachedComments = readOfflineCache<AfriMarketComment[]>(commentsCacheKey, []);
+    if (cachedComments.length) {
+      setCommentsByContent((current) => ({
+        ...current,
+        [contentId]: cachedComments
+      }));
+    }
+
     const commentsRef = ref(realtimeDb, `abcPostComments/${contentId}`);
     const unsubscribe = onValue(
       commentsRef,
       (snapshot) => {
+        const fallback = readOfflineCache<AfriMarketComment[]>(commentsCacheKey, []);
+        if (!snapshot.exists() && isOfflineNow() && fallback.length) {
+          setCommentsByContent((current) => ({
+            ...current,
+            [contentId]: fallback
+          }));
+          return;
+        }
+
         const data = snapshot.val() as Record<string, RawComment> | null;
         const nextComments = Object.entries(data || {})
           .map(([id, comment]) => normalizeComment(id, comment))
@@ -494,10 +564,18 @@ export const useAfriMarket = () => {
           ...current,
           [contentId]: nextComments
         }));
+        writeOfflineCache(commentsCacheKey, nextComments);
       },
       (commentsError) => {
         console.error('Chargement commentaires ABC impossible:', commentsError);
-        setError('Commentaires indisponibles pour le moment.');
+        const fallback = readOfflineCache<AfriMarketComment[]>(commentsCacheKey, []);
+        if (fallback.length) {
+          setCommentsByContent((current) => ({
+            ...current,
+            [contentId]: fallback
+          }));
+        }
+        setError(fallback.length ? 'Mode hors ligne: derniers commentaires affiches.' : 'Commentaires indisponibles pour le moment.');
       }
     );
 

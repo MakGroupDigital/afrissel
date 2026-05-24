@@ -3,6 +3,7 @@ import { limitToLast, off, onValue, orderByChild, query, ref } from 'firebase/da
 import { realtimeDb } from '../lib/firebase';
 import { useFirebaseAuth } from './useFirebaseAuth';
 import { AfriSellIconName } from '../components/AfriSellIcon';
+import { isOfflineNow, offlineCacheKey, readOfflineCache, writeOfflineCache } from '../lib/offlineCache';
 
 export type AfriSpayWallet = {
   balance?: number;
@@ -106,6 +107,18 @@ export const useAfriSpayWallet = () => {
 
     setLoading(true);
     setError('');
+    const walletCacheKey = offlineCacheKey('wallet', user.uid);
+    const transactionsCacheKey = offlineCacheKey('walletTransactions', user.uid);
+    const cachedWallet = readOfflineCache<AfriSpayWallet | null>(walletCacheKey, null);
+    const cachedTransactions = readOfflineCache<AfriSpayTransaction[]>(transactionsCacheKey, []);
+
+    if (cachedWallet) setWallet(cachedWallet);
+    if (cachedTransactions.length) setTransactions(cachedTransactions);
+
+    if (isOfflineNow()) {
+      setLoading(false);
+      setError(cachedWallet || cachedTransactions.length ? 'Mode hors ligne: donnees AfriSpay locales affichees.' : 'Mode hors ligne: aucune donnee AfriSpay locale disponible.');
+    }
 
     const walletRef = ref(realtimeDb, `wallets/${user.uid}`);
     const transactionsRef = query(
@@ -117,12 +130,23 @@ export const useAfriSpayWallet = () => {
     const unsubscribeWallet = onValue(
       walletRef,
       (snapshot) => {
-        setWallet(snapshot.exists() ? snapshot.val() as AfriSpayWallet : null);
+        const fallback = readOfflineCache<AfriSpayWallet | null>(walletCacheKey, null);
+        if (!snapshot.exists() && isOfflineNow() && fallback) {
+          setWallet(fallback);
+          setLoading(false);
+          return;
+        }
+
+        const nextWallet = snapshot.exists() ? snapshot.val() as AfriSpayWallet : null;
+        setWallet(nextWallet);
+        writeOfflineCache(walletCacheKey, nextWallet);
         setLoading(false);
       },
       (walletError) => {
         console.error('Chargement wallet AfriSpay impossible:', walletError);
-        setError('Wallet indisponible pour le moment.');
+        const fallback = readOfflineCache<AfriSpayWallet | null>(walletCacheKey, null);
+        if (fallback) setWallet(fallback);
+        setError(fallback ? 'Mode hors ligne: wallet local affiche.' : 'Wallet indisponible pour le moment.');
         setLoading(false);
       }
     );
@@ -130,15 +154,24 @@ export const useAfriSpayWallet = () => {
     const unsubscribeTransactions = onValue(
       transactionsRef,
       (snapshot) => {
+        const fallback = readOfflineCache<AfriSpayTransaction[]>(transactionsCacheKey, []);
+        if (!snapshot.exists() && isOfflineNow() && fallback.length) {
+          setTransactions(fallback);
+          return;
+        }
+
         const data = snapshot.val() as Record<string, RawTransaction> | null;
         const nextTransactions = Object.entries(data || {})
           .map(([id, transaction]) => normalizeTransaction(id, transaction))
           .sort((first, second) => second.id.localeCompare(first.id));
         setTransactions(nextTransactions);
+        writeOfflineCache(transactionsCacheKey, nextTransactions);
       },
       (transactionsError) => {
         console.error('Chargement transactions AfriSpay impossible:', transactionsError);
-        setError('Transactions indisponibles pour le moment.');
+        const fallback = readOfflineCache<AfriSpayTransaction[]>(transactionsCacheKey, []);
+        if (fallback.length) setTransactions(fallback);
+        setError(fallback.length ? 'Mode hors ligne: transactions locales affichees.' : 'Transactions indisponibles pour le moment.');
       }
     );
 

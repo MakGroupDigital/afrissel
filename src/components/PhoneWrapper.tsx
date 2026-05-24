@@ -4,6 +4,7 @@ import { cn } from '../lib/utils';
 import BottomNavigation from './BottomNavigation';
 import BottomSheet from './BottomSheet';
 import { InvertedAfricaLogo } from './InvertedAfricaLogo';
+import OfflineStatus from './OfflineStatus';
 import PwaInstallPrompt from './PwaInstallPrompt';
 
 interface PhoneWrapperProps {
@@ -44,6 +45,8 @@ export default function PhoneWrapper({ children }: PhoneWrapperProps) {
         {!isImmersive && <BottomSheet />}
 
         {!isImmersive && <PwaInstallPrompt />}
+
+        {!isImmersive && <OfflineStatus />}
 
         <div className="pointer-events-none absolute bottom-1 left-1/2 z-50 hidden h-1 w-24 -translate-x-1/2 rounded-full bg-white/20 md:block"></div>
       </div>

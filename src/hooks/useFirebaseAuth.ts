@@ -23,6 +23,7 @@ import {
 import { firebaseAuth, googleProvider, realtimeDb } from '../lib/firebase';
 import { CloudinaryUploadResult } from '../lib/cloudinary';
 import { AccountRole } from '../lib/accountTypes';
+import { isOfflineNow, offlineCacheKey, readOfflineCache, writeOfflineCache } from '../lib/offlineCache';
 
 export interface AfriSellUserProfile {
   uid: string;
@@ -121,6 +122,8 @@ const clearPendingGoogleRedirect = () => {
   window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
 };
 
+const profileCacheKey = (uid: string) => offlineCacheKey('profile', uid);
+
 const withDatabaseTimeout = <T,>(operation: Promise<T>, label: string): Promise<T> =>
   new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => {
@@ -201,6 +204,7 @@ const syncUserProfile = async (user: User): Promise<AfriSellUserProfile> => {
     lastLoginAt: serverTimestamp()
   })), 'Enregistrement du profil');
 
+  writeOfflineCache(profileCacheKey(user.uid), profile);
   return profile;
 };
 
@@ -259,7 +263,9 @@ const saveAccountSetupPatch = async (
     ...existing,
     ...nextProfile
   };
-  return buildProfile(user, updated);
+  const profile = buildProfile(user, updated);
+  writeOfflineCache(profileCacheKey(user.uid), profile);
+  return profile;
 };
 
 export const updateAfriSellUserPhoto = async (user: User, photoURL: string) => {
@@ -268,6 +274,13 @@ export const updateAfriSellUserPhoto = async (user: User, photoURL: string) => {
     photoURL,
     updatedAt: serverTimestamp()
   }), 'Mise a jour de la photo');
+  const cachedProfile = readOfflineCache<AfriSellUserProfile | null>(profileCacheKey(user.uid), null);
+  if (cachedProfile) {
+    writeOfflineCache(profileCacheKey(user.uid), {
+      ...cachedProfile,
+      photoURL
+    });
+  }
 };
 
 export const saveAfriSellMediaRecord = async (user: User, upload: CloudinaryUploadResult, file: File) => {
@@ -344,11 +357,12 @@ const syncCurrentUser = async (currentUser: User | null) => {
   } catch (error) {
     console.error('Erreur profil Realtime Database:', error);
     if (syncVersion !== authSyncVersion) return;
+    const cachedProfile = readOfflineCache<AfriSellUserProfile | null>(profileCacheKey(currentUser.uid), null);
     updateAuthStore({
       user: currentUser,
-      profile: buildProfile(currentUser, authStore.profile || undefined),
+      profile: buildProfile(currentUser, cachedProfile || authStore.profile || undefined),
       loading: false,
-      authError: getAfriSellDataErrorMessage(error)
+      authError: cachedProfile && isOfflineNow() ? '' : getAfriSellDataErrorMessage(error)
     });
   }
 };

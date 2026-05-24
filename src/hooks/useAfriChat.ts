@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { off, onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
 import { realtimeDb } from '../lib/firebase';
 import { useFirebaseAuth } from './useFirebaseAuth';
+import { isOfflineNow, offlineCacheKey, readOfflineCache, writeOfflineCache } from '../lib/offlineCache';
 
 export type AfriChatThread = {
   id: string;
@@ -110,6 +111,18 @@ export const useAfriChat = () => {
 
     setLoading(true);
     setError('');
+    const threadsCacheKey = offlineCacheKey('chatThreads', user.uid);
+    const contactsCacheKey = offlineCacheKey('chatContacts', user.uid);
+    const cachedThreads = readOfflineCache<AfriChatThread[]>(threadsCacheKey, []);
+    const cachedContacts = readOfflineCache<AfriChatContact[]>(contactsCacheKey, []);
+
+    if (cachedThreads.length) setThreads(cachedThreads);
+    if (cachedContacts.length) setContacts(cachedContacts);
+
+    if (isOfflineNow()) {
+      setLoading(false);
+      setError(cachedThreads.length || cachedContacts.length ? 'Mode hors ligne: discussions locales affichees.' : 'Mode hors ligne: aucune discussion locale disponible.');
+    }
 
     const userThreadsRef = ref(realtimeDb, `userChats/${user.uid}`);
     const userContactsRef = ref(realtimeDb, `chatContacts/${user.uid}`);
@@ -117,16 +130,26 @@ export const useAfriChat = () => {
     const unsubscribeThreads = onValue(
       userThreadsRef,
       (snapshot) => {
+        const fallback = readOfflineCache<AfriChatThread[]>(threadsCacheKey, []);
+        if (!snapshot.exists() && isOfflineNow() && fallback.length) {
+          setThreads(fallback);
+          setLoading(false);
+          return;
+        }
+
         const data = snapshot.val() as Record<string, RawThread> | null;
         const nextThreads = Object.entries(data || {})
           .map(([id, thread]) => normalizeThread(id, thread))
           .sort((first, second) => getTimestamp(second.lastMessageAt) - getTimestamp(first.lastMessageAt));
         setThreads(nextThreads);
+        writeOfflineCache(threadsCacheKey, nextThreads);
         setLoading(false);
       },
       (threadError) => {
         console.error('Chargement discussions AfriChat impossible:', threadError);
-        setError('Discussions indisponibles pour le moment.');
+        const fallback = readOfflineCache<AfriChatThread[]>(threadsCacheKey, []);
+        if (fallback.length) setThreads(fallback);
+        setError(fallback.length ? 'Mode hors ligne: discussions locales affichees.' : 'Discussions indisponibles pour le moment.');
         setLoading(false);
       }
     );
@@ -134,15 +157,24 @@ export const useAfriChat = () => {
     const unsubscribeContacts = onValue(
       userContactsRef,
       (snapshot) => {
+        const fallback = readOfflineCache<AfriChatContact[]>(contactsCacheKey, []);
+        if (!snapshot.exists() && isOfflineNow() && fallback.length) {
+          setContacts(fallback);
+          return;
+        }
+
         const data = snapshot.val() as Record<string, RawContact> | null;
         const nextContacts = Object.entries(data || {})
           .map(([id, contact]) => normalizeContact(id, contact))
           .sort((first, second) => first.displayName.localeCompare(second.displayName));
         setContacts(nextContacts);
+        writeOfflineCache(contactsCacheKey, nextContacts);
       },
       (contactError) => {
         console.error('Chargement contacts AfriChat impossible:', contactError);
-        setError('Contacts indisponibles pour le moment.');
+        const fallback = readOfflineCache<AfriChatContact[]>(contactsCacheKey, []);
+        if (fallback.length) setContacts(fallback);
+        setError(fallback.length ? 'Mode hors ligne: contacts locaux affiches.' : 'Contacts indisponibles pour le moment.');
       }
     );
 
@@ -156,10 +188,28 @@ export const useAfriChat = () => {
 
   const watchThreadMessages = (threadId: string) => {
     if (!threadId) return () => undefined;
+    const messagesCacheKey = offlineCacheKey('chatMessages', threadId);
+    const cachedMessages = readOfflineCache<AfriChatMessage[]>(messagesCacheKey, []);
+    if (cachedMessages.length) {
+      setMessagesByThread((current) => ({
+        ...current,
+        [threadId]: cachedMessages
+      }));
+    }
+
     const messagesRef = ref(realtimeDb, `chatMessages/${threadId}`);
     const unsubscribe = onValue(
       messagesRef,
       (snapshot) => {
+        const fallback = readOfflineCache<AfriChatMessage[]>(messagesCacheKey, []);
+        if (!snapshot.exists() && isOfflineNow() && fallback.length) {
+          setMessagesByThread((current) => ({
+            ...current,
+            [threadId]: fallback
+          }));
+          return;
+        }
+
         const data = snapshot.val() as Record<string, RawMessage> | null;
         const nextMessages = Object.entries(data || {})
           .map(([id, message]) => normalizeMessage(id, message))
@@ -168,10 +218,18 @@ export const useAfriChat = () => {
           ...current,
           [threadId]: nextMessages
         }));
+        writeOfflineCache(messagesCacheKey, nextMessages);
       },
       (messagesError) => {
         console.error('Chargement messages AfriChat impossible:', messagesError);
-        setError('Messages indisponibles pour le moment.');
+        const fallback = readOfflineCache<AfriChatMessage[]>(messagesCacheKey, []);
+        if (fallback.length) {
+          setMessagesByThread((current) => ({
+            ...current,
+            [threadId]: fallback
+          }));
+        }
+        setError(fallback.length ? 'Mode hors ligne: derniers messages affiches.' : 'Messages indisponibles pour le moment.');
       }
     );
 
