@@ -13,6 +13,7 @@ import AccountSetupScreen from './screens/AccountSetupScreen';
 import EcosystemHome from './screens/EcosystemHome';
 import VideoFeed from './screens/VideoFeed';
 import MarketHome from './screens/MarketHome';
+import ProductDetailScreen from './screens/ProductDetailScreen';
 import WalletDashboard from './screens/WalletDashboard';
 import ChatRoom from './screens/ChatRoom';
 import ScannerScreen from './screens/ScannerScreen';
@@ -71,6 +72,7 @@ function AppRoutes() {
         <Route path="/ecosystem" element={<RequireAuth><EcosystemHome /></RequireAuth>} />
         <Route path="/feed" element={<RequireAuth><VideoFeed /></RequireAuth>} />
         <Route path="/market" element={<RequireAuth><MarketHome /></RequireAuth>} />
+        <Route path="/market/:productId" element={<RequireAuth><ProductDetailScreen /></RequireAuth>} />
         <Route path="/wallet" element={<RequireAuth><WalletDashboard /></RequireAuth>} />
         <Route path="/chat" element={<RequireAuth><ChatRoom /></RequireAuth>} />
         <Route path="/scan" element={<RequireAuth><ScannerScreen /></RequireAuth>} />

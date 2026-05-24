@@ -1,5 +1,6 @@
 import React from 'react';
-import { Product, useAppStore } from '../store/useAppStore';
+import { useNavigate } from 'react-router-dom';
+import { Product } from '../store/useAppStore';
 
 interface ProductCardProps {
   product: Product;
@@ -12,13 +13,13 @@ const formatPrice = (value: number, currency = 'USD') => {
 };
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const openCheckout = useAppStore(state => state.openCheckout);
+  const navigate = useNavigate();
   const progressPercent = Math.min((product.buyersCount / Math.max(product.buyersNeeded, 1)) * 100, 100);
 
   return (
     <div 
       className="bg-[#0A0A0A] rounded-xl overflow-hidden flex flex-col border border-gray-800 p-3 transition-transform active:scale-95 cursor-pointer"
-      onClick={() => openCheckout(product)}
+      onClick={() => navigate(`/market/${product.id}`)}
     >
       <div className="relative h-28 rounded-lg overflow-hidden mb-2">
         <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />

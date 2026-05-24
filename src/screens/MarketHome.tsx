@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { AfriSellIcon } from '../components/AfriSellIcon';
-import { MARKET_CATEGORIES, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
+import { MARKET_CATEGORIES, formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 
 export default function MarketHome() {
   const { marketProducts, loading, error } = useAfriMarket();
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('Tout');
 
@@ -23,6 +24,17 @@ export default function MarketHome() {
       return matchesCategory && matchesQuery;
     })
   ), [activeCategory, marketProducts, normalizedQuery]);
+  const popularProducts = useMemo(() => (
+    [...marketProducts]
+      .sort((first, second) => {
+        const firstScore = (first.likesCount || 0) * 2 + (first.buyersCount || 0) * 3 + (first.sharesCount || 0);
+        const secondScore = (second.likesCount || 0) * 2 + (second.buyersCount || 0) * 3 + (second.sharesCount || 0);
+        return secondScore - firstScore;
+      })
+      .slice(0, 4)
+  ), [marketProducts]);
+  const featuredProduct = popularProducts[0];
+  const secondaryPopularProducts = popularProducts.slice(1, 4);
 
   return (
     <div className="flex min-h-full flex-col bg-black">
@@ -64,6 +76,70 @@ export default function MarketHome() {
           </button>
         ))}
       </div>
+
+      {featuredProduct && (
+        <section className="px-4 pb-4">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate(`/market/${featuredProduct.id}`)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                navigate(`/market/${featuredProduct.id}`);
+              }
+            }}
+            className="relative overflow-hidden rounded-[1.65rem] border border-[#15EA3E]/25 bg-[#071007] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.34),0_0_34px_rgba(21,234,62,0.08)] active:scale-[0.99]"
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(21,234,62,0.24),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.06),transparent_48%)]" />
+            <div className="relative z-10 flex gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="inline-flex items-center gap-2 rounded-full bg-[#15EA3E] px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-black">
+                  <AfriSellIcon name="flash" size={12} />
+                  Produit populaire
+                </div>
+                <h2 className="mt-3 line-clamp-2 text-lg font-black leading-tight text-white">{featuredProduct.title}</h2>
+                <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-relaxed text-white/50">{featuredProduct.description}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-[#15EA3E]/30 bg-[#15EA3E]/10 px-3 py-1 text-[10px] font-black text-[#15EA3E]">
+                    {formatMarketPrice(featuredProduct.villagePrice || featuredProduct.price, featuredProduct.currency)}
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/44">
+                    {(featuredProduct.likesCount || 0) + (featuredProduct.buyersCount || 0)} interactions
+                  </span>
+                </div>
+              </div>
+              <div className="h-28 w-28 shrink-0 overflow-hidden rounded-[1.35rem] border border-white/10 bg-black">
+                <img src={featuredProduct.coverURL} alt={featuredProduct.title} className="h-full w-full object-cover" />
+              </div>
+            </div>
+
+            {secondaryPopularProducts.length > 0 && (
+              <div className="relative z-10 mt-4 flex gap-2 overflow-x-auto scrollbar-hide">
+                {secondaryPopularProducts.map((product) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      navigate(`/market/${product.id}`);
+                    }}
+                    className="flex min-w-[130px] items-center gap-2 rounded-2xl border border-white/10 bg-black/28 p-2 text-left"
+                  >
+                    <img src={product.coverURL} alt={product.title} className="h-10 w-10 shrink-0 rounded-xl object-cover" />
+                    <div className="min-w-0">
+                      <p className="truncate text-[10px] font-black text-white">{product.title}</p>
+                      <p className="mt-0.5 text-[9px] font-bold text-[#15EA3E]">
+                        {formatMarketPrice(product.villagePrice || product.price, product.currency)}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <div className="mb-2 mt-2 flex items-center justify-between px-4">
         <div>
