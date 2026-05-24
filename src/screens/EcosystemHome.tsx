@@ -4,6 +4,7 @@ import { cn } from '../lib/utils';
 import { AfriSellIcon } from '../components/AfriSellIcon';
 import { getModuleIconName } from '../lib/moduleIcons';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
+import { getAccountRoleDefinition, getAccountSubtypeDefinition } from '../lib/accountTypes';
 
 const statusStyles = {
   Live: 'bg-[#15EA3E] text-black',
@@ -16,6 +17,8 @@ export default function EcosystemHome() {
   const featuredModules = ecosystemModules.slice(0, 4);
   const secondaryModules = ecosystemModules.slice(4);
   const firstName = (profile?.displayName || user?.displayName || 'Utilisateur').split(' ')[0];
+  const roleDefinition = getAccountRoleDefinition(profile?.primaryRole) || getAccountRoleDefinition('buyer');
+  const subtypeDefinition = getAccountSubtypeDefinition(profile?.primaryRole, profile?.primarySubtype);
 
   return (
     <div className="min-h-full bg-[#050705] px-4 pb-7 pt-4 text-white">
@@ -31,6 +34,55 @@ export default function EcosystemHome() {
           <AfriSellIcon name="profile" size={19} />
         </Link>
       </header>
+
+      {roleDefinition && (
+        <section className="mt-5 rounded-[1.7rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-4 shadow-[0_16px_36px_rgba(0,0,0,0.28)]">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
+              <AfriSellIcon name={roleDefinition.icon} size={21} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-sm font-black">{roleDefinition.dashboard.title}</h2>
+                <span className="rounded-full bg-[#15EA3E] px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-black">
+                  {subtypeDefinition?.label || roleDefinition.shortLabel}
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/45">
+                {roleDefinition.dashboard.subtitle}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {roleDefinition.dashboard.metrics.map((metric) => (
+              <div key={metric.label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-2.5">
+                <p className="text-base font-black text-white">{metric.value}</p>
+                <p className="mt-0.5 truncate text-[9px] font-bold uppercase tracking-[0.1em] text-white/38">{metric.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 flex flex-col gap-2">
+            {roleDefinition.dashboard.actions.map((action) => (
+              <Link
+                key={action.label}
+                to={action.route}
+                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 active:scale-[0.99]"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
+                  <AfriSellIcon name={action.icon} size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xs font-black">{action.label}</h3>
+                  <p className="mt-0.5 line-clamp-1 text-[10px] font-semibold text-white/42">{action.description}</p>
+                </div>
+                <AfriSellIcon name="arrow" size={14} className="text-white/24" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="relative -mx-1 mt-5 overflow-hidden rounded-[1.7rem] rounded-br-[3rem] border border-[#15EA3E]/20 bg-[#0A0F0A] px-5 pb-7 pt-5 shadow-[0_18px_42px_rgba(0,0,0,0.34),0_0_34px_rgba(21,234,62,0.12)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,rgba(21,234,62,0.2),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.06),transparent_45%)]" />

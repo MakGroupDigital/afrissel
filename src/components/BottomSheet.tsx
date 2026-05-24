@@ -3,6 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from '../store/useAppStore';
 import { AfriSellIcon } from './AfriSellIcon';
 
+const formatPrice = (value: number, currency = 'USD') => {
+  if (currency === 'USD') return `$${value.toLocaleString('fr-FR')}`;
+  if (currency === 'CDF') return `${value.toLocaleString('fr-FR')} CDF`;
+  return `${value.toLocaleString('fr-FR')} ${currency}`;
+};
+
 export default function BottomSheet() {
   const { isCheckoutOpen, selectedProduct, closeCheckout, processPayment, balance } = useAppStore();
   const [paymentStatus, setPaymentStatus] = React.useState<'idle' | 'success'>('idle');
@@ -35,7 +41,7 @@ export default function BottomSheet() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="absolute inset-0 bg-[#000000]/80 backdrop-blur-md z-50 rounded-[3.5rem]"
+            className="absolute inset-0 z-50 bg-[#000000]/80 backdrop-blur-md md:rounded-[3.5rem]"
           />
           <motion.div
             initial={{ y: '100%' }}
@@ -73,8 +79,8 @@ export default function BottomSheet() {
                      <span className="text-gray-500 text-[10px] font-bold uppercase tracking-wider">{selectedProduct.seller}</span>
                      <span className="text-[#e0e0e0] font-medium text-sm leading-tight mt-1">{selectedProduct.name}</span>
                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-[#15EA3E] font-mono font-bold">${selectedProduct.villagePrice}</span>
-                        <span className="text-gray-600 text-xs font-mono line-through">${selectedProduct.price}</span>
+                        <span className="text-[#15EA3E] font-mono font-bold">{formatPrice(selectedProduct.villagePrice, selectedProduct.currency)}</span>
+                        <span className="text-gray-600 text-xs font-mono line-through">{formatPrice(selectedProduct.price, selectedProduct.currency)}</span>
                      </div>
                   </div>
                 </div>
@@ -93,7 +99,7 @@ export default function BottomSheet() {
                   onClick={handlePayment}
                   className="w-full mt-4 bg-[#15EA3E] text-black font-bold text-xs uppercase tracking-widest py-4 rounded-xl shadow-[0_0_15px_rgba(21,234,62,0.2)] hover:bg-[#1ee844] active:scale-95 transition-all"
                 >
-                   Confirmer • ${selectedProduct.villagePrice}
+                   Confirmer • {formatPrice(selectedProduct.villagePrice, selectedProduct.currency)}
                 </button>
               </div>
             )}

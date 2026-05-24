@@ -1,14 +1,19 @@
 import React from 'react';
-import { mockProducts } from '../data/mockData';
-import { useAppStore } from '../store/useAppStore';
+import { Product, useAppStore } from '../store/useAppStore';
 
 interface ProductCardProps {
-  product: typeof mockProducts[0];
+  product: Product;
 }
+
+const formatPrice = (value: number, currency = 'USD') => {
+  if (currency === 'USD') return `$${value.toLocaleString('fr-FR')}`;
+  if (currency === 'CDF') return `${value.toLocaleString('fr-FR')} CDF`;
+  return `${value.toLocaleString('fr-FR')} ${currency}`;
+};
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const openCheckout = useAppStore(state => state.openCheckout);
-  const progressPercent = Math.min((product.buyersCount / product.buyersNeeded) * 100, 100);
+  const progressPercent = Math.min((product.buyersCount / Math.max(product.buyersNeeded, 1)) * 100, 100);
 
   return (
     <div 
@@ -20,7 +25,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       </div>
       <div className="flex flex-col justify-between flex-1">
          <p className="text-[10px] font-medium text-gray-300 line-clamp-2 leading-snug">{product.name}</p>
-         <p className="text-xs text-[#FFFFFF] font-bold mt-1 font-mono">${product.villagePrice}</p>
+         <p className="text-xs text-[#FFFFFF] font-bold mt-1 font-mono">{formatPrice(product.villagePrice, product.currency)}</p>
          <div className="mt-2 w-full bg-gray-900 h-1 rounded-full overflow-hidden">
             <div 
               className="bg-[#15EA3E] h-full" 

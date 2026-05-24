@@ -4,10 +4,11 @@ import { Loader2 } from 'lucide-react';
 import { InvertedAfricaLogo } from '../components/InvertedAfricaLogo';
 import { AfriSellIcon } from '../components/AfriSellIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
+import { isAccountSetupComplete } from '../lib/accountTypes';
 
 export default function LoginScreen() {
   const navigate = useNavigate();
-  const { user, loading, authError, setAuthError, signInWithGoogle, signInWithEmail, registerWithEmail } = useFirebaseAuth();
+  const { user, profile, loading, authError, setAuthError, signInWithGoogle, signInWithEmail, registerWithEmail } = useFirebaseAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -16,16 +17,15 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/ecosystem', { replace: true });
+      navigate(isAccountSetupComplete(profile) ? '/ecosystem' : '/account-setup', { replace: true });
     }
-  }, [loading, navigate, user]);
+  }, [loading, navigate, profile, user]);
 
   const runAuth = async (action: () => Promise<void>) => {
     setBusy(true);
     setAuthError('');
     try {
       await action();
-      navigate('/ecosystem', { replace: true });
     } catch (error) {
       console.error('Connexion AfriSell impossible:', error);
       setAuthError(error instanceof Error ? error.message : 'Connexion impossible.');

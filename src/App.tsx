@@ -9,6 +9,7 @@ import PhoneWrapper from './components/PhoneWrapper';
 import SplashScreen from './screens/SplashScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import LoginScreen from './screens/LoginScreen';
+import AccountSetupScreen from './screens/AccountSetupScreen';
 import EcosystemHome from './screens/EcosystemHome';
 import VideoFeed from './screens/VideoFeed';
 import MarketHome from './screens/MarketHome';
@@ -17,9 +18,16 @@ import ChatRoom from './screens/ChatRoom';
 import ScannerScreen from './screens/ScannerScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import { useFirebaseAuth } from './hooks/useFirebaseAuth';
+import { isAccountSetupComplete } from './lib/accountTypes';
 
-function RequireAuth({ children }: { children: ReactNode }) {
-  const { user, loading } = useFirebaseAuth();
+function RequireAuth({
+  children,
+  requireCompletedProfile = true
+}: {
+  children: ReactNode;
+  requireCompletedProfile?: boolean;
+}) {
+  const { user, profile, loading } = useFirebaseAuth();
 
   if (loading) {
     return <SplashScreen autoNavigate={false} showAction={false} />;
@@ -27,6 +35,10 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (requireCompletedProfile && !isAccountSetupComplete(profile)) {
+    return <Navigate to="/account-setup" replace />;
   }
 
   return <>{children}</>;
@@ -55,6 +67,7 @@ function AppRoutes() {
         <Route path="/" element={<SplashScreen />} />
         <Route path="/onboarding" element={<OnboardingScreen />} />
         <Route path="/login" element={<LoginScreen />} />
+        <Route path="/account-setup" element={<RequireAuth requireCompletedProfile={false}><AccountSetupScreen /></RequireAuth>} />
         <Route path="/ecosystem" element={<RequireAuth><EcosystemHome /></RequireAuth>} />
         <Route path="/feed" element={<RequireAuth><VideoFeed /></RequireAuth>} />
         <Route path="/market" element={<RequireAuth><MarketHome /></RequireAuth>} />

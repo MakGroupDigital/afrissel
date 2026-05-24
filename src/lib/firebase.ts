@@ -1,11 +1,12 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyCdqNyHc2Fgr3brSc5oWR1ucEYzi_4rza4',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'afrisellapp.firebaseapp.com',
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://afrisellapp-default-rtdb.firebaseio.com',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'afrisellapp',
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'afrisellapp.firebasestorage.app',
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '582531352090',
@@ -15,7 +16,7 @@ const firebaseConfig = {
 
 export const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
 export const firebaseAuth = getAuth(firebaseApp);
-export const firestoreDb = getFirestore(firebaseApp);
+export const realtimeDb = getDatabase(firebaseApp);
 export const googleProvider = new GoogleAuthProvider();
 
 googleProvider.setCustomParameters({

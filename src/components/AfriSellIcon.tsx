@@ -4,6 +4,9 @@ import { cn } from '../lib/utils';
 export type AfriSellIconName =
   | 'hub'
   | 'market'
+  | 'cart'
+  | 'order'
+  | 'follow'
   | 'pay'
   | 'chat'
   | 'scan'
@@ -61,6 +64,34 @@ const paths: Record<AfriSellIconName, React.ReactNode> = {
       <path d="M8.2 9.5a3.8 3.8 0 0 1 7.6 0" />
       <circle cx="9" cy="15.2" r="1" />
       <circle cx="15" cy="15.2" r="1" />
+    </>
+  ),
+  cart: (
+    <>
+      <path d="M5 6h2.2l1.1 8.4a2 2 0 0 0 2 1.7h5.8a2 2 0 0 0 1.9-1.5L19.2 9H8" />
+      <path d="M10 11.5h7.7" />
+      <circle cx="10.3" cy="19" r="1.2" />
+      <circle cx="16.6" cy="19" r="1.2" />
+      <path d="M12.2 4.5h3.6" />
+      <path d="M14 2.7v3.6" />
+    </>
+  ),
+  order: (
+    <>
+      <rect x="5" y="3.5" width="14" height="17" rx="3" />
+      <path d="M9 7.5h6" />
+      <path d="M9 11h6" />
+      <path d="M9 14.5h3.5" />
+      <path d="m14 17 1.2 1.2L18 15.4" />
+    </>
+  ),
+  follow: (
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.8 19a5.4 5.4 0 0 1 10.4 0" />
+      <circle cx="17" cy="15" r="3.3" />
+      <path d="M17 13.5v3" />
+      <path d="M15.5 15h3" />
     </>
   ),
   pay: (
