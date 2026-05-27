@@ -1,4 +1,5 @@
 import React, { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import {
   AfriMarketComment,
@@ -735,6 +736,8 @@ function QuickPanelSheet({
 
 export default function VideoFeed() {
   const { user } = useFirebaseAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     abcContents,
     followedAuthors,
@@ -763,6 +766,16 @@ export default function VideoFeed() {
   const [activeContentId, setActiveContentId] = useState('');
   const followedCount = Object.keys(followedAuthors).length;
   const isPlaybackBlocked = Boolean(isPublishing || commentContent || quickPanel);
+
+  useEffect(() => {
+    const wantsPublish = new URLSearchParams(location.search).get('publish') === '1';
+    if (!wantsPublish) return;
+    if (!user) {
+      navigate('/login', { replace: true, state: { next: '/feed?publish=1' } });
+      return;
+    }
+    setIsPublishing(true);
+  }, [location.search, navigate, user]);
 
   useEffect(() => {
     window.localStorage.setItem(ABC_SOUND_PREF_KEY, isSoundEnabled ? '1' : '0');
@@ -848,7 +861,13 @@ export default function VideoFeed() {
           </div>
           <button
             type="button"
-            onClick={() => setIsPublishing(true)}
+            onClick={() => {
+              if (!user) {
+                navigate('/login', { state: { next: '/feed?publish=1' } });
+                return;
+              }
+              setIsPublishing(true);
+            }}
             className="pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black shadow-[0_12px_26px_rgba(21,234,62,0.26)]"
             aria-label="Publier sur ABC"
           >
@@ -901,7 +920,13 @@ export default function VideoFeed() {
           <p className="mt-2 text-sm leading-relaxed text-gray-500">Ajoute une video, plusieurs photos ou un article a vendre.</p>
           <button
             type="button"
-            onClick={() => setIsPublishing(true)}
+            onClick={() => {
+              if (!user) {
+                navigate('/login', { state: { next: '/feed?publish=1' } });
+                return;
+              }
+              setIsPublishing(true);
+            }}
             className="mt-5 rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-widest text-black"
           >
             Publier

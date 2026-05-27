@@ -9,7 +9,7 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
-if ('serviceWorker' in navigator) {
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     void navigator.serviceWorker.register('/service-worker.js')
       .then((registration) => {
@@ -26,6 +26,16 @@ if ('serviceWorker' in navigator) {
       })
       .catch((error) => {
         console.warn('Service worker AfriSell non disponible:', error);
+      });
+  });
+} else if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.getRegistrations()
+      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+      .then(() => caches.keys())
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith('afrisell-')).map((key) => caches.delete(key))))
+      .catch((error) => {
+        console.warn('Nettoyage service worker AfriSell impossible:', error);
       });
   });
 }

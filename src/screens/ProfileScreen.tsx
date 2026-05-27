@@ -17,7 +17,7 @@ import {
 } from '../lib/africaLocation';
 import { cn } from '../lib/utils';
 
-type ProfilePanel = 'profile' | 'account' | 'app' | 'notifications' | 'privacy' | null;
+type ProfilePanel = 'profile' | 'business' | 'account' | 'app' | 'notifications' | 'privacy' | null;
 
 type ProfileAction = {
   id: Exclude<ProfilePanel, null> | 'logout';
@@ -54,6 +54,235 @@ type UserSettings = {
   };
 };
 
+type BusinessOption = {
+  id: string;
+  label: string;
+  description: string;
+};
+
+type BusinessService = BusinessOption & {
+  segments: BusinessOption[];
+};
+
+type BusinessCategory = BusinessOption & {
+  icon: AfriSellIconName;
+  moduleName: string;
+  role: 'seller' | 'creator' | 'agent' | 'provider' | 'business';
+  services: BusinessService[];
+};
+
+type BusinessAccountProfile = {
+  categoryId?: string;
+  categoryLabel?: string;
+  moduleName?: string;
+  serviceId?: string;
+  serviceLabel?: string;
+  segmentId?: string;
+  segmentLabel?: string;
+  status?: string;
+  createdAt?: number;
+  kycDueAt?: number;
+  kycStatus?: 'none' | 'pending' | 'verified' | 'rejected';
+  updatedAt?: unknown;
+};
+
+const businessCategories: BusinessCategory[] = [
+  {
+    id: 'commerce',
+    label: 'E-commerce',
+    moduleName: 'ABC + Market',
+    description: 'Vendre, distribuer, produire ou gerer une boutique dans AfriSell.',
+    icon: 'market',
+    role: 'seller',
+    services: [
+      {
+        id: 'store',
+        label: 'Creer ou gerer une boutique',
+        description: 'Catalogue, stock, commandes, clients et vente sociale.',
+        segments: [
+          { id: 'retailer', label: 'Detaillant', description: 'Je vends directement aux clients.' },
+          { id: 'wholesaler', label: 'Grossiste', description: 'Je vends en volume a des revendeurs.' },
+          { id: 'individual_seller', label: 'Vendeur individuel', description: 'Je vends en mon nom propre.' },
+          { id: 'brand_store', label: 'Marque / boutique officielle', description: 'Je gere une marque ou une enseigne.' }
+        ]
+      },
+      {
+        id: 'supplier',
+        label: 'Je suis fournisseur',
+        description: 'Approvisionner boutiques, grossistes ou revendeurs.',
+        segments: [
+          { id: 'b2b_supplier', label: 'Fournisseur B2B', description: 'Je fournis des entreprises ou boutiques.' },
+          { id: 'b2c_supplier', label: 'Fournisseur B2C', description: 'Je vends aussi directement aux clients.' },
+          { id: 'importer', label: 'Importateur', description: 'J importe et distribue des produits.' },
+          { id: 'local_distributor', label: 'Distributeur local', description: 'Je couvre une ville ou une zone.' }
+        ]
+      },
+      {
+        id: 'producer',
+        label: 'Je suis producteur',
+        description: 'Mettre en avant une production locale ou industrielle.',
+        segments: [
+          { id: 'agri_producer', label: 'Producteur agricole', description: 'Agriculture, elevage, agroalimentaire.' },
+          { id: 'manufacturer', label: 'Manufacturing', description: 'Transformation, fabrication ou atelier.' },
+          { id: 'factory', label: 'Usine', description: 'Production structuree et volumes importants.' },
+          { id: 'cooperative', label: 'Cooperative', description: 'Production collective ou communautaire.' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'payment',
+    label: 'Service de paiement',
+    moduleName: 'AfriSpay',
+    description: 'Encaisser, integrer ou distribuer des solutions AfriSpay.',
+    icon: 'pay',
+    role: 'agent',
+    services: [
+      {
+        id: 'merchant_payment',
+        label: 'Je veux encaisser',
+        description: 'Recevoir les paiements clients en boutique ou en ligne.',
+        segments: [
+          { id: 'merchant', label: 'Marchand', description: 'J encaisse mes clients avec AfriSpay.' },
+          { id: 'enterprise_payment', label: 'Entreprise', description: 'Je veux proposer AfriSpay dans mes services.' },
+          { id: 'cashier', label: 'Point caisse', description: 'Je gere un point d encaissement.' }
+        ]
+      },
+      {
+        id: 'payment_agent',
+        label: 'Je veux etre agent',
+        description: 'Depot, retrait, assistance paiement et relais terrain.',
+        segments: [
+          { id: 'relay_agent', label: 'Agent relais AfriSpay', description: 'Point de service local.' },
+          { id: 'approved_agent', label: 'Agent agree', description: 'Agent valide pour operations sensibles.' },
+          { id: 'cash_agent', label: 'Agent cash', description: 'Depot, retrait et support cash.' }
+        ]
+      },
+      {
+        id: 'developer',
+        label: 'Je suis developpeur',
+        description: 'Integrer AfriSpay dans un site, une app ou un systeme.',
+        segments: [
+          { id: 'api_developer', label: 'Integration API', description: 'Paiement dans une app ou backend.' },
+          { id: 'plugin_partner', label: 'Plugin / partenaire technique', description: 'Connecteurs e-commerce ou ERP.' },
+          { id: 'startup', label: 'Startup fintech', description: 'Produit financier base sur AfriSpay.' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'logistics',
+    label: 'Logistique & mobilite',
+    moduleName: 'Safari',
+    description: 'Livraison, transport, relais, stockage, immobilier et services terrain.',
+    icon: 'send',
+    role: 'provider',
+    services: [
+      {
+        id: 'delivery',
+        label: 'Livraison',
+        description: 'Transporter colis, commandes Market ou documents.',
+        segments: [
+          { id: 'independent_courier', label: 'Livreur independant', description: 'Je livre avec mon moyen de transport.' },
+          { id: 'delivery_agency', label: 'Agence de livraison', description: 'Je gere une equipe de livreurs.' },
+          { id: 'fleet_owner', label: 'Gestionnaire flotte', description: 'Motos, voitures ou camions.' }
+        ]
+      },
+      {
+        id: 'relay',
+        label: 'Point relais',
+        description: 'Servir de point depot, retrait ou stockage.',
+        segments: [
+          { id: 'relay_point', label: 'Agence relais', description: 'Point de retrait/depot.' },
+          { id: 'approved_relay', label: 'Relais agree', description: 'Relais verifie pour operations sensibles.' },
+          { id: 'warehouse', label: 'Stockage', description: 'Entrepot, mini-hub ou reserve.' }
+        ]
+      },
+      {
+        id: 'real_estate',
+        label: 'Immobilier',
+        description: 'Proposer terrains, locations, ventes et visites.',
+        segments: [
+          { id: 'real_estate_agent', label: 'Agent immobilier', description: 'Je propose maisons, terrains ou locations.' },
+          { id: 'property_owner', label: 'Proprietaire', description: 'Je publie mes biens.' },
+          { id: 'site_visit_agent', label: 'Agent visite', description: 'J organise les visites terrain.' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'services',
+    label: 'Services professionnels',
+    moduleName: 'AfriMed, School, Freelance',
+    description: 'Sante, education, freelance et services locaux.',
+    icon: 'work',
+    role: 'provider',
+    services: [
+      {
+        id: 'health',
+        label: 'Sante',
+        description: 'Soins, conseils, orientation ou services medicaux.',
+        segments: [
+          { id: 'clinic', label: 'Clinique / centre', description: 'Structure de sante.' },
+          { id: 'health_worker', label: 'Professionnel sante', description: 'Medecin, infirmier, pharmacien.' },
+          { id: 'home_care', label: 'Soins a domicile', description: 'Services de proximite.' }
+        ]
+      },
+      {
+        id: 'education',
+        label: 'Education',
+        description: 'Cours, formations, ecole ou accompagnement.',
+        segments: [
+          { id: 'school', label: 'Ecole / centre', description: 'Structure educative.' },
+          { id: 'trainer', label: 'Formateur', description: 'Cours, formation ou coaching.' },
+          { id: 'online_course', label: 'Cours en ligne', description: 'Contenu educatif numerique.' }
+        ]
+      },
+      {
+        id: 'freelance',
+        label: 'Freelance',
+        description: 'Vendre ses competences et services.',
+        segments: [
+          { id: 'creative', label: 'Creatif', description: 'Design, photo, video, contenu.' },
+          { id: 'tech_service', label: 'Tech', description: 'Developpement, support, maintenance.' },
+          { id: 'local_service', label: 'Service local', description: 'Reparation, beaute, menage, assistance.' }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'abc_media',
+    label: 'Creation & influence',
+    moduleName: 'ABC Discovery',
+    description: 'Creer du contenu, vendre en video ou promouvoir des produits.',
+    icon: 'video',
+    role: 'creator',
+    services: [
+      {
+        id: 'creator',
+        label: 'Createur ABC',
+        description: 'Publier videos, tests, lives et recommandations.',
+        segments: [
+          { id: 'video_seller', label: 'Video seller', description: 'Je vends en video.' },
+          { id: 'affiliate', label: 'Affilie', description: 'Je recommande des produits.' },
+          { id: 'influencer', label: 'Influenceur', description: 'Je monétise mon audience.' },
+          { id: 'live_host', label: 'Animateur live', description: 'Je presente en direct.' }
+        ]
+      },
+      {
+        id: 'brand_media',
+        label: 'Marque annonceur',
+        description: 'Faire promouvoir produits, offres ou services.',
+        segments: [
+          { id: 'brand_campaign', label: 'Campagne produit', description: 'Promouvoir un produit.' },
+          { id: 'service_campaign', label: 'Campagne service', description: 'Promouvoir un service.' },
+          { id: 'creator_network', label: 'Reseau createurs', description: 'Travailler avec plusieurs createurs.' }
+        ]
+      }
+    ]
+  }
+];
+
 const defaultSettings: UserSettings = {
   account: {
     pinEnabled: false,
@@ -86,6 +315,12 @@ const actions: ProfileAction[] = [
     title: 'Profil',
     description: 'Identite, photo, telephone et adresse.',
     icon: 'profile'
+  },
+  {
+    id: 'business',
+    title: 'Business account',
+    description: 'Type de compte, activite, boutique et verification.',
+    icon: 'market'
   },
   {
     id: 'account',
@@ -241,6 +476,9 @@ export default function ProfileScreen() {
     bio: ''
   });
   const [pin, setPin] = useState('');
+  const [businessCategoryId, setBusinessCategoryId] = useState('');
+  const [businessServiceId, setBusinessServiceId] = useState('');
+  const [businessSegmentId, setBusinessSegmentId] = useState('');
 
   const displayName = profile?.displayName || user?.displayName || 'Utilisateur AfriSell';
   const email = profile?.email || user?.email || 'Compte Firebase';
@@ -248,6 +486,21 @@ export default function ProfileScreen() {
   const roleDefinition = getAccountRoleDefinition(profile?.primaryRole);
   const subtypeDefinition = getAccountSubtypeDefinition(profile?.primaryRole, profile?.primarySubtype);
   const selectedCountry = getCountryByCode(profileForm.countryCode) || getDefaultCountry();
+  const businessProfile = profile as (typeof profile & {
+    businessAccount?: BusinessAccountProfile;
+    businessAccounts?: Record<string, BusinessAccountProfile>;
+  }) | null;
+  const businessAccount = businessProfile?.businessAccount;
+  const businessAccounts: Record<string, BusinessAccountProfile> = {
+    ...(businessAccount?.categoryId ? { [businessAccount.categoryId]: businessAccount } : {}),
+    ...(businessProfile?.businessAccounts || {})
+  };
+  const ownedBusinessAccounts = Object.values(businessAccounts).filter((account): account is BusinessAccountProfile & { categoryId: string } => Boolean(account?.categoryId));
+  const ownedBusinessCategoryIds = new Set(ownedBusinessAccounts.map((account) => account.categoryId));
+  const availableBusinessCategories = businessCategories.filter((category) => !ownedBusinessCategoryIds.has(category.id));
+  const selectedBusinessCategory = businessCategories.find((category) => category.id === businessCategoryId);
+  const selectedBusinessService = selectedBusinessCategory?.services.find((service) => service.id === businessServiceId);
+  const selectedBusinessSegment = selectedBusinessService?.segments.find((segment) => segment.id === businessSegmentId);
 
   useEffect(() => {
     if (!user) return;
@@ -261,6 +514,13 @@ export default function ProfileScreen() {
       bio: profile?.bio || ''
     });
   }, [user?.uid, profile?.updatedAt, displayName]);
+
+  useEffect(() => {
+    if (!businessAccount?.categoryId) return;
+    setBusinessCategoryId('');
+    setBusinessServiceId('');
+    setBusinessSegmentId('');
+  }, [businessAccount?.categoryId]);
 
   useEffect(() => {
     if (!user) return;
@@ -420,6 +680,71 @@ export default function ProfileScreen() {
     }
   };
 
+  const saveBusinessAccount = async () => {
+    if (!user || !selectedBusinessCategory || !selectedBusinessService || !selectedBusinessSegment) {
+      setStatus('Complete les 3 choix pour enregistrer ton compte business.');
+      return;
+    }
+
+    if (ownedBusinessCategoryIds.has(selectedBusinessCategory.id)) {
+      setStatus('Tu possedes deja ce type de compte business.');
+      return;
+    }
+
+    setBusy(true);
+    setStatus('Enregistrement business...');
+
+    try {
+      const now = Date.now();
+      const tenDays = 10 * 24 * 60 * 60 * 1000;
+      const accountData: BusinessAccountProfile = {
+        categoryId: selectedBusinessCategory.id,
+        categoryLabel: selectedBusinessCategory.label,
+        moduleName: selectedBusinessCategory.moduleName,
+        serviceId: selectedBusinessService.id,
+        serviceLabel: selectedBusinessService.label,
+        segmentId: selectedBusinessSegment.id,
+        segmentLabel: selectedBusinessSegment.label,
+        status: 'draft',
+        createdAt: now,
+        kycDueAt: now + tenDays,
+        kycStatus: 'none',
+        updatedAt: serverTimestamp()
+      };
+      const nextBusinessAccounts = {
+        ...businessAccounts,
+        [selectedBusinessCategory.id]: accountData
+      };
+      const hasExistingBusinessAccount = Boolean(ownedBusinessAccounts.length);
+
+      await update(ref(realtimeDb, `users/${user.uid}`), {
+        primaryRole: selectedBusinessCategory.role,
+        primarySubtype: selectedBusinessSegment.id,
+        roles: Array.from(new Set([...(profile?.roles || []), selectedBusinessCategory.role])),
+        roleSubtypes: {
+          ...(profile?.roleSubtypes || {}),
+          [selectedBusinessCategory.role]: selectedBusinessSegment.id
+        },
+        businessAccount: hasExistingBusinessAccount ? (businessAccount || ownedBusinessAccounts[0]) : accountData,
+        businessAccounts: nextBusinessAccounts,
+        accountSetupCompleted: true,
+        accountSetupStep: 'completed',
+        updatedAt: serverTimestamp()
+      });
+
+      await refreshProfile();
+      setStatus('Compte business enregistre.');
+      setBusinessCategoryId('');
+      setBusinessServiceId('');
+      setBusinessSegmentId('');
+    } catch (error) {
+      console.error('Business account impossible:', error);
+      setStatus('Impossible d enregistrer le compte business.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const requestCamera = async (checked: boolean) => {
     if (!checked) {
       await persistSettings({
@@ -519,7 +844,7 @@ export default function ProfileScreen() {
       </section>
 
       {roleDefinition && (
-        <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+        <Link to={`/business${businessAccount?.categoryId ? `?account=${businessAccount.categoryId}` : ''}`} className="mt-6 block rounded-2xl border border-white/10 bg-white/[0.04] p-4 active:scale-[0.99]">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
               <AfriSellIcon name={roleDefinition.icon} size={20} />
@@ -533,8 +858,9 @@ export default function ProfileScreen() {
             <span className="rounded-full bg-[#15EA3E] px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-black">
               Actif
             </span>
+            <AfriSellIcon name="arrow" size={15} className="text-white/28" />
           </div>
-        </section>
+        </Link>
       )}
 
       <section className="mt-7 flex flex-col gap-2.5">
@@ -612,6 +938,163 @@ export default function ProfileScreen() {
               Enregistrer securite
             </button>
           </form>
+        </PanelShell>
+      )}
+
+      {activePanel === 'business' && (
+        <PanelShell title="Business account" subtitle="Compte professionnel" busy={busy} status={status} onClose={() => setActivePanel(null)}>
+          <div className="space-y-3">
+            {ownedBusinessAccounts.length ? (
+              <div className="space-y-2 rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-4">
+                <p className="text-sm font-black text-white">Vous possedez deja un compte business.</p>
+                <p className="text-[11px] font-semibold leading-relaxed text-white/55">
+                  Accede a ton dashboard ou ajoute un autre type de compte business.
+                </p>
+                <div className="space-y-2 pt-1">
+                  {ownedBusinessAccounts.map((account) => (
+                    <div key={account.categoryId} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-black text-white">{account.categoryLabel}</p>
+                        <p className="truncate text-[10px] font-semibold text-white/45">{account.serviceLabel} - {account.segmentLabel}</p>
+                      </div>
+                      <Link
+                        to={`/business?account=${account.categoryId}`}
+                        className="rounded-xl bg-[#15EA3E] px-3 py-2 text-[9px] font-black uppercase tracking-wider text-black"
+                      >
+                        Acceder
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-4">
+                <p className="text-sm font-black text-white">Quel type de compte business voulez-vous ?</p>
+                <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/55">
+                  Choisis d abord le grand domaine. Les etapes suivantes s adaptent a ton choix.
+                </p>
+              </div>
+            )}
+
+            {ownedBusinessAccounts.length ? (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <p className="text-sm font-black text-white">Voulez-vous obtenir d autres types de compte business ?</p>
+                <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/45">
+                  Les categories deja creees ne sont plus selectionnables.
+                </p>
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-1 gap-2">
+              {availableBusinessCategories.map((category) => (
+                <button
+                  key={category.id}
+                  type="button"
+                  onClick={() => {
+                    setBusinessCategoryId(category.id);
+                    setBusinessServiceId('');
+                    setBusinessSegmentId('');
+                    setStatus('');
+                  }}
+                  className={cn(
+                    'flex w-full items-start gap-3 rounded-2xl border p-3 text-left',
+                    businessCategoryId === category.id
+                      ? 'border-[#15EA3E]/45 bg-[#15EA3E]/10'
+                      : 'border-white/10 bg-white/[0.04]'
+                  )}
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
+                    <AfriSellIcon name={category.icon} size={20} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-black text-white">{category.label}</span>
+                    <span className="mt-0.5 block text-[10px] font-black uppercase tracking-[0.14em] text-[#15EA3E]">{category.moduleName}</span>
+                    <span className="mt-1 block text-[11px] font-semibold leading-relaxed text-white/45">{category.description}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {!availableBusinessCategories.length && (
+              <p className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-[11px] font-semibold leading-relaxed text-white/50">
+                Tous les types de compte business disponibles sont deja actifs sur ton profil.
+              </p>
+            )}
+
+            {selectedBusinessCategory && (
+              <div className="space-y-2 pt-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/42">
+                  Quel service veux-tu offrir ?
+                </p>
+                {selectedBusinessCategory.services.map((service) => (
+                  <button
+                    key={service.id}
+                    type="button"
+                    onClick={() => {
+                      setBusinessServiceId(service.id);
+                      setBusinessSegmentId('');
+                      setStatus('');
+                    }}
+                    className={cn(
+                      'w-full rounded-2xl border p-3 text-left',
+                      businessServiceId === service.id
+                        ? 'border-[#15EA3E]/45 bg-[#15EA3E]/10'
+                        : 'border-white/10 bg-white/[0.04]'
+                    )}
+                  >
+                    <span className="block text-sm font-black text-white">{service.label}</span>
+                    <span className="mt-1 block text-[11px] font-semibold leading-relaxed text-white/45">{service.description}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {selectedBusinessService && (
+              <div className="space-y-2 pt-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/42">
+                  Selectionne ton profil
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  {selectedBusinessService.segments.map((segment) => (
+                    <button
+                      key={segment.id}
+                      type="button"
+                      onClick={() => {
+                        setBusinessSegmentId(segment.id);
+                        setStatus('');
+                      }}
+                      className={cn(
+                        'rounded-2xl border p-3 text-left',
+                        businessSegmentId === segment.id
+                          ? 'border-[#15EA3E]/45 bg-[#15EA3E]/10'
+                          : 'border-white/10 bg-white/[0.04]'
+                      )}
+                    >
+                      <span className="block text-sm font-black text-white">{segment.label}</span>
+                      <span className="mt-1 block text-[11px] font-semibold leading-relaxed text-white/45">{segment.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedBusinessCategory && selectedBusinessService && selectedBusinessSegment && (
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Resume</p>
+                <p className="mt-2 text-sm font-black text-white">{selectedBusinessCategory.label}</p>
+                <p className="mt-1 text-[11px] font-semibold text-white/55">{selectedBusinessService.label} - {selectedBusinessSegment.label}</p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={saveBusinessAccount}
+              disabled={busy || !selectedBusinessCategory || !selectedBusinessService || !selectedBusinessSegment}
+              className="h-12 w-full rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-widest text-black disabled:bg-white/10 disabled:text-white/35"
+            >
+              Enregistrer business account
+            </button>
+          </div>
         </PanelShell>
       )}
 

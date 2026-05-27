@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
@@ -34,9 +34,14 @@ export default function OnboardingScreen() {
   const slide = slides[index];
   const isLast = index === slides.length - 1;
 
+  const finishOnboarding = (nextPath: string) => {
+    window.localStorage.setItem('afrisell:onboarding-seen', '1');
+    navigate(nextPath, { replace: true });
+  };
+
   const handleNext = () => {
     if (isLast) {
-      navigate('/login');
+      finishOnboarding('/login');
       return;
     }
     setIndex((current) => current + 1);
@@ -46,9 +51,9 @@ export default function OnboardingScreen() {
     <main className="relative flex h-full min-h-full flex-col overflow-hidden bg-[#050705] text-white">
       <div className="relative z-10 flex flex-1 flex-col px-6 pb-7 pt-8">
         <div className="flex items-center justify-between">
-          <Link to="/login" className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">
-            Passer
-          </Link>
+          <button onClick={() => finishOnboarding('/ecosystem')} className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">
+            Plus tard
+          </button>
           <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">
             {index + 1}/{slides.length}
           </span>
@@ -102,14 +107,24 @@ export default function OnboardingScreen() {
               />
             ))}
           </div>
-          <button
-            onClick={handleNext}
-            className="flex h-14 min-w-36 items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] px-5 text-xs font-black uppercase tracking-[0.14em] text-black shadow-[0_0_28px_rgba(21,234,62,0.22)] active:scale-95"
-            aria-label={isLast ? 'Continuer vers la connexion' : 'Etape suivante'}
-          >
-            {isLast ? 'Connexion' : 'Suivant'}
-            <AfriSellIcon name="arrow" size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+            {isLast && (
+              <button
+                onClick={() => finishOnboarding('/ecosystem')}
+                className="flex h-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-xs font-black uppercase tracking-[0.12em] text-white/65 active:scale-95"
+              >
+                Plus tard
+              </button>
+            )}
+            <button
+              onClick={handleNext}
+              className="flex h-14 min-w-36 items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] px-5 text-xs font-black uppercase tracking-[0.14em] text-black shadow-[0_0_28px_rgba(21,234,62,0.22)] active:scale-95"
+              aria-label={isLast ? 'Continuer vers la connexion' : 'Etape suivante'}
+            >
+              {isLast ? 'Connexion' : 'Suivant'}
+              <AfriSellIcon name="arrow" size={18} />
+            </button>
+          </div>
         </div>
       </div>
     </main>

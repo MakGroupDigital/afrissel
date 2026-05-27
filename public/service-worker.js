@@ -1,4 +1,4 @@
-const SW_VERSION = 'v2';
+const SW_VERSION = 'v3';
 const SHELL_CACHE = `afrisell-shell-${SW_VERSION}`;
 const RUNTIME_CACHE = `afrisell-runtime-${SW_VERSION}`;
 const MEDIA_CACHE = `afrisell-media-${SW_VERSION}`;
@@ -23,8 +23,17 @@ const SHELL_ASSETS = [
 ];
 
 const isSameOrigin = (url) => url.origin === self.location.origin;
+const isHttpRequest = (url) => url.protocol === 'http:' || url.protocol === 'https:';
+const isViteDevRequest = (url) => (
+  url.pathname.startsWith('/src/') ||
+  url.pathname.startsWith('/@vite/') ||
+  url.pathname.startsWith('/@react-refresh') ||
+  url.pathname.startsWith('/node_modules/') ||
+  url.searchParams.has('t')
+);
 const isStaticAsset = (request, url) => (
   isSameOrigin(url) &&
+  !isViteDevRequest(url) &&
   (
     request.destination === 'script' ||
     request.destination === 'style' ||
@@ -55,7 +64,7 @@ const cacheFirst = async (request, cacheName) => {
 
   try {
     const response = await fetch(request);
-    if (response && response.ok) {
+    if (response && response.ok && isHttpRequest(new URL(request.url))) {
       const cache = await caches.open(cacheName);
       await cache.put(request, response.clone());
     }
@@ -72,9 +81,9 @@ const staleWhileRevalidate = async (request, cacheName, maxEntries = 80) => {
 
   const networkFetch = fetch(request)
     .then((response) => {
-      if (response && response.ok) {
-        cache.put(request, response.clone());
-        trimCache(cacheName, maxEntries);
+      if (response && response.ok && isHttpRequest(new URL(request.url))) {
+        void cache.put(request, response.clone()).catch(() => undefined);
+        void trimCache(cacheName, maxEntries);
       }
       return response;
     })
@@ -88,7 +97,7 @@ const networkFirst = async (request, cacheName) => {
 
   try {
     const response = await fetch(request);
-    if (response && response.ok) {
+    if (response && response.ok && isHttpRequest(new URL(request.url))) {
       await cache.put(request, response.clone());
     }
     return response;
@@ -130,6 +139,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+  if (!isHttpRequest(url) || isViteDevRequest(url)) return;
 
   if (event.request.mode === 'navigate') {
     event.respondWith(networkFirst(event.request, SHELL_CACHE));

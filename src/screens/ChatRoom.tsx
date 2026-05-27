@@ -1,10 +1,26 @@
 import React, { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { AfriChatContact, AfriChatMessage, AfriChatThread, formatChatTime, useAfriChat } from '../hooks/useAfriChat';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { cn } from '../lib/utils';
 
 type ChatTab = 'threads' | 'contacts' | 'settings';
+
+type ContactPickerContact = {
+  name?: string[];
+  tel?: string[];
+  email?: string[];
+};
+
+type NavigatorWithContacts = Navigator & {
+  contacts?: {
+    select: (
+      properties: Array<'name' | 'tel' | 'email'>,
+      options?: { multiple?: boolean }
+    ) => Promise<ContactPickerContact[]>;
+  };
+};
 
 const tabs: Array<{ id: ChatTab; label: string; icon: AfriSellIconName }> = [
   { id: 'threads', label: 'Discussions', icon: 'chat' },
@@ -155,6 +171,7 @@ function SettingsPanel() {
 
 export default function ChatRoom() {
   const { user } = useFirebaseAuth();
+  const location = useLocation();
   const {
     threads,
     contacts,
@@ -172,7 +189,11 @@ export default function ChatRoom() {
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [deviceContacts, setDeviceContacts] = useState<AfriChatContact[]>([]);
+  const [contactsStatus, setContactsStatus] = useState('');
+  const [importingContacts, setImportingContacts] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const contactRouteHandledRef = useRef('');
 
   const activeThread = useMemo(
     () => threads.find((thread) => thread.id === activeThreadId) || (fallbackThread?.id === activeThreadId ? fallbackThread : null),
@@ -192,13 +213,18 @@ export default function ChatRoom() {
   }, [normalizedQuery, threads]);
 
   const filteredContacts = useMemo(() => {
-    if (!normalizedQuery) return contacts;
+    const mergedContacts = [
+      ...deviceContacts,
+      ...contacts.filter((contact) => !deviceContacts.some((deviceContact) => deviceContact.id === contact.id))
+    ];
 
-    return contacts.filter((contact) => (
+    if (!normalizedQuery) return mergedContacts;
+
+    return mergedContacts.filter((contact) => (
       contact.displayName.toLowerCase().includes(normalizedQuery) ||
       (contact.status || '').toLowerCase().includes(normalizedQuery)
     ));
-  }, [contacts, normalizedQuery]);
+  }, [contacts, deviceContacts, normalizedQuery]);
 
   useEffect(() => {
     if (!activeThreadId) return undefined;
@@ -238,6 +264,73 @@ export default function ChatRoom() {
     setActiveThreadId(thread.id);
   };
 
+  useEffect(() => {
+    if (!user) return;
+
+    const params = new URLSearchParams(location.search);
+    const contactId = params.get('contact');
+    if (!contactId) return;
+
+    const routeKey = `${user.uid}:${contactId}`;
+    if (contactRouteHandledRef.current === routeKey) return;
+    contactRouteHandledRef.current = routeKey;
+
+    const contact: AfriChatContact = {
+      id: contactId,
+      displayName: params.get('name') || 'Freelance AfriSell',
+      status: params.get('status') || 'Disponible sur AfriSell',
+      avatarURL: params.get('avatar') || undefined
+    };
+
+    setActiveTab('threads');
+    void openContact(contact);
+  }, [location.search, user?.uid]);
+
+  const importDeviceContacts = async () => {
+    const contactNavigator = navigator as NavigatorWithContacts;
+
+    if (!contactNavigator.contacts?.select) {
+      setContactsStatus('Import natif indisponible sur ce navigateur. Essaie sur Chrome Android ou un navigateur compatible.');
+      return;
+    }
+
+    setImportingContacts(true);
+    setContactsStatus('');
+
+    try {
+      const selectedContacts = await contactNavigator.contacts.select(['name', 'tel', 'email'], { multiple: true });
+      const nextContacts = selectedContacts
+        .map((contact, index): AfriChatContact | null => {
+          const displayName = contact.name?.[0]?.trim() || contact.tel?.[0] || contact.email?.[0] || `Contact ${index + 1}`;
+          const primaryValue = contact.tel?.[0] || contact.email?.[0] || displayName;
+          const contactId = `device_${primaryValue.replace(/[^\w]+/g, '_').toLowerCase()}`;
+
+          if (!primaryValue) return null;
+
+          return {
+            id: contactId,
+            displayName,
+            status: contact.tel?.[0] || contact.email?.[0] || 'Contact appareil'
+          };
+        })
+        .filter((contact): contact is AfriChatContact => Boolean(contact));
+
+      setDeviceContacts((current) => {
+        const merged = [...current];
+        nextContacts.forEach((contact) => {
+          if (!merged.some((item) => item.id === contact.id)) merged.push(contact);
+        });
+        return merged.sort((first, second) => first.displayName.localeCompare(second.displayName));
+      });
+      setContactsStatus(nextContacts.length ? `${nextContacts.length} contact(s) importe(s).` : 'Aucun contact selectionne.');
+    } catch (contactError) {
+      console.error('Import contacts appareil impossible:', contactError);
+      setContactsStatus('Acces aux contacts annule ou refuse par l appareil.');
+    } finally {
+      setImportingContacts(false);
+    }
+  };
+
   const submitMessage = async (event?: FormEvent) => {
     event?.preventDefault();
     if (!activeThread || !draft.trim() || sending) return;
@@ -260,8 +353,8 @@ export default function ChatRoom() {
 
   if (activeThread) {
     return (
-      <div className="relative flex h-full flex-col bg-black pt-[68px]">
-        <div className="absolute inset-x-0 top-0 z-30 flex h-[68px] items-center justify-between border-b border-gray-900 bg-black/95 px-3 backdrop-blur-md">
+      <div className="flex h-full min-h-0 flex-col bg-black">
+        <div className="sticky top-0 z-30 flex h-[68px] shrink-0 items-center justify-between border-b border-gray-900 bg-black/95 px-3 backdrop-blur-md">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -288,7 +381,7 @@ export default function ChatRoom() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 pb-[154px]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
           {messages.length ? (
             <div className="flex flex-col gap-3">
               {messages.map((message) => (
@@ -307,7 +400,7 @@ export default function ChatRoom() {
 
         <form
           onSubmit={submitMessage}
-          className="absolute inset-x-0 bottom-0 flex flex-col gap-3 border-t border-gray-900 bg-black px-4 pb-[88px] pt-3"
+          className="sticky bottom-0 z-20 flex shrink-0 flex-col gap-3 border-t border-gray-900 bg-black px-4 pb-3 pt-3"
         >
           <div className="flex items-center justify-between px-1">
             <button type="button" className="flex items-center gap-1.5 text-gray-500">
@@ -349,8 +442,8 @@ export default function ChatRoom() {
   }
 
   return (
-    <div className="relative flex h-full flex-col bg-black pt-[92px]">
-      <div className="absolute inset-x-0 top-0 z-30 border-b border-gray-900 bg-black/95 px-4 pb-3 pt-3 backdrop-blur-md">
+    <div className="flex h-full min-h-0 flex-col bg-black">
+      <div className="sticky top-0 z-30 shrink-0 border-b border-gray-900 bg-black/95 px-4 pb-3 pt-3 backdrop-blur-md">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriChat</p>
@@ -384,7 +477,7 @@ export default function ChatRoom() {
         </div>
       </div>
 
-      <div className="border-b border-gray-900 px-4 py-3">
+      <div className="shrink-0 border-b border-gray-900 px-4 py-3">
         <label className="flex h-11 items-center gap-3 rounded-2xl border border-gray-900 bg-[#050505] px-4 text-gray-500">
           <AfriSellIcon name="search" size={16} />
           <input
@@ -396,7 +489,7 @@ export default function ChatRoom() {
         </label>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 pb-[96px]">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {error && (
           <div className="mb-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-xs font-medium text-red-200">
             {error}
@@ -424,6 +517,30 @@ export default function ChatRoom() {
 
         {activeTab === 'contacts' && (
           <div className="space-y-3">
+            <div className="rounded-2xl border border-[#15EA3E]/20 bg-[#0A0A0A] p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E]/10 text-[#15EA3E]">
+                  <AfriSellIcon name="profile" size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black text-white">Contacts de l appareil</p>
+                  <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-gray-500">Ouvre la demande native et choisis les contacts a inviter.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={importDeviceContacts}
+                  disabled={importingContacts}
+                  className="rounded-xl bg-[#15EA3E] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-black disabled:bg-gray-800 disabled:text-gray-500"
+                >
+                  {importingContacts ? '...' : 'Importer'}
+                </button>
+              </div>
+              {contactsStatus && (
+                <p className="mt-3 rounded-xl border border-white/10 bg-black/30 p-2 text-[10px] font-semibold leading-relaxed text-white/55">
+                  {contactsStatus}
+                </p>
+              )}
+            </div>
             {filteredContacts.length ? (
               filteredContacts.map((contact) => (
                 <ContactRow key={contact.id} contact={contact} onOpen={() => openContact(contact)} />

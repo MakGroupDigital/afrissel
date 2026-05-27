@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { InvertedAfricaLogo } from '../components/InvertedAfricaLogo';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
@@ -14,13 +15,16 @@ const formatMoney = (amount: number, currency: string) =>
 export default function WalletDashboard() {
   const { balance, currency, accountLabel, transactions, loading, error } = useAfriSpayWallet();
   const [showBalance, setShowBalance] = React.useState(true);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeAction = searchParams.get('action');
 
   const actions = [
-    { label: 'Dépôt', icon: 'deposit' as AfriSellIconName, color: 'text-white' },
-    { label: 'Retrait', icon: 'withdraw' as AfriSellIconName, color: 'text-white' },
-    { label: 'Envoyer', icon: 'send' as AfriSellIconName, color: 'text-white' },
-    { label: 'Scan', icon: 'scan' as AfriSellIconName, color: 'text-[#15EA3E]' },
+    { label: 'Dépôt', action: 'deposit', icon: 'deposit' as AfriSellIconName, color: 'text-white' },
+    { label: 'Retrait', action: 'withdraw', icon: 'withdraw' as AfriSellIconName, color: 'text-white' },
+    { label: 'Envoyer', action: 'transfer', icon: 'send' as AfriSellIconName, color: 'text-white' },
+    { label: 'Scan', action: 'scan', icon: 'scan' as AfriSellIconName, color: 'text-[#15EA3E]' },
   ];
+  const activeActionLabel = actions.find((action) => action.action === activeAction)?.label;
 
   const balanceLabel = showBalance ? formatMoney(balance, currency) : '••••••';
 
@@ -104,7 +108,15 @@ export default function WalletDashboard() {
            const isAccent = act.label === 'Scan';
            return (
              <div key={act.label} className="flex flex-col items-center gap-2">
-                <button className={cn(
+                <button
+                  onClick={() => {
+                    if (act.action === 'scan') {
+                      window.location.assign('/scan');
+                      return;
+                    }
+                    setSearchParams({ action: act.action });
+                  }}
+                  className={cn(
                   "w-14 h-14 rounded-xl flex items-center justify-center transition-all bg-[#0A0A0A] border hover:-translate-y-1",
                   isAccent 
                     ? "border-[#15EA3E]/40 shadow-[0_0_15px_rgba(21,234,62,0.15)]" 
@@ -117,6 +129,31 @@ export default function WalletDashboard() {
            )
          })}
       </div>
+
+      {activeActionLabel && activeAction !== 'scan' && (
+        <div className="rounded-2xl border border-[#15EA3E]/20 bg-[#0A0A0A] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Operation</p>
+              <h2 className="mt-1 text-lg font-black text-white">{activeActionLabel} AfriSpay</h2>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-gray-500">
+                Cette action prepare le flux Mobile Money. Les vraies validations seront confirmees par ton operateur.
+              </p>
+            </div>
+            <button onClick={() => setSearchParams({})} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-800 text-gray-500">
+              <AfriSellIcon name="close" size={16} />
+            </button>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <input placeholder="Montant" inputMode="decimal" className="h-12 rounded-2xl border border-gray-800 bg-black px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50" />
+            <input placeholder="Numero" inputMode="tel" className="h-12 rounded-2xl border border-gray-800 bg-black px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50" />
+          </div>
+          <Link to="/scan" className="mt-3 flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black">
+            Continuer
+            <AfriSellIcon name="arrow" size={16} />
+          </Link>
+        </div>
+      )}
 
       {/* Recent Transactions */}
       <div className="flex flex-col flex-1 mt-2">

@@ -3,10 +3,13 @@ import {
   User,
   createUserWithEmailAndPassword,
   browserLocalPersistence,
+  ConfirmationResult,
   getRedirectResult,
   onAuthStateChanged,
+  RecaptchaVerifier,
   setPersistence,
   signInWithEmailAndPassword,
+  signInWithPhoneNumber,
   signInWithPopup,
   signInWithRedirect,
   signOut,
@@ -20,7 +23,7 @@ import {
   set,
   update
 } from 'firebase/database';
-import { firebaseAuth, googleProvider, realtimeDb } from '../lib/firebase';
+import { appleProvider, firebaseAuth, googleProvider, realtimeDb } from '../lib/firebase';
 import { CloudinaryUploadResult } from '../lib/cloudinary';
 import { AccountRole } from '../lib/accountTypes';
 import { isOfflineNow, offlineCacheKey, readOfflineCache, writeOfflineCache } from '../lib/offlineCache';
@@ -46,6 +49,21 @@ export interface AfriSellUserProfile {
   countryCode?: string;
   bio?: string;
   businessName?: string;
+  businessAccount?: {
+    categoryId?: string;
+    categoryLabel?: string;
+    moduleName?: string;
+    serviceId?: string;
+    serviceLabel?: string;
+    segmentId?: string;
+    segmentLabel?: string;
+    status?: string;
+    createdAt?: number;
+    kycDueAt?: number;
+    kycStatus?: 'none' | 'pending' | 'verified' | 'rejected';
+    updatedAt?: unknown;
+  };
+  businessAccounts?: Record<string, NonNullable<AfriSellUserProfile['businessAccount']>>;
   logoURL?: string;
   mediaURL?: string;
   kycStatus?: 'none' | 'pending' | 'verified' | 'rejected';
@@ -94,6 +112,8 @@ let authStore: AuthStoreState = {
 let unsubscribeAuthState: (() => void) | null = null;
 let authSyncVersion = 0;
 let redirectResultHandled = false;
+let phoneRecaptchaVerifier: RecaptchaVerifier | null = null;
+let phoneConfirmationResult: ConfirmationResult | null = null;
 
 const emitAuthStore = () => {
   authListeners.forEach((listener) => listener());
@@ -164,6 +184,100 @@ export const getAfriSellDataErrorMessage = (error: unknown) => {
   }
 
   return 'Impossible d enregistrer pour le moment. Reessaie dans quelques instants.';
+};
+
+export const getAfriSellAuthErrorMessage = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (message.includes('auth/invalid-email')) {
+    return 'Adresse email invalide.';
+  }
+
+  if (message.includes('auth/missing-password')) {
+    return 'Entre ton mot de passe.';
+  }
+
+  if (
+    message.includes('auth/invalid-credential') ||
+    message.includes('auth/wrong-password') ||
+    message.includes('auth/user-not-found')
+  ) {
+    return 'Email ou mot de passe incorrect.';
+  }
+
+  if (message.includes('auth/email-already-in-use')) {
+    return 'Un compte existe deja avec cet email.';
+  }
+
+  if (message.includes('auth/weak-password')) {
+    return 'Mot de passe trop faible. Utilise au moins 6 caracteres.';
+  }
+
+  if (message.includes('auth/popup-closed-by-user')) {
+    return 'Connexion Google annulee.';
+  }
+
+  if (message.includes('auth/popup-blocked')) {
+    return 'La fenetre Google a ete bloquee par le navigateur.';
+  }
+
+  if (message.includes('auth/invalid-phone-number')) {
+    return 'Numero de telephone invalide. Utilise le format international.';
+  }
+
+  if (message.includes('auth/missing-phone-number')) {
+    return 'Entre ton numero de telephone.';
+  }
+
+  if (message.includes('auth/invalid-verification-code')) {
+    return 'Code SMS incorrect.';
+  }
+
+  if (message.includes('auth/missing-verification-code')) {
+    return 'Entre le code recu par SMS.';
+  }
+
+  if (message.includes('auth/code-expired')) {
+    return 'Le code SMS a expire. Demande un nouveau code.';
+  }
+
+  if (message.includes('auth/captcha-check-failed')) {
+    return 'Verification securite impossible. Recharge la page puis reessaie.';
+  }
+
+  if (message.includes('auth/too-many-requests')) {
+    return 'Trop de tentatives. Reessaie plus tard.';
+  }
+
+  if (message.includes('auth/billing-not-enabled')) {
+    return 'La connexion par telephone exige l activation de la facturation Firebase pour envoyer les SMS.';
+  }
+
+  if (
+    message.includes('auth/argument-error') ||
+    message.includes('auth/invalid-api-key') ||
+    message.includes('auth/invalid-app-credential') ||
+    message.includes('auth/unauthorized-domain') ||
+    message.includes('Firebase: Error')
+  ) {
+    return 'Configuration de connexion invalide. Verifie Firebase Auth puis reessaie.';
+  }
+
+  if (message.includes('auth/operation-not-allowed')) {
+    return 'Cette methode de connexion n est pas encore activee dans Firebase Auth.';
+  }
+
+  if (message.includes('auth/network-request-failed')) {
+    return 'Connexion internet instable. Reessaie.';
+  }
+
+  return 'Connexion impossible pour le moment. Reessaie dans quelques instants.';
+};
+
+const isSilentRedirectError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return message.includes('auth/argument-error');
 };
 
 const stripUndefined = <T,>(value: T): T => {
@@ -385,6 +499,57 @@ const isMobileOrStandalone = () => {
   return isTouchMobile || isStandalone;
 };
 
+const getPhoneRecaptchaVerifier = () => {
+  if (phoneRecaptchaVerifier) return phoneRecaptchaVerifier;
+
+  phoneRecaptchaVerifier = new RecaptchaVerifier(firebaseAuth, 'afrisell-phone-recaptcha', {
+    size: 'invisible'
+  });
+
+  return phoneRecaptchaVerifier;
+};
+
+const signInWithSocialProvider = async (provider: typeof googleProvider | typeof appleProvider) => {
+  updateAuthStore({ authError: '' });
+  await setPersistence(firebaseAuth, browserLocalPersistence);
+
+  if (isMobileOrStandalone()) {
+    setPendingGoogleRedirect();
+    try {
+      await signInWithRedirect(firebaseAuth, provider);
+    } catch (error) {
+      clearPendingGoogleRedirect();
+      throw error;
+    }
+    return;
+  }
+
+  try {
+    const credential = await signInWithPopup(firebaseAuth, provider);
+    await syncCurrentUser(credential.user);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const shouldUseRedirect = [
+      'auth/popup-blocked',
+      'auth/popup-closed-by-user',
+      'auth/cancelled-popup-request',
+      'auth/operation-not-supported-in-this-environment'
+    ].some((code) => message.includes(code));
+
+    if (!shouldUseRedirect) {
+      throw error;
+    }
+
+    setPendingGoogleRedirect();
+    try {
+      await signInWithRedirect(firebaseAuth, provider);
+    } catch (redirectError) {
+      clearPendingGoogleRedirect();
+      throw redirectError;
+    }
+  }
+};
+
 const consumeGoogleRedirectResult = async () => {
   if (redirectResultHandled) return;
   redirectResultHandled = true;
@@ -417,7 +582,7 @@ const consumeGoogleRedirectResult = async () => {
 
         updateAuthStore({
           loading: false,
-          authError: 'Connexion Google terminee, mais le compte n a pas ete restaure sur cet appareil. Reessaie une fois.'
+          authError: 'Connexion terminee, mais le compte n a pas ete restaure sur cet appareil. Reessaie une fois.'
         });
       }, 3200);
     }
@@ -426,7 +591,7 @@ const consumeGoogleRedirectResult = async () => {
     clearPendingGoogleRedirect();
     updateAuthStore({
       loading: false,
-      authError: error instanceof Error ? error.message : 'Connexion Google impossible.'
+      authError: isSilentRedirectError(error) ? '' : getAfriSellAuthErrorMessage(error)
     });
   }
 };
@@ -480,6 +645,9 @@ export const useFirebaseAuth = () => {
         await signInWithRedirect(firebaseAuth, googleProvider);
       }
     },
+    signInWithApple: async () => {
+      await signInWithSocialProvider(appleProvider);
+    },
     signInWithEmail: async (email: string, password: string) => {
       updateAuthStore({ authError: '' });
       const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
@@ -490,6 +658,21 @@ export const useFirebaseAuth = () => {
       const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
       const displayName = name.trim() || email.split('@')[0] || 'Utilisateur AfriSell';
       await updateProfile(credential.user, { displayName });
+      await syncCurrentUser(credential.user);
+    },
+    sendPhoneCode: async (phoneNumber: string) => {
+      updateAuthStore({ authError: '' });
+      await setPersistence(firebaseAuth, browserLocalPersistence);
+      phoneConfirmationResult = await signInWithPhoneNumber(firebaseAuth, phoneNumber, getPhoneRecaptchaVerifier());
+    },
+    confirmPhoneCode: async (code: string) => {
+      updateAuthStore({ authError: '' });
+      if (!phoneConfirmationResult) {
+        throw new Error('auth/missing-verification-code');
+      }
+
+      const credential = await phoneConfirmationResult.confirm(code.trim());
+      phoneConfirmationResult = null;
       await syncCurrentUser(credential.user);
     },
     logout: async () => {

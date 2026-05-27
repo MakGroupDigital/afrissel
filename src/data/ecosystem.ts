@@ -86,7 +86,7 @@ export const ecosystemModules: EcosystemModule[] = [
     shortName: 'Safari',
     description: 'Mobilite, transport, immobilier et services du quotidien.',
     promise: 'Mobilite & services',
-    route: '/ecosystem',
+    route: '/safari',
     logo: '/safari.jpeg',
     status: 'Bientot',
   },

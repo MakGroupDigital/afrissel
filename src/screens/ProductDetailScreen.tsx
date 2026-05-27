@@ -101,7 +101,7 @@ function EmptyDetail() {
 export default function ProductDetailScreen() {
   const { productId } = useParams();
   const navigate = useNavigate();
-  const { marketProducts, loading } = useAfriMarket();
+  const { abcContents, marketProducts, loading } = useAfriMarket();
   const openCheckout = useAppStore((state) => state.openCheckout);
   const addToCart = useAppStore((state) => state.addToCart);
   const cart = useAppStore((state) => state.cart);
@@ -109,8 +109,11 @@ export default function ProductDetailScreen() {
   const [status, setStatus] = useState('');
 
   const product = useMemo(
-    () => marketProducts.find((item) => item.id === productId),
-    [marketProducts, productId]
+    () => (
+      marketProducts.find((item) => item.id === productId) ||
+      abcContents.find((item) => item.id === productId && item.isSellable)
+    ),
+    [abcContents, marketProducts, productId]
   );
   const checkoutProduct = product ? toCheckoutProduct(product) : null;
   const selectedDelivery = deliveryOptions.find((option) => option.id === selectedDeliveryId) || deliveryOptions[0];

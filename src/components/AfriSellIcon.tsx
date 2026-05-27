@@ -11,6 +11,7 @@ export type AfriSellIconName =
   | 'chat'
   | 'scan'
   | 'profile'
+  | 'apple'
   | 'account'
   | 'app'
   | 'notifications'
@@ -30,6 +31,7 @@ export type AfriSellIconName =
   | 'clip'
   | 'language'
   | 'heart'
+  | 'star'
   | 'comment'
   | 'share'
   | 'close'
@@ -125,6 +127,12 @@ const paths: Record<AfriSellIconName, React.ReactNode> = {
       <path d="M5 20a7 7 0 0 1 14 0" />
       <path d="M17.5 5.5 19 4" />
       <path d="M6.5 5.5 5 4" />
+    </>
+  ),
+  apple: (
+    <>
+      <path d="M15.4 3.2c.1 1.3-.4 2.4-1.2 3.2-.8.8-1.8 1.3-2.9 1.2-.1-1.2.4-2.3 1.2-3.1.8-.8 1.9-1.3 2.9-1.3Z" />
+      <path d="M19.2 16.6c-.5 1.1-.8 1.6-1.5 2.6-1 1.4-2.5 3.1-4.2 3.1-1.5 0-1.9-1-3.9-1s-2.5 1-3.9 1c-1.8 0-3.1-1.6-4.1-3-2.8-4.1-3.1-8.9-1.4-11.4 1.2-1.8 3.1-2.8 4.9-2.8 1.8 0 3 1 4.5 1s2.4-1 4.6-1c1.6 0 3.3.9 4.5 2.4-3.9 2.1-3.3 7.7.5 9.1Z" />
     </>
   ),
   account: (
@@ -251,6 +259,11 @@ const paths: Record<AfriSellIconName, React.ReactNode> = {
   heart: (
     <>
       <path d="M12 20s-7-4.1-7-9.4A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.6C19 15.9 12 20 12 20Z" />
+    </>
+  ),
+  star: (
+    <>
+      <path d="m12 3.5 2.6 5.2 5.7.8-4.1 4 1 5.6-5.2-2.7-5.2 2.7 1-5.6-4.1-4 5.7-.8L12 3.5Z" />
     </>
   ),
   comment: (

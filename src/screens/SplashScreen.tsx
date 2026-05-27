@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { AfriSellIcon } from '../components/AfriSellIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
-import { isAccountSetupComplete } from '../lib/accountTypes';
 
 interface SplashScreenProps {
   autoNavigate?: boolean;
@@ -12,18 +11,17 @@ interface SplashScreenProps {
 
 export default function SplashScreen({ autoNavigate = true, showAction = true }: SplashScreenProps) {
   const navigate = useNavigate();
-  const { user, profile, loading } = useFirebaseAuth();
+  const { loading } = useFirebaseAuth();
 
   useEffect(() => {
     if (!autoNavigate) return;
     if (loading) return;
 
-    const nextPath = user
-      ? isAccountSetupComplete(profile) ? '/ecosystem' : '/account-setup'
-      : '/onboarding';
+    const hasSeenOnboarding = window.localStorage.getItem('afrisell:onboarding-seen') === '1';
+    const nextPath = hasSeenOnboarding ? '/ecosystem' : '/onboarding';
     const timer = window.setTimeout(() => navigate(nextPath, { replace: true }), 2600);
     return () => window.clearTimeout(timer);
-  }, [autoNavigate, loading, navigate, profile, user]);
+  }, [autoNavigate, loading, navigate]);
 
   return (
     <main className="relative h-full min-h-full overflow-hidden bg-[#050705] text-white">
@@ -57,7 +55,7 @@ export default function SplashScreen({ autoNavigate = true, showAction = true }:
 
         {showAction && (
           <Link
-            to="/onboarding"
+            to={window.localStorage.getItem('afrisell:onboarding-seen') === '1' ? '/ecosystem' : '/onboarding'}
             className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_0_32px_rgba(21,234,62,0.24)] active:scale-[0.98]"
           >
             Entrer

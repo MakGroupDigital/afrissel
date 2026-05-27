@@ -8,6 +8,9 @@ export type AfriChatThread = {
   id: string;
   title: string;
   avatarURL?: string;
+  participantId?: string;
+  participantName?: string;
+  participantAvatarURL?: string;
   lastMessage?: string;
   lastMessageAt?: number | string | { seconds?: number };
   unreadCount?: number;
@@ -69,6 +72,9 @@ const normalizeThread = (id: string, thread: RawThread): AfriChatThread => ({
   id: thread.threadId || id,
   title: thread.title || thread.name || 'Conversation',
   avatarURL: thread.avatarURL,
+  participantId: thread.participantId,
+  participantName: thread.participantName,
+  participantAvatarURL: thread.participantAvatarURL,
   lastMessage: thread.lastMessage || '',
   lastMessageAt: thread.lastMessageAt,
   unreadCount: Number(thread.unreadCount || 0),
@@ -91,6 +97,15 @@ const normalizeContact = (id: string, contact: RawContact): AfriChatContact => (
   status: contact.status,
   threadId: contact.threadId
 });
+
+const getDirectRecipientId = (thread: AfriChatThread, currentUserId: string) => {
+  if (thread.participantId && thread.participantId !== currentUserId) return thread.participantId;
+  if (thread.type !== 'direct') return '';
+
+  return thread.id
+    .split('_')
+    .find((part) => part && part !== currentUserId) || '';
+};
 
 export const useAfriChat = () => {
   const { user, profile } = useFirebaseAuth();
@@ -261,12 +276,33 @@ export const useAfriChat = () => {
       threadId: thread.id,
       title: thread.title,
       avatarURL: thread.avatarURL || '',
+      participantId: thread.participantId || getDirectRecipientId(thread, user.uid),
+      participantName: thread.participantName || thread.title,
+      participantAvatarURL: thread.participantAvatarURL || thread.avatarURL || '',
       type: thread.type || 'direct',
       lastMessage: trimmedText,
       lastMessageAt: now,
       updatedAt: serverTimestamp(),
       unreadCount: 0
     });
+
+    const recipientId = getDirectRecipientId(thread, user.uid);
+    if (recipientId && !recipientId.startsWith('device_')) {
+      await update(ref(realtimeDb, `userChats/${recipientId}/${thread.id}`), {
+        threadId: thread.id,
+        title: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        avatarURL: profile?.photoURL || user.photoURL || '',
+        participantId: user.uid,
+        participantName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        participantAvatarURL: profile?.photoURL || user.photoURL || '',
+        type: thread.type || 'direct',
+        status: 'AfriChat',
+        lastMessage: trimmedText,
+        lastMessageAt: now,
+        updatedAt: serverTimestamp(),
+        unreadCount: 1
+      });
+    }
 
     await update(ref(realtimeDb, `chatThreads/${thread.id}`), {
       id: thread.id,
@@ -287,6 +323,9 @@ export const useAfriChat = () => {
       id: threadId,
       title: contact.displayName,
       avatarURL: contact.avatarURL,
+      participantId: contact.id,
+      participantName: contact.displayName,
+      participantAvatarURL: contact.avatarURL,
       type: 'direct',
       status: contact.status || 'Disponible',
       lastMessage: '',
@@ -297,11 +336,29 @@ export const useAfriChat = () => {
       threadId,
       title: thread.title,
       avatarURL: thread.avatarURL || '',
+      participantId: contact.id,
+      participantName: contact.displayName,
+      participantAvatarURL: contact.avatarURL || '',
       type: thread.type,
       status: thread.status,
       unreadCount: 0,
       updatedAt: serverTimestamp()
     });
+
+    if (!contact.id.startsWith('device_')) {
+      await update(ref(realtimeDb, `userChats/${contact.id}/${threadId}`), {
+        threadId,
+        title: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        avatarURL: profile?.photoURL || user.photoURL || '',
+        participantId: user.uid,
+        participantName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        participantAvatarURL: profile?.photoURL || user.photoURL || '',
+        type: thread.type,
+        status: 'AfriChat',
+        unreadCount: 0,
+        updatedAt: serverTimestamp()
+      });
+    }
 
     await update(ref(realtimeDb, `chatThreads/${threadId}`), {
       id: threadId,

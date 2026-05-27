@@ -2,11 +2,13 @@ import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 import {
   browserLocalPersistence,
+  browserPopupRedirectResolver,
   browserSessionPersistence,
   getAuth,
   GoogleAuthProvider,
   indexedDBLocalPersistence,
-  initializeAuth
+  initializeAuth,
+  OAuthProvider
 } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 
@@ -25,6 +27,7 @@ export const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseC
 export const firebaseAuth = (() => {
   try {
     return initializeAuth(firebaseApp, {
+      popupRedirectResolver: browserPopupRedirectResolver,
       persistence: [
         indexedDBLocalPersistence,
         browserLocalPersistence,
@@ -37,9 +40,14 @@ export const firebaseAuth = (() => {
 })();
 export const realtimeDb = getDatabase(firebaseApp);
 export const googleProvider = new GoogleAuthProvider();
+export const appleProvider = new OAuthProvider('apple.com');
 
 googleProvider.setCustomParameters({
   prompt: 'select_account'
+});
+
+appleProvider.setCustomParameters({
+  locale: 'fr'
 });
 
 const initializeAnalytics = async () => {
