@@ -10,6 +10,9 @@ export function getModuleIconName(id: string): AfriSellIconName {
     med: 'health',
     freelance: 'work',
     safari: 'shield',
+    biashara: 'shield',
+    afriai: 'language',
+    fpp: 'heart',
   };
 
   return icons[id] ?? 'hub';

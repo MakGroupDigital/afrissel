@@ -33,7 +33,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               style={{ width: `${progressPercent}%` }}
             ></div>
          </div>
-         <p className="text-[8px] text-gray-500 mt-1 uppercase">{product.buyersCount}/{product.buyersNeeded} acheteurs</p>
+         <p className="text-[8px] text-gray-500 mt-1 uppercase">Village {product.buyersCount}/{product.buyersNeeded}</p>
       </div>
     </div>
   );

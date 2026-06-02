@@ -1,3 +1,5 @@
+import { apiRequest } from '../domains/shared/apiClient';
+
 export type CloudinaryResourceType = 'image' | 'video';
 
 export interface CloudinaryUploadResult {
@@ -41,17 +43,13 @@ export async function uploadMediaToCloudinary(file: File, ownerId: string): Prom
   }
 
   const resourceType = getResourceType(file);
-  const signResponse = await fetch('/api/cloudinary/sign-upload', {
+  const signedUpload = await apiRequest<SignedUploadPayload>('/api/cloudinary/sign-upload', {
+    service: 'media',
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
     body: JSON.stringify({ ownerId, resourceType })
   });
-  const signedUpload = await signResponse.json().catch(() => null) as SignedUploadPayload | null;
 
   if (
-    !signResponse.ok ||
     !signedUpload?.cloudName ||
     !signedUpload.apiKey ||
     !signedUpload.signature ||

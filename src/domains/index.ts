@@ -1,0 +1,10 @@
+export * from './shared/apiClient';
+export * from './shared/domainRegistry';
+export * as CommerceDomain from './commerce';
+export * as PaymentDomain from './payment';
+export * as ChatDomain from './chat';
+export * as LogisticsDomain from './logistics';
+export * as IdentityDomain from './identity';
+export * as MediaDomain from './media';
+export * as AiDomain from './ai';
+export * as ImpactDomain from './impact';

@@ -4,7 +4,7 @@ import { Product } from '../store/useAppStore';
 import { CloudinaryUploadResult, uploadMediaToCloudinary } from '../lib/cloudinary';
 import { realtimeDb } from '../lib/firebase';
 import { useFirebaseAuth } from './useFirebaseAuth';
-import { isOfflineNow, offlineCacheKey, readOfflineCache, writeOfflineCache } from '../lib/offlineCache';
+import { isOfflineNow, offlineCacheKey, readOfflineCache, readOfflineCacheAsync, writeOfflineCache } from '../lib/offlineCache';
 
 export type AfriMarketMedia = CloudinaryUploadResult & {
   id: string;
@@ -234,9 +234,11 @@ export const formatMarketTime = (value?: AfriMarketContent['createdAt']) => {
 
 export const toCheckoutProduct = (content: AfriMarketContent): Product => ({
   id: content.id,
+  sellerId: content.authorId,
   name: content.title,
   seller: content.authorName,
   description: content.description,
+  category: content.category,
   price: content.price || content.villagePrice || 0,
   villagePrice: content.villagePrice || content.price || 0,
   currency: content.currency || 'USD',
@@ -266,6 +268,7 @@ export const useAfriMarket = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let mounted = true;
     setLoading(true);
     setError('');
     const cachedAbc = readOfflineCache<AfriMarketContent[]>(ABC_CACHE_KEY, []);
@@ -282,6 +285,20 @@ export const useAfriMarket = () => {
       setLoading(false);
       setError(cachedAbc.length || cachedMarket.length ? 'Mode hors ligne: dernieres donnees disponibles.' : 'Mode hors ligne: aucune donnee locale disponible.');
     }
+
+    void Promise.all([
+      readOfflineCacheAsync<AfriMarketContent[]>(ABC_CACHE_KEY, []),
+      readOfflineCacheAsync<AfriMarketContent[]>(MARKET_CACHE_KEY, []),
+      readOfflineCacheAsync<Record<string, boolean>>(scopedCacheKey('follows', user?.uid), {}),
+      readOfflineCacheAsync<Record<string, boolean>>(scopedCacheKey('contentLikesByUser', user?.uid), {})
+    ]).then(([indexedAbc, indexedMarket, indexedFollows, indexedLikes]) => {
+      if (!mounted) return;
+      if (indexedAbc.length) setAbcContents(indexedAbc);
+      if (indexedMarket.length) setMarketProducts(indexedMarket);
+      if (Object.keys(indexedFollows).length) setFollowedAuthors(indexedFollows);
+      if (Object.keys(indexedLikes).length) setLikedContents(indexedLikes);
+      if (isOfflineNow()) setLoading(false);
+    });
 
     const abcRef = ref(realtimeDb, 'abcPosts');
     const marketRef = ref(realtimeDb, 'marketProducts');
@@ -378,6 +395,7 @@ export const useAfriMarket = () => {
       : undefined;
 
     return () => {
+      mounted = false;
       unsubscribeAbc();
       unsubscribeMarket();
       unsubscribeFollows?.();
@@ -542,6 +560,13 @@ export const useAfriMarket = () => {
         [contentId]: cachedComments
       }));
     }
+    void readOfflineCacheAsync<AfriMarketComment[]>(commentsCacheKey, []).then((indexedComments) => {
+      if (!indexedComments.length) return;
+      setCommentsByContent((current) => ({
+        ...current,
+        [contentId]: indexedComments
+      }));
+    });
 
     const commentsRef = ref(realtimeDb, `abcPostComments/${contentId}`);
     const unsubscribe = onValue(

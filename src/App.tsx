@@ -13,6 +13,7 @@ import AccountSetupScreen from './screens/AccountSetupScreen';
 import EcosystemHome from './screens/EcosystemHome';
 import AppsDirectoryScreen from './screens/AppsDirectoryScreen';
 import SafariServicesScreen from './screens/SafariServicesScreen';
+import ModuleSuiteScreen, { ModuleActionScreen } from './screens/ModuleSuiteScreen';
 import VideoFeed from './screens/VideoFeed';
 import MarketHome from './screens/MarketHome';
 import ProductDetailScreen from './screens/ProductDetailScreen';
@@ -22,6 +23,29 @@ import ScannerScreen from './screens/ScannerScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import BusinessDashboardScreen from './screens/BusinessDashboardScreen';
 import { useFirebaseAuth } from './hooks/useFirebaseAuth';
+import { realtimeDb } from './lib/firebase';
+import { flushOfflineQueue } from './lib/offlineCache';
+
+function OfflineQueueSync() {
+  useEffect(() => {
+    const sync = () => {
+      void flushOfflineQueue(realtimeDb).catch((error) => {
+        console.error('Synchronisation offline AfriSell impossible:', error);
+      });
+    };
+
+    sync();
+    window.addEventListener('online', sync);
+    const timer = window.setInterval(sync, 30000);
+
+    return () => {
+      window.removeEventListener('online', sync);
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  return null;
+}
 
 function RequireAuth({
   children
@@ -80,6 +104,18 @@ function AppRoutes() {
         <Route path="/ecosystem" element={<EcosystemHome />} />
         <Route path="/apps" element={<AppsDirectoryScreen />} />
         <Route path="/safari" element={<SafariServicesScreen />} />
+        <Route path="/school" element={<ModuleSuiteScreen moduleId="school" />} />
+        <Route path="/school/:actionId" element={<ModuleActionScreen moduleId="school" />} />
+        <Route path="/med" element={<ModuleSuiteScreen moduleId="med" />} />
+        <Route path="/med/:actionId" element={<ModuleActionScreen moduleId="med" />} />
+        <Route path="/freelance" element={<ModuleSuiteScreen moduleId="freelance" />} />
+        <Route path="/freelance/:actionId" element={<ModuleActionScreen moduleId="freelance" />} />
+        <Route path="/biashara" element={<ModuleSuiteScreen moduleId="biashara" />} />
+        <Route path="/biashara/:actionId" element={<ModuleActionScreen moduleId="biashara" />} />
+        <Route path="/afriai" element={<ModuleSuiteScreen moduleId="afriai" />} />
+        <Route path="/afriai/:actionId" element={<ModuleActionScreen moduleId="afriai" />} />
+        <Route path="/fpp" element={<ModuleSuiteScreen moduleId="fpp" />} />
+        <Route path="/fpp/:actionId" element={<ModuleActionScreen moduleId="fpp" />} />
         <Route path="/feed" element={<VideoFeed />} />
         <Route path="/market" element={<MarketHome />} />
         <Route path="/market/:productId" element={<ProductDetailScreen />} />
@@ -96,6 +132,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+      <OfflineQueueSync />
       <AppRoutes />
     </BrowserRouter>
   );

@@ -7,6 +7,7 @@ export type EcosystemModule = {
   route: string;
   logo: string;
   status: 'Live' | 'MVP' | 'Bientot';
+  category?: 'daily' | 'growth' | 'engagement' | 'impact';
 };
 
 export const ecosystemModules: EcosystemModule[] = [
@@ -19,6 +20,7 @@ export const ecosystemModules: EcosystemModule[] = [
     route: '/feed',
     logo: '/biashara.jpeg',
     status: 'Live',
+    category: 'engagement',
   },
   {
     id: 'market',
@@ -29,6 +31,7 @@ export const ecosystemModules: EcosystemModule[] = [
     route: '/market',
     logo: '/afrimarket.jpeg',
     status: 'Live',
+    category: 'daily',
   },
   {
     id: 'chat',
@@ -39,6 +42,7 @@ export const ecosystemModules: EcosystemModule[] = [
     route: '/chat',
     logo: '/africhat.jpeg',
     status: 'MVP',
+    category: 'engagement',
   },
   {
     id: 'spay',
@@ -49,6 +53,7 @@ export const ecosystemModules: EcosystemModule[] = [
     route: '/wallet',
     logo: '/afrispay.jpeg',
     status: 'MVP',
+    category: 'daily',
   },
   {
     id: 'school',
@@ -56,9 +61,10 @@ export const ecosystemModules: EcosystemModule[] = [
     shortName: 'School',
     description: 'Parcours d apprentissage utiles aux vendeurs, jeunes et createurs.',
     promise: 'Education',
-    route: '/ecosystem',
+    route: '/school',
     logo: '/afrischool.jpeg',
     status: 'Bientot',
+    category: 'growth',
   },
   {
     id: 'med',
@@ -66,9 +72,10 @@ export const ecosystemModules: EcosystemModule[] = [
     shortName: 'Med',
     description: 'Acces sante, conseils et orientation vers des services de proximite.',
     promise: 'Sante',
-    route: '/ecosystem',
+    route: '/med',
     logo: '/afrimed.jpeg',
     status: 'Bientot',
+    category: 'daily',
   },
   {
     id: 'freelance',
@@ -76,9 +83,10 @@ export const ecosystemModules: EcosystemModule[] = [
     shortName: 'Freelance',
     description: 'Missions, talents et services locaux relies au commerce social.',
     promise: 'Travail',
-    route: '/ecosystem',
+    route: '/freelance',
     logo: '/a-freelance.jpeg',
     status: 'Bientot',
+    category: 'growth',
   },
   {
     id: 'safari',
@@ -89,5 +97,39 @@ export const ecosystemModules: EcosystemModule[] = [
     route: '/safari',
     logo: '/safari.jpeg',
     status: 'Bientot',
+    category: 'daily',
+  },
+  {
+    id: 'biashara',
+    name: 'Biashara',
+    shortName: 'Biashara',
+    description: 'Partenariats, business plan, evenements et village d affaires.',
+    promise: 'Business',
+    route: '/biashara',
+    logo: '/biashara.jpeg',
+    status: 'Bientot',
+    category: 'growth',
+  },
+  {
+    id: 'afriai',
+    name: 'AfriAI',
+    shortName: 'AfriAI',
+    description: 'Assistant vocal, recherche, traduction et aide intelligente.',
+    promise: 'IA vocale',
+    route: '/afriai',
+    logo: '/afrissel-icon.jpeg',
+    status: 'Bientot',
+    category: 'engagement',
+  },
+  {
+    id: 'fpp',
+    name: 'FPP',
+    shortName: 'FPP',
+    description: 'Contribution sociale transparente pour education, sante et paix.',
+    promise: 'Impact',
+    route: '/fpp',
+    logo: '/afrissel-icon.jpeg',
+    status: 'Bientot',
+    category: 'impact',
   },
 ];

@@ -26,7 +26,7 @@ import {
 import { appleProvider, firebaseAuth, googleProvider, realtimeDb } from '../lib/firebase';
 import { CloudinaryUploadResult } from '../lib/cloudinary';
 import { AccountRole } from '../lib/accountTypes';
-import { isOfflineNow, offlineCacheKey, readOfflineCache, writeOfflineCache } from '../lib/offlineCache';
+import { isOfflineNow, offlineCacheKey, readOfflineCache, readOfflineCacheAsync, writeOfflineCache } from '../lib/offlineCache';
 
 export interface AfriSellUserProfile {
   uid: string;
@@ -471,7 +471,10 @@ const syncCurrentUser = async (currentUser: User | null) => {
   } catch (error) {
     console.error('Erreur profil Realtime Database:', error);
     if (syncVersion !== authSyncVersion) return;
-    const cachedProfile = readOfflineCache<AfriSellUserProfile | null>(profileCacheKey(currentUser.uid), null);
+    const cachedProfile = await readOfflineCacheAsync<AfriSellUserProfile | null>(
+      profileCacheKey(currentUser.uid),
+      readOfflineCache<AfriSellUserProfile | null>(profileCacheKey(currentUser.uid), null)
+    );
     updateAuthStore({
       user: currentUser,
       profile: buildProfile(currentUser, cachedProfile || authStore.profile || undefined),

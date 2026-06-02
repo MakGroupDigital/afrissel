@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import type { FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { onValue, ref, remove, set } from 'firebase/database';
 import { ecosystemModules } from '../data/ecosystem';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { AfriMarketContent, formatMarketPrice, useAfriMarket } from '../hooks/useAfriMarket';
+import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
 import { realtimeDb } from '../lib/firebase';
 
 type QuickAction = {
@@ -83,6 +85,13 @@ const fallbackAbc = [
 
 const freelanceSubtypes = new Set(['freelancer', 'creative', 'tech_service', 'local_service']);
 const supplierSubtypes = new Set(['supplier', 'b2b_supplier', 'b2c_supplier', 'importer', 'local_distributor']);
+
+const moduleCategories = [
+  { id: 'daily', label: 'Vie quotidienne' },
+  { id: 'growth', label: 'Croissance' },
+  { id: 'engagement', label: 'Engagement' },
+  { id: 'impact', label: 'Impact' }
+] as const;
 
 const getProfileText = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 
@@ -172,15 +181,24 @@ const getContentRoute = (content: AfriMarketContent) =>
   content.isSellable ? `/market/${content.id}` : '/feed';
 
 export default function EcosystemHome() {
+  const navigate = useNavigate();
   const [freelanceFeedback, setFreelanceFeedback] = useState<Record<string, string>>({});
   const [freelanceEngagements, setFreelanceEngagements] = useState<Record<string, FreelanceEngagement>>({});
   const [topFreelancers, setTopFreelancers] = useState<TopFreelancer[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierProfile[]>([]);
   const [activeFreelanceIndex, setActiveFreelanceIndex] = useState(0);
   const [isLightMode, setIsLightMode] = useState(() => window.localStorage.getItem('afrisell:ecosystem-theme') === 'light');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isAfriAiOpen, setIsAfriAiOpen] = useState(false);
   const { profile, user } = useFirebaseAuth();
   const { abcContents, marketProducts } = useAfriMarket();
+  const { balance, currency, loading: walletLoading } = useAfriSpayWallet();
   const firstName = (profile?.displayName || user?.displayName || 'Utilisateur').split(' ')[0];
+  const walletLabel = user
+    ? walletLoading
+      ? '...'
+      : formatMarketPrice(balance, currency) || `${balance.toLocaleString('fr-FR')} ${currency}`
+    : 'Wallet';
   const promoProducts = [...marketProducts, ...abcContents].slice(0, 8);
   const promoItems = promoProducts.length
     ? promoProducts.map((item) => ({
@@ -195,6 +213,53 @@ export default function EcosystemHome() {
   const getActionLink = (action: QuickAction) => (
     action.requiresAuth && !user ? '/login' : action.route
   );
+  const universalSearchItems = useMemo(() => {
+    const moduleItems = ecosystemModules.map((module) => ({
+      id: `module-${module.id}`,
+      title: module.name,
+      meta: module.promise,
+      image: module.logo,
+      route: module.route,
+      type: 'App'
+    }));
+    const actionItems = quickActions.map((action) => ({
+      id: `action-${action.label}`,
+      title: action.label,
+      meta: 'Action rapide',
+      image: '',
+      route: getActionLink(action),
+      type: 'Action',
+      state: action.requiresAuth && !user ? { next: action.route } : undefined
+    }));
+    const contentItems = [...marketProducts, ...abcContents].slice(0, 18).map((content) => ({
+      id: `content-${content.id}`,
+      title: content.title,
+      meta: content.category || (content.isSellable ? 'Market' : 'ABC'),
+      image: content.coverURL,
+      route: getContentRoute(content),
+      type: content.isSellable ? 'Produit' : 'Contenu'
+    }));
+
+    return [...moduleItems, ...actionItems, ...contentItems];
+  }, [abcContents, marketProducts, user]);
+  const searchResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+
+    return universalSearchItems
+      .filter((item) => `${item.title} ${item.meta} ${item.type}`.toLowerCase().includes(query))
+      .slice(0, 6);
+  }, [searchQuery, universalSearchItems]);
+  const submitUniversalSearch = (event: FormEvent) => {
+    event.preventDefault();
+    const firstResult = searchResults[0];
+    if (!firstResult) return;
+    if ('state' in firstResult && firstResult.state) {
+      navigate(firstResult.route, { state: firstResult.state });
+      return;
+    }
+    navigate(firstResult.route);
+  };
   const visibleFreelancers = useMemo(() => {
     if (!topFreelancers.length) return [];
 
@@ -311,6 +376,15 @@ export default function EcosystemHome() {
             <h1 className="mt-2 text-2xl font-black tracking-normal">Bonjour {firstName}</h1>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <Link
+              to={user ? '/wallet' : '/login'}
+              state={!user ? { next: '/wallet' } : undefined}
+              className="flex h-10 max-w-[104px] shrink-0 items-center gap-2 rounded-2xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-3 text-[#15EA3E]"
+              aria-label="Wallet AfriSpay"
+            >
+              <AfriSellIcon name="pay" size={15} />
+              <span className="truncate text-[10px] font-black">{walletLabel}</span>
+            </Link>
             <button
               type="button"
               onClick={() => setIsLightMode((current) => !current)}
@@ -332,6 +406,55 @@ export default function EcosystemHome() {
           </div>
         </div>
       </header>
+
+      <section className="mt-4 shrink-0 px-4">
+        <form onSubmit={submitUniversalSearch} className="relative">
+          <label className="flex h-13 items-center gap-3 rounded-[1.25rem] border border-white/10 bg-white/[0.05] px-4 shadow-[0_14px_32px_rgba(0,0,0,0.22)]">
+            <AfriSellIcon name="search" size={17} className="shrink-0 text-[#15EA3E]" />
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Chercher produit, medecin, emploi, cours..."
+              className="h-full min-w-0 flex-1 bg-transparent text-xs font-bold text-white outline-none placeholder:text-white/38"
+            />
+            <button
+              type="submit"
+              disabled={!searchResults.length}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black disabled:bg-white/10 disabled:text-white/30"
+              aria-label="Lancer la recherche"
+            >
+              <AfriSellIcon name="arrow" size={14} />
+            </button>
+          </label>
+
+          {searchResults.length > 0 && (
+            <div className="absolute left-0 right-0 top-[58px] z-40 overflow-hidden rounded-[1.25rem] border border-white/10 bg-[#070A07]/96 p-2 shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-xl">
+              {searchResults.map((item) => (
+                <Link
+                  key={item.id}
+                  to={item.route}
+                  state={'state' in item ? item.state : undefined}
+                  onClick={() => setSearchQuery('')}
+                  className="flex items-center gap-3 rounded-2xl p-2.5 active:scale-[0.99]"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.05] text-[#15EA3E]">
+                    {item.image ? (
+                      <img src={item.image} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <AfriSellIcon name="search" size={15} />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-black text-white">{item.title}</span>
+                    <span className="mt-0.5 block truncate text-[10px] font-bold text-white/45">{item.type} - {item.meta}</span>
+                  </span>
+                  <AfriSellIcon name="arrow" size={13} className="text-[#15EA3E]" />
+                </Link>
+              ))}
+            </div>
+          )}
+        </form>
+      </section>
 
       <section className="mt-5 shrink-0 overflow-hidden">
         <div className="scrollbar-hide overflow-x-auto px-4 pb-1">
@@ -361,7 +484,7 @@ export default function EcosystemHome() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Aujourd hui</p>
-                <h2 className="mt-1 text-xl font-black leading-tight">Tout AfriSell en mouvement</h2>
+                <h2 className="mt-1 text-xl font-black leading-tight">Vitrines, Stands et Villages en mouvement</h2>
               </div>
               <Link to="/market" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
                 <AfriSellIcon name="arrow" size={17} />
@@ -420,9 +543,46 @@ export default function EcosystemHome() {
         </div>
       </section>
 
+      <section className="mt-6 px-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Modules par categories</h2>
+            <p className="mt-1 text-[10px] font-semibold text-white/34">Stands, Villages, Kyaghanda, Vitrines, AfriCoin et FPP relies.</p>
+          </div>
+          <Link to="/apps" className="text-[10px] font-black text-[#15EA3E]">Tout voir</Link>
+        </div>
+
+        <div className="space-y-4">
+          {moduleCategories.map((category) => {
+            const modules = ecosystemModules.filter((module) => module.category === category.id);
+            if (!modules.length) return null;
+
+            return (
+              <div key={category.id}>
+                <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#15EA3E]">{category.label}</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {modules.map((module) => (
+                    <Link
+                      key={module.id}
+                      to={module.route}
+                      className="min-w-0 rounded-[1rem] border border-white/10 bg-white/[0.04] p-2 text-center active:scale-[0.98]"
+                    >
+                      <span className="mx-auto flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-[#15EA3E]/18 bg-black/22">
+                        <img src={module.logo} alt="" className="h-full w-full object-cover" />
+                      </span>
+                      <span className="mt-2 block truncate text-[9px] font-black text-white">{module.shortName}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="mt-6">
         <div className="mb-3 flex items-center justify-between px-4">
-          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">ABC maintenant</h2>
+          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Vitrines ABC</h2>
           <Link to="/feed" className="text-[10px] font-black text-[#15EA3E]">Voir le flux</Link>
         </div>
 
@@ -463,7 +623,7 @@ export default function EcosystemHome() {
 
       <section className="mt-6 px-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Market populaire</h2>
+          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Stands populaires</h2>
           <Link to="/market" className="text-[10px] font-black text-[#15EA3E]">Ouvrir</Link>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -677,6 +837,44 @@ export default function EcosystemHome() {
         </section>
       )}
       </div>
+
+      <button
+        type="button"
+        onClick={() => setIsAfriAiOpen((current) => !current)}
+        className="absolute bottom-6 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#15EA3E]/35 bg-[#15EA3E] text-black shadow-[0_16px_34px_rgba(21,234,62,0.32)] active:scale-[0.96]"
+        aria-label="Assistant AfriAI"
+      >
+        <AfriSellIcon name="language" size={22} />
+      </button>
+
+      {isAfriAiOpen && (
+        <div className="absolute bottom-24 right-4 z-50 w-[292px] overflow-hidden rounded-[1.5rem] border border-[#15EA3E]/24 bg-[#070A07]/96 p-4 shadow-[0_20px_54px_rgba(0,0,0,0.54)] backdrop-blur-xl">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">AfriAI</p>
+              <h3 className="mt-1 text-sm font-black text-white">Assistant universel</h3>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/50">
+                Recherche, traduction et aide vocale seront connectees ici. Pour l instant, utilise la recherche universelle.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsAfriAiOpen(false)}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-white/55"
+              aria-label="Fermer AfriAI"
+            >
+              <AfriSellIcon name="close" size={13} />
+            </button>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {['Parler', 'Traduire', 'Aider'].map((label) => (
+              <button key={label} type="button" className="rounded-xl border border-white/10 bg-white/[0.05] px-2 py-2 text-[9px] font-black uppercase tracking-wider text-white/70">
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

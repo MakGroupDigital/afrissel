@@ -96,7 +96,7 @@ export default function MarketHome() {
               <div className="min-w-0 flex-1">
                 <div className="inline-flex items-center gap-2 rounded-full bg-[#15EA3E] px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-black">
                   <AfriSellIcon name="flash" size={12} />
-                  Produit populaire
+                  Stand populaire
                 </div>
                 <h2 className="mt-3 line-clamp-2 text-lg font-black leading-tight text-white">{featuredProduct.title}</h2>
                 <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-relaxed text-white/50">{featuredProduct.description}</p>
@@ -143,8 +143,8 @@ export default function MarketHome() {
 
       <div className="mb-2 mt-2 flex items-center justify-between px-4">
         <div>
-          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Articles a vendre</h2>
-          <p className="mt-1 text-[10px] font-semibold text-gray-600">Depuis les publications ABC vendables</p>
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Stands & Vitrines</h2>
+          <p className="mt-1 text-[10px] font-semibold text-gray-600">Produits ABC avec Prix Village, AfriCoin et FPP</p>
         </div>
         <span className="text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">{filteredProducts.length} actif(s)</span>
       </div>

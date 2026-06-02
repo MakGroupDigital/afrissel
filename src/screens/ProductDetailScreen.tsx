@@ -2,18 +2,12 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AfriSellIcon } from '../components/AfriSellIcon';
 import { AfriMarketContent, formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
-import { useAppStore } from '../store/useAppStore';
+import { CheckoutDelivery, useAppStore } from '../store/useAppStore';
+import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
+import { shareVillageDealToAfriChat } from '../domains/commerce';
 import { cn } from '../lib/utils';
 
-type DeliveryOption = {
-  id: string;
-  title: string;
-  description: string;
-  price: number;
-  eta: string;
-};
-
-const deliveryOptions: DeliveryOption[] = [
+const deliveryOptions: CheckoutDelivery[] = [
   {
     id: 'intercity_free',
     title: 'Interville gratuit',
@@ -102,11 +96,13 @@ export default function ProductDetailScreen() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const { abcContents, marketProducts, loading } = useAfriMarket();
+  const { user, profile } = useFirebaseAuth();
   const openCheckout = useAppStore((state) => state.openCheckout);
   const addToCart = useAppStore((state) => state.addToCart);
   const cart = useAppStore((state) => state.cart);
   const [selectedDeliveryId, setSelectedDeliveryId] = useState(deliveryOptions[0].id);
   const [status, setStatus] = useState('');
+  const [villageSharing, setVillageSharing] = useState(false);
 
   const product = useMemo(
     () => (
@@ -138,7 +134,35 @@ export default function ProductDetailScreen() {
   };
 
   const handleBuy = () => {
-    openCheckout(checkoutProduct);
+    if (!user) {
+      navigate('/login', { state: { next: `/market/${product.id}` } });
+      return;
+    }
+    openCheckout(checkoutProduct, selectedDelivery);
+  };
+
+  const handleVillageShare = async () => {
+    if (!user) {
+      navigate('/login', { state: { next: `/market/${product.id}` } });
+      return;
+    }
+
+    setVillageSharing(true);
+    setStatus('');
+    try {
+      const result = await shareVillageDealToAfriChat({
+        user,
+        profile,
+        product: checkoutProduct
+      });
+      setStatus('Prix Village partage dans AfriChat. Le vendeur peut suivre le groupe.');
+      void result;
+      navigate(`/chat?contact=${encodeURIComponent(product.authorId)}&name=${encodeURIComponent(product.authorName)}&status=${encodeURIComponent('Prix Village')}&avatar=${encodeURIComponent(product.authorAvatar || '')}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Partage Prix Village impossible.');
+    } finally {
+      setVillageSharing(false);
+    }
   };
 
   return (
@@ -197,6 +221,30 @@ export default function ProductDetailScreen() {
                 </p>
               )}
             </div>
+            <div className="mt-4 rounded-2xl border border-[#15EA3E]/20 bg-black/22 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#15EA3E]">Prix Village</p>
+                  <p className="mt-1 text-xs font-semibold text-white/58">
+                    Village {(product.buyersCount || 0)}/{product.buyersNeeded || 1} pour debloquer le Prix Village.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleVillageShare}
+                  disabled={villageSharing}
+                  className="rounded-xl bg-[#15EA3E] px-3 py-2 text-[9px] font-black uppercase tracking-wider text-black disabled:bg-gray-800 disabled:text-gray-500"
+                >
+                  {villageSharing ? '...' : 'Partager'}
+                </button>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-[#15EA3E]"
+                  style={{ width: `${Math.min(((product.buyersCount || 0) / Math.max(product.buyersNeeded || 1, 1)) * 100, 100)}%` }}
+                />
+              </div>
+            </div>
           </div>
         </section>
 
@@ -249,7 +297,7 @@ export default function ProductDetailScreen() {
         <section className="mt-5 grid grid-cols-3 gap-2">
           {[
             { label: 'Likes', value: product.likesCount || 0 },
-            { label: 'Acheteurs', value: product.buyersCount || 0 },
+            { label: 'Village', value: product.buyersCount || 0 },
             { label: 'Partages', value: product.sharesCount || 0 }
           ].map((metric) => (
             <div key={metric.label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
@@ -262,7 +310,7 @@ export default function ProductDetailScreen() {
         <section className="mt-5 rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4">
           <h2 className="text-sm font-black">Paiement AfriSpay</h2>
           <p className="mt-1 text-xs font-semibold leading-relaxed text-white/48">
-            Paiement direct avec ton wallet AfriSpay. Le vendeur est notifie apres confirmation.
+            Paiement direct avec ton wallet AfriSpay. AfriCoin, FPP et vendeur sont notifies apres confirmation.
           </p>
           <div className="mt-3 flex items-center gap-2 rounded-2xl bg-black/35 p-3">
             <AfriSellIcon name="shield" size={18} className="text-[#15EA3E]" />

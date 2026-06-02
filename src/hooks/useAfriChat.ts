@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { off, onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
+import { off, onValue, push, ref, serverTimestamp, update } from 'firebase/database';
 import { realtimeDb } from '../lib/firebase';
 import { useFirebaseAuth } from './useFirebaseAuth';
-import { isOfflineNow, offlineCacheKey, readOfflineCache, writeOfflineCache } from '../lib/offlineCache';
+import { enqueueFirebaseUpdate, isOfflineNow, offlineCacheKey, readOfflineCache, readOfflineCacheAsync, writeOfflineCache } from '../lib/offlineCache';
 
 export type AfriChatThread = {
   id: string;
@@ -116,6 +116,7 @@ export const useAfriChat = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let mounted = true;
     if (!user) {
       setThreads([]);
       setContacts([]);
@@ -138,6 +139,16 @@ export const useAfriChat = () => {
       setLoading(false);
       setError(cachedThreads.length || cachedContacts.length ? 'Mode hors ligne: discussions locales affichees.' : 'Mode hors ligne: aucune discussion locale disponible.');
     }
+
+    void Promise.all([
+      readOfflineCacheAsync<AfriChatThread[]>(threadsCacheKey, []),
+      readOfflineCacheAsync<AfriChatContact[]>(contactsCacheKey, [])
+    ]).then(([indexedThreads, indexedContacts]) => {
+      if (!mounted) return;
+      if (indexedThreads.length) setThreads(indexedThreads);
+      if (indexedContacts.length) setContacts(indexedContacts);
+      if (isOfflineNow()) setLoading(false);
+    });
 
     const userThreadsRef = ref(realtimeDb, `userChats/${user.uid}`);
     const userContactsRef = ref(realtimeDb, `chatContacts/${user.uid}`);
@@ -194,6 +205,7 @@ export const useAfriChat = () => {
     );
 
     return () => {
+      mounted = false;
       unsubscribeThreads();
       unsubscribeContacts();
       off(userThreadsRef);
@@ -211,6 +223,13 @@ export const useAfriChat = () => {
         [threadId]: cachedMessages
       }));
     }
+    void readOfflineCacheAsync<AfriChatMessage[]>(messagesCacheKey, []).then((indexedMessages) => {
+      if (!indexedMessages.length) return;
+      setMessagesByThread((current) => ({
+        ...current,
+        [threadId]: indexedMessages
+      }));
+    });
 
     const messagesRef = ref(realtimeDb, `chatMessages/${threadId}`);
     const unsubscribe = onValue(
@@ -269,10 +288,21 @@ export const useAfriChat = () => {
       createdAt: now,
       status: 'sent'
     };
+    const offline = isOfflineNow();
+    const updatedAtValue = offline ? now : serverTimestamp();
 
-    await set(messageRef, message);
+    const optimisticMessage = {
+      ...message,
+      status: offline ? 'queued' : 'sent'
+    };
+    const nextMessages = [...(messagesByThread[thread.id] || []), optimisticMessage];
+    setMessagesByThread((current) => ({
+      ...current,
+      [thread.id]: nextMessages
+    }));
+    writeOfflineCache(offlineCacheKey('chatMessages', thread.id), nextMessages);
 
-    await update(ref(realtimeDb, `userChats/${user.uid}/${thread.id}`), {
+    const userChatUpdate = {
       threadId: thread.id,
       title: thread.title,
       avatarURL: thread.avatarURL || '',
@@ -282,13 +312,27 @@ export const useAfriChat = () => {
       type: thread.type || 'direct',
       lastMessage: trimmedText,
       lastMessageAt: now,
-      updatedAt: serverTimestamp(),
+      updatedAt: updatedAtValue,
       unreadCount: 0
-    });
+    };
 
     const recipientId = getDirectRecipientId(thread, user.uid);
+    const updates: Record<string, unknown> = {
+      [`chatMessages/${thread.id}/${messageId}`]: message,
+      [`userChats/${user.uid}/${thread.id}`]: userChatUpdate,
+      [`chatThreads/${thread.id}`]: {
+        id: thread.id,
+        title: thread.title,
+        lastMessage: trimmedText,
+        lastMessageAt: now,
+        updatedAt: updatedAtValue
+      },
+      [`chatThreads/${thread.id}/members/${user.uid}`]: true,
+      [`chatThreads/${thread.id}/memberNames/${user.uid}`]: profile?.displayName || user.displayName || 'Utilisateur AfriSell'
+    };
+
     if (recipientId && !recipientId.startsWith('device_')) {
-      await update(ref(realtimeDb, `userChats/${recipientId}/${thread.id}`), {
+      updates[`userChats/${recipientId}/${thread.id}`] = {
         threadId: thread.id,
         title: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
         avatarURL: profile?.photoURL || user.photoURL || '',
@@ -299,20 +343,20 @@ export const useAfriChat = () => {
         status: 'AfriChat',
         lastMessage: trimmedText,
         lastMessageAt: now,
-        updatedAt: serverTimestamp(),
+        updatedAt: updatedAtValue,
         unreadCount: 1
-      });
+      };
+      updates[`chatThreads/${thread.id}/members/${recipientId}`] = true;
+      updates[`chatThreads/${thread.id}/memberNames/${recipientId}`] = thread.title;
     }
 
-    await update(ref(realtimeDb, `chatThreads/${thread.id}`), {
-      id: thread.id,
-      title: thread.title,
-      lastMessage: trimmedText,
-      lastMessageAt: now,
-      updatedAt: serverTimestamp(),
-      [`members/${user.uid}`]: true,
-      [`memberNames/${user.uid}`]: profile?.displayName || user.displayName || 'Utilisateur AfriSell'
-    });
+    if (offline) {
+      await enqueueFirebaseUpdate(updates);
+      setError('Mode hors ligne: message ajoute a la file AfriChat.');
+      return;
+    }
+
+    await update(ref(realtimeDb), updates);
   };
 
   const openDirectThread = async (contact: AfriChatContact): Promise<AfriChatThread | null> => {

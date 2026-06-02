@@ -1,6 +1,9 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { onValue, ref } from 'firebase/database';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
+import { realtimeDb } from '../lib/firebase';
 
 const services: Array<{
   title: string;
@@ -28,8 +31,46 @@ const services: Array<{
   }
 ];
 
+type SafariDelivery = {
+  orderId: string;
+  productName?: string;
+  buyerId?: string;
+  sellerId?: string;
+  sellerName?: string;
+  buyerName?: string;
+  status?: string;
+  delivery?: {
+    title?: string;
+    eta?: string;
+    price?: number;
+  };
+  createdAt?: number;
+};
+
 export default function SafariServicesScreen() {
   const { user } = useFirebaseAuth();
+  const [deliveries, setDeliveries] = useState<SafariDelivery[]>([]);
+
+  useEffect(() => {
+    if (!user) {
+      setDeliveries([]);
+      return undefined;
+    }
+
+    const deliveriesRef = ref(realtimeDb, 'safariDeliveries');
+    const unsubscribe = onValue(deliveriesRef, (snapshot) => {
+      const data = snapshot.val() as Record<string, SafariDelivery> | null;
+      const nextDeliveries = Object.entries(data || {})
+        .map(([orderId, delivery]) => ({ ...delivery, orderId: delivery.orderId || orderId }))
+        .filter((delivery) => delivery.buyerId === user.uid || delivery.sellerId === user.uid)
+        .sort((first, second) => Number(second.createdAt || 0) - Number(first.createdAt || 0));
+      setDeliveries(nextDeliveries);
+    });
+
+    return unsubscribe;
+  }, [user]);
+
+  const activeDeliveries = useMemo(() => deliveries.slice(0, 5), [deliveries]);
 
   return (
     <main className="min-h-full bg-[#050705] px-4 pb-7 pt-4 text-white">
@@ -78,6 +119,39 @@ export default function SafariServicesScreen() {
           );
         })}
       </section>
+
+      {activeDeliveries.length > 0 && (
+        <section className="mt-6">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Livraisons actives</h2>
+            <span className="text-[10px] font-black text-[#15EA3E]">{activeDeliveries.length}</span>
+          </div>
+          <div className="space-y-3">
+            {activeDeliveries.map((delivery) => (
+              <article key={delivery.orderId} className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-black">{delivery.productName || 'Commande AfriSell'}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-[#15EA3E]">{delivery.delivery?.title || 'Safari'}</p>
+                    <p className="mt-2 text-[11px] font-semibold text-white/45">
+                      {delivery.buyerId === user?.uid ? `Vendeur: ${delivery.sellerName || 'AfriSell'}` : `Client: ${delivery.buyerName || 'AfriSell'}`}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-[#15EA3E]/20 bg-[#15EA3E]/10 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
+                    {delivery.status || 'pending'}
+                  </span>
+                </div>
+                <div className="mt-3 flex items-center justify-between rounded-2xl bg-black/24 p-3">
+                  <span className="text-[10px] font-bold text-white/50">ETA: {delivery.delivery?.eta || 'A confirmer'}</span>
+                  <Link to="/chat" className="text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">
+                    Chat
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

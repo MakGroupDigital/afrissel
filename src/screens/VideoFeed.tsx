@@ -222,7 +222,7 @@ function FeedItem({
                   Prix: {formatMarketPrice(content.villagePrice || content.price, content.currency)}
                 </span>
                 <span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-white/60">
-                  {content.buyersCount || 0}/{content.buyersNeeded || 1} acheteurs
+                  Village {content.buyersCount || 0}/{content.buyersNeeded || 1}
                 </span>
               </div>
             )}
@@ -441,8 +441,8 @@ function PublishPanel({
             className={cn('rounded-2xl border p-3 text-left', isSellable ? 'border-[#15EA3E]/40 bg-[#15EA3E]/10 text-white' : 'border-gray-800 bg-[#050505] text-gray-500')}
           >
             <AfriSellIcon name="market" size={18} />
-            <span className="mt-2 block text-xs font-black">Vendre</span>
-            <span className="mt-1 block text-[10px] leading-snug">Photo ou video avec bouton Acheter.</span>
+            <span className="mt-2 block text-xs font-black">Stand</span>
+            <span className="mt-1 block text-[10px] leading-snug">Vitrine video/photo avec Prix Village.</span>
           </button>
         </div>
 
@@ -491,7 +491,7 @@ function PublishPanel({
 
           {isSellable && (
             <p className="-mt-1 text-[10px] font-semibold leading-relaxed text-gray-500">
-              Les ventes avec photos apparaissent aussi dans le Market. Les ventes en video restent dans ABC avec le bouton Acheter.
+              Les Stands photo apparaissent dans Market. Les Vitrines video restent dans ABC avec Prix Village.
             </p>
           )}
 
@@ -523,7 +523,7 @@ function PublishPanel({
                 value={buyersNeeded}
                 onChange={(event) => setBuyersNeeded(event.target.value)}
                 inputMode="numeric"
-                placeholder="Acheteurs"
+                placeholder="Village"
                 className="h-12 rounded-2xl border border-gray-800 bg-[#050505] px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
               />
             </div>

@@ -7,37 +7,33 @@ export default function BottomNavigation() {
   const location = useLocation();
 
   const navItems = [
-    { icon: 'hub' as AfriSellIconName, label: 'Hub', path: '/ecosystem' },
+    { icon: 'hub' as AfriSellIconName, label: 'Accueil', path: '/ecosystem' },
+    { icon: 'video' as AfriSellIconName, label: 'Découvrir', path: '/feed' },
     { icon: 'market' as AfriSellIconName, label: 'Marché', path: '/market' },
-    // FAB spacer
-    { icon: null, label: '', path: '', isSpacer: true },
-    { icon: 'pay' as AfriSellIconName, label: 'Pay', path: '/wallet' },
-    { icon: 'chat' as AfriSellIconName, label: 'Chat', path: '/chat' },
+    { icon: 'chat' as AfriSellIconName, label: 'Messages', path: '/chat' },
+    { icon: 'profile' as AfriSellIconName, label: 'Moi', path: '/profile' },
   ];
 
   return (
-    <div className="absolute bottom-0 inset-x-0 h-20 bg-[#000000] border-t border-gray-900 flex items-center justify-around px-2 pb-2 z-40">
-      {navItems.map((item, index) => {
-        if (item.isSpacer) {
-          return <div key={index} className="w-12" />; // Spacer for FAB
-        }
-        
+    <div className="absolute bottom-0 inset-x-0 z-40 flex h-20 items-center justify-around border-t border-gray-900 bg-[#000000] px-2 pb-2">
+      {navItems.map((item) => {
         const isActive = location.pathname === item.path;
-        const icon = item.icon!;
 
         return (
           <NavLink
             key={item.path}
             to={item.path}
-            className="flex flex-col items-center justify-center w-12 gap-1 group"
+            className="group flex w-[62px] flex-col items-center justify-center gap-1"
           >
             <div className={cn(
-               "w-5 h-5 rounded-sm flex items-center justify-center transition-colors duration-300",
-               isActive ? "bg-[#15EA3E]" : "bg-gray-800 group-hover:bg-gray-700"
+               "flex h-8 w-8 items-center justify-center rounded-2xl border transition-all duration-300",
+               isActive
+                 ? "border-[#15EA3E]/40 bg-[#15EA3E] shadow-[0_0_18px_rgba(21,234,62,0.28)]"
+                 : "border-white/10 bg-white/[0.04] group-hover:border-gray-700"
             )}>
                <AfriSellIcon
-                 name={icon}
-                 size={13}
+                 name={item.icon}
+                 size={15}
                  className={cn(
                    "transition-colors duration-300",
                    isActive ? "text-black" : "text-gray-400 group-hover:text-white"
@@ -53,13 +49,6 @@ export default function BottomNavigation() {
           </NavLink>
         );
       })}
-
-      {/* Floating Action Button (FAB) for scanner */}
-      <div className="absolute left-1/2 -top-4 -translate-x-1/2 z-50">
-        <NavLink to="/scan" className="relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-[#15EA3E] to-[#12C233] text-white shadow-[0_0_20px_rgba(21,234,62,0.5)] border-4 border-[#000000] group hover:scale-105 transition-transform duration-300 active:scale-95">
-           <AfriSellIcon name="scan" size={25} className="text-black" />
-        </NavLink>
-      </div>
     </div>
   );
 }

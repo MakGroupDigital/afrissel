@@ -1,18 +1,26 @@
 import { useEffect, useState } from 'react';
 import { AfriSellIcon } from './AfriSellIcon';
+import { getQueuedOfflineCount } from '../lib/offlineCache';
 
 export default function OfflineStatus() {
   const [isOnline, setIsOnline] = useState(() => (
     typeof navigator === 'undefined' ? true : navigator.onLine
   ));
+  const [queuedCount, setQueuedCount] = useState(0);
 
   useEffect(() => {
-    const updateStatus = () => setIsOnline(navigator.onLine);
+    const updateStatus = () => {
+      setIsOnline(navigator.onLine);
+      void getQueuedOfflineCount().then(setQueuedCount).catch(() => undefined);
+    };
+    updateStatus();
     window.addEventListener('online', updateStatus);
     window.addEventListener('offline', updateStatus);
+    const timer = window.setInterval(updateStatus, 5000);
     return () => {
       window.removeEventListener('online', updateStatus);
       window.removeEventListener('offline', updateStatus);
+      window.clearInterval(timer);
     };
   }, []);
 
@@ -25,7 +33,7 @@ export default function OfflineStatus() {
         Mode hors ligne
       </p>
       <span className="ml-auto text-[9px] font-bold uppercase tracking-wider text-white/44">
-        Donnees locales
+        {queuedCount ? `${queuedCount} en attente` : 'IndexedDB'}
       </span>
     </div>
   );

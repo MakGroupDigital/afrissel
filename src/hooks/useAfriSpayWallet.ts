@@ -3,7 +3,7 @@ import { limitToLast, off, onValue, orderByChild, query, ref } from 'firebase/da
 import { realtimeDb } from '../lib/firebase';
 import { useFirebaseAuth } from './useFirebaseAuth';
 import { AfriSellIconName } from '../components/AfriSellIcon';
-import { isOfflineNow, offlineCacheKey, readOfflineCache, writeOfflineCache } from '../lib/offlineCache';
+import { isOfflineNow, offlineCacheKey, readOfflineCache, readOfflineCacheAsync, writeOfflineCache } from '../lib/offlineCache';
 
 export type AfriSpayWallet = {
   balance?: number;
@@ -98,6 +98,7 @@ export const useAfriSpayWallet = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let mounted = true;
     if (!user) {
       setWallet(null);
       setTransactions([]);
@@ -119,6 +120,16 @@ export const useAfriSpayWallet = () => {
       setLoading(false);
       setError(cachedWallet || cachedTransactions.length ? 'Mode hors ligne: donnees AfriSpay locales affichees.' : 'Mode hors ligne: aucune donnee AfriSpay locale disponible.');
     }
+
+    void Promise.all([
+      readOfflineCacheAsync<AfriSpayWallet | null>(walletCacheKey, null),
+      readOfflineCacheAsync<AfriSpayTransaction[]>(transactionsCacheKey, [])
+    ]).then(([indexedWallet, indexedTransactions]) => {
+      if (!mounted) return;
+      if (indexedWallet) setWallet(indexedWallet);
+      if (indexedTransactions.length) setTransactions(indexedTransactions);
+      if (isOfflineNow()) setLoading(false);
+    });
 
     const walletRef = ref(realtimeDb, `wallets/${user.uid}`);
     const transactionsRef = query(
@@ -176,6 +187,7 @@ export const useAfriSpayWallet = () => {
     );
 
     return () => {
+      mounted = false;
       unsubscribeWallet();
       unsubscribeTransactions();
       off(walletRef);
