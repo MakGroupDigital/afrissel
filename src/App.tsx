@@ -17,6 +17,8 @@ import ModuleSuiteScreen, { ModuleActionScreen } from './screens/ModuleSuiteScre
 import VideoFeed from './screens/VideoFeed';
 import MarketHome from './screens/MarketHome';
 import ProductDetailScreen from './screens/ProductDetailScreen';
+import MarketOrdersScreen from './screens/MarketOrdersScreen';
+import SellerStandScreen from './screens/SellerStandScreen';
 import WalletDashboard from './screens/WalletDashboard';
 import ChatRoom from './screens/ChatRoom';
 import ScannerScreen from './screens/ScannerScreen';
@@ -118,6 +120,8 @@ function AppRoutes() {
         <Route path="/fpp/:actionId" element={<ModuleActionScreen moduleId="fpp" />} />
         <Route path="/feed" element={<VideoFeed />} />
         <Route path="/market" element={<MarketHome />} />
+        <Route path="/market/orders" element={<MarketOrdersScreen />} />
+        <Route path="/market/stand/:sellerId" element={<SellerStandScreen />} />
         <Route path="/market/:productId" element={<ProductDetailScreen />} />
         <Route path="/wallet" element={<RequireAuth><WalletDashboard /></RequireAuth>} />
         <Route path="/chat" element={<RequireAuth><ChatRoom /></RequireAuth>} />

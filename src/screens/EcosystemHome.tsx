@@ -841,14 +841,14 @@ export default function EcosystemHome() {
       <button
         type="button"
         onClick={() => setIsAfriAiOpen((current) => !current)}
-        className="absolute bottom-6 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#15EA3E]/35 bg-[#15EA3E] text-black shadow-[0_16px_34px_rgba(21,234,62,0.32)] active:scale-[0.96]"
+        className="absolute bottom-[104px] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#15EA3E]/35 bg-[#15EA3E] text-black shadow-[0_16px_34px_rgba(21,234,62,0.32)] active:scale-[0.96]"
         aria-label="Assistant AfriAI"
       >
         <AfriSellIcon name="language" size={22} />
       </button>
 
       {isAfriAiOpen && (
-        <div className="absolute bottom-24 right-4 z-50 w-[292px] overflow-hidden rounded-[1.5rem] border border-[#15EA3E]/24 bg-[#070A07]/96 p-4 shadow-[0_20px_54px_rgba(0,0,0,0.54)] backdrop-blur-xl">
+        <div className="absolute bottom-[174px] right-4 z-50 w-[292px] overflow-hidden rounded-[1.5rem] border border-[#15EA3E]/24 bg-[#070A07]/96 p-4 shadow-[0_20px_54px_rgba(0,0,0,0.54)] backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">AfriAI</p>

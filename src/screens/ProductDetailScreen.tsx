@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { onValue, push, ref, set } from 'firebase/database';
 import { AfriSellIcon } from '../components/AfriSellIcon';
 import { AfriMarketContent, formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { CheckoutDelivery, useAppStore } from '../store/useAppStore';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { shareVillageDealToAfriChat } from '../domains/commerce';
+import { realtimeDb } from '../lib/firebase';
 import { cn } from '../lib/utils';
 
 const deliveryOptions: CheckoutDelivery[] = [
@@ -30,6 +32,15 @@ const deliveryOptions: CheckoutDelivery[] = [
     eta: 'Aujourd hui'
   }
 ];
+
+type ProductReview = {
+  id: string;
+  authorId: string;
+  authorName: string;
+  rating: number;
+  text: string;
+  createdAt: number;
+};
 
 function ProductGallery({ product }: { product: AfriMarketContent }) {
   const media = product.media.length ? product.media : [{
@@ -103,6 +114,10 @@ export default function ProductDetailScreen() {
   const [selectedDeliveryId, setSelectedDeliveryId] = useState(deliveryOptions[0].id);
   const [status, setStatus] = useState('');
   const [villageSharing, setVillageSharing] = useState(false);
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const product = useMemo(
     () => (
@@ -114,6 +129,26 @@ export default function ProductDetailScreen() {
   const checkoutProduct = product ? toCheckoutProduct(product) : null;
   const selectedDelivery = deliveryOptions.find((option) => option.id === selectedDeliveryId) || deliveryOptions[0];
   const alreadyInCart = Boolean(checkoutProduct && cart.some((item) => item.id === checkoutProduct.id));
+  const reviewAverage = reviews.length
+    ? reviews.reduce((total, review) => total + review.rating, 0) / reviews.length
+    : 0;
+  const afriCoinValue = Math.max(1, Math.round(Number(product?.villagePrice || product?.price || 0) * 2));
+  const fppValue = Math.round(Number(product?.villagePrice || product?.price || 0) * 0.03 * 100) / 100;
+
+  useEffect(() => {
+    if (!productId) return undefined;
+
+    const reviewsRef = ref(realtimeDb, `productReviews/${productId}`);
+    const unsubscribe = onValue(reviewsRef, (snapshot) => {
+      const data = snapshot.val() as Record<string, ProductReview> | null;
+      const nextReviews = Object.entries(data || {})
+        .map(([id, review]) => ({ ...review, id }))
+        .sort((first, second) => Number(second.createdAt || 0) - Number(first.createdAt || 0));
+      setReviews(nextReviews);
+    });
+
+    return unsubscribe;
+  }, [productId]);
 
   if (loading) {
     return (
@@ -165,8 +200,43 @@ export default function ProductDetailScreen() {
     }
   };
 
+  const submitReview = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!product) return;
+    if (!user) {
+      navigate('/login', { state: { next: `/market/${product.id}` } });
+      return;
+    }
+
+    const text = reviewText.trim();
+    if (!text) {
+      setStatus('Ajoute un commentaire avant de noter ce Stand.');
+      return;
+    }
+
+    setReviewSubmitting(true);
+    try {
+      const reviewRef = push(ref(realtimeDb, `productReviews/${product.id}`));
+      await set(reviewRef, {
+        id: reviewRef.key,
+        authorId: user.uid,
+        authorName: profile?.displayName || user.displayName || 'Client AfriSell',
+        rating: reviewRating,
+        text,
+        createdAt: Date.now()
+      });
+      setReviewText('');
+      setReviewRating(5);
+      setStatus('Avis ajoute au Stand.');
+    } catch {
+      setStatus('Avis impossible pour le moment.');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
   return (
-    <div className="relative min-h-full bg-black pb-28 text-white">
+    <div className="relative min-h-full bg-black pb-36 text-white">
       <header className="sticky top-0 z-30 border-b border-gray-900 bg-black/95 px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <button
@@ -248,7 +318,7 @@ export default function ProductDetailScreen() {
           </div>
         </section>
 
-        <section className="mt-5 rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4">
+        <Link to={`/market/stand/${product.authorId}`} className="mt-5 block rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4 active:scale-[0.99]">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
               <AfriSellIcon name="profile" size={19} />
@@ -258,9 +328,23 @@ export default function ProductDetailScreen() {
               <p className="mt-0.5 text-[11px] font-semibold text-white/42">Vendeur verifie par AfriSell</p>
             </div>
             <span className="rounded-full bg-[#15EA3E] px-2 py-1 text-[8px] font-black uppercase tracking-wider text-black">
-              Actif
+              Stand
             </span>
           </div>
+        </Link>
+
+        <section className="mt-5 grid grid-cols-3 gap-2">
+          {[
+            { label: 'Confiance', value: 'Verifie', icon: 'shield' as const },
+            { label: 'AfriCoin', value: `+${afriCoinValue}`, icon: 'star' as const },
+            { label: 'FPP', value: formatMarketPrice(fppValue, product.currency), icon: 'heart' as const }
+          ].map((item) => (
+            <div key={item.label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
+              <AfriSellIcon name={item.icon} size={17} className="mx-auto text-[#15EA3E]" />
+              <p className="mt-2 truncate text-[11px] font-black text-white">{item.value}</p>
+              <p className="mt-0.5 text-[8px] font-bold uppercase tracking-wider text-white/38">{item.label}</p>
+            </div>
+          ))}
         </section>
 
         <section className="mt-5">
@@ -318,6 +402,68 @@ export default function ProductDetailScreen() {
           </div>
         </section>
 
+        <section className="mt-5 rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-black">Avis du Stand</h2>
+              <p className="mt-1 text-[11px] font-semibold text-white/45">
+                {reviews.length ? `${reviewAverage.toFixed(1)}/5 sur ${reviews.length} avis` : 'Aucun avis pour le moment'}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 text-[#FFD84D]">
+              <AfriSellIcon name="star" size={16} className="fill-current" />
+              <span className="text-sm font-black">{reviewAverage ? reviewAverage.toFixed(1) : '0.0'}</span>
+            </div>
+          </div>
+
+          <form onSubmit={submitReview} className="mt-4 space-y-3">
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <button
+                  key={rating}
+                  type="button"
+                  onClick={() => setReviewRating(rating)}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-black/24"
+                  aria-label={`Noter ${rating}`}
+                >
+                  <AfriSellIcon name="star" size={15} className={rating <= reviewRating ? 'fill-current text-[#FFD84D]' : 'text-white/25'} />
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={reviewText}
+              onChange={(event) => setReviewText(event.target.value)}
+              placeholder="Ton avis sur ce Stand..."
+              rows={3}
+              className="w-full resize-none rounded-2xl border border-white/10 bg-black/24 px-4 py-3 text-xs font-semibold text-white outline-none focus:border-[#15EA3E]/50"
+            />
+            <button
+              type="submit"
+              disabled={reviewSubmitting}
+              className="h-11 w-full rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-widest text-black disabled:bg-gray-800 disabled:text-gray-500"
+            >
+              {reviewSubmitting ? 'Envoi...' : 'Noter le Stand'}
+            </button>
+          </form>
+
+          {reviews.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {reviews.slice(0, 3).map((review) => (
+                <article key={review.id} className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="truncate text-xs font-black">{review.authorName}</p>
+                    <span className="flex items-center gap-1 text-[10px] font-black text-[#FFD84D]">
+                      <AfriSellIcon name="star" size={11} className="fill-current" />
+                      {review.rating}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[11px] font-semibold leading-relaxed text-white/52">{review.text}</p>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
         {status && (
           <p className="mt-4 rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-3 text-xs font-bold text-[#15EA3E]">
             {status}
@@ -325,7 +471,7 @@ export default function ProductDetailScreen() {
         )}
       </main>
 
-      <div className="absolute inset-x-0 bottom-20 z-30 border-t border-gray-900 bg-black px-4 py-3">
+      <div className="fixed inset-x-0 bottom-20 z-30 mx-auto border-t border-gray-900 bg-black/96 px-4 py-3 backdrop-blur-md md:left-1/2 md:w-[340px] md:-translate-x-1/2">
         <div className="grid grid-cols-[1fr_1.2fr] gap-2">
           <button
             type="button"

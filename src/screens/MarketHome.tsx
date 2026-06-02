@@ -9,10 +9,11 @@ export default function MarketHome() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('Tout');
+  const [sortMode, setSortMode] = useState<'popular' | 'newest' | 'village' | 'price'>('popular');
 
   const normalizedQuery = query.trim().toLowerCase();
-  const filteredProducts = useMemo(() => (
-    marketProducts.filter((product) => {
+  const filteredProducts = useMemo(() => {
+    const nextProducts = marketProducts.filter((product) => {
       const matchesCategory = activeCategory === 'Tout' || product.category === activeCategory;
       const matchesQuery = !normalizedQuery || [
         product.title,
@@ -22,8 +23,18 @@ export default function MarketHome() {
       ].some((value) => value.toLowerCase().includes(normalizedQuery));
 
       return matchesCategory && matchesQuery;
-    })
-  ), [activeCategory, marketProducts, normalizedQuery]);
+    });
+
+    return nextProducts.sort((first, second) => {
+      if (sortMode === 'newest') return String(second.createdAt || '').localeCompare(String(first.createdAt || ''));
+      if (sortMode === 'village') return (second.buyersCount || 0) - (first.buyersCount || 0);
+      if (sortMode === 'price') return (first.villagePrice || first.price || 0) - (second.villagePrice || second.price || 0);
+
+      const firstScore = (first.likesCount || 0) * 2 + (first.buyersCount || 0) * 3 + (first.sharesCount || 0);
+      const secondScore = (second.likesCount || 0) * 2 + (second.buyersCount || 0) * 3 + (second.sharesCount || 0);
+      return secondScore - firstScore;
+    });
+  }, [activeCategory, marketProducts, normalizedQuery, sortMode]);
   const popularProducts = useMemo(() => (
     [...marketProducts]
       .sort((first, second) => {
@@ -51,9 +62,16 @@ export default function MarketHome() {
             />
           </div>
           <Link
-            to="/feed"
+            to="/market/orders"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-gray-800 bg-[#0A0A0A] text-[#15EA3E]"
+            aria-label="Commandes Market"
+          >
+            <AfriSellIcon name="order" size={19} />
+          </Link>
+          <Link
+            to="/feed?publish=1"
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black"
-            aria-label="Publier sur ABC"
+            aria-label="Creer un Stand"
           >
             <AfriSellIcon name="clip" size={19} />
           </Link>
@@ -73,6 +91,28 @@ export default function MarketHome() {
             }`}
           >
             {category}
+          </button>
+        ))}
+      </div>
+
+      <div className="scrollbar-hide flex gap-2 overflow-x-auto px-4 pb-4">
+        {[
+          { id: 'popular', label: 'Populaires' },
+          { id: 'newest', label: 'Recents' },
+          { id: 'village', label: 'Prix Village' },
+          { id: 'price', label: 'Prix bas' }
+        ].map((sort) => (
+          <button
+            key={sort.id}
+            type="button"
+            onClick={() => setSortMode(sort.id as typeof sortMode)}
+            className={`shrink-0 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-wider ${
+              sortMode === sort.id
+                ? 'bg-[#15EA3E] text-black'
+                : 'border border-white/10 bg-white/[0.04] text-white/48'
+            }`}
+          >
+            {sort.label}
           </button>
         ))}
       </div>
