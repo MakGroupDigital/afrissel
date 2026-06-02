@@ -1,9 +1,11 @@
 import React from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { InvertedAfricaLogo } from '../components/InvertedAfricaLogo';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
+import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
+import { executeWalletOperation, WalletOperationType } from '../domains/payment';
 
 const formatMoney = (amount: number, currency: string) =>
   new Intl.NumberFormat('fr-FR', {
@@ -13,10 +15,16 @@ const formatMoney = (amount: number, currency: string) =>
   }).format(amount);
 
 export default function WalletDashboard() {
-  const { balance, currency, accountLabel, transactions, loading, error } = useAfriSpayWallet();
+  const { user } = useFirebaseAuth();
+  const { wallet, balance, currency, accountLabel, transactions, loading, error } = useAfriSpayWallet();
   const [showBalance, setShowBalance] = React.useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeAction = searchParams.get('action');
+  const activeAction = searchParams.get('action') as WalletOperationType | 'scan' | null;
+  const [amount, setAmount] = React.useState('');
+  const [recipient, setRecipient] = React.useState('');
+  const [note, setNote] = React.useState('');
+  const [operationStatus, setOperationStatus] = React.useState('');
+  const [operationBusy, setOperationBusy] = React.useState(false);
 
   const actions = [
     { label: 'Dépôt', action: 'deposit', icon: 'deposit' as AfriSellIconName, color: 'text-white' },
@@ -27,6 +35,56 @@ export default function WalletDashboard() {
   const activeActionLabel = actions.find((action) => action.action === activeAction)?.label;
 
   const balanceLabel = showBalance ? formatMoney(balance, currency) : '••••••';
+  const recipientPlaceholder = activeAction === 'transfer' ? 'Numero ou uid:beneficiaire' : 'Numero Mobile Money';
+  const operationHelp = activeAction === 'deposit'
+    ? 'Le depot credite ton wallet AfriSpay et cree une transaction confirmee.'
+    : activeAction === 'withdraw'
+      ? 'Le retrait verifie ton solde puis prepare la sortie Mobile Money.'
+      : 'Le transfert envoie vers un wallet AfriSpay avec uid: ou vers un numero Mobile Money.';
+
+  React.useEffect(() => {
+    setAmount('');
+    setRecipient('');
+    setNote('');
+    setOperationStatus('');
+  }, [activeAction]);
+
+  const submitOperation = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!activeAction || activeAction === 'scan') return;
+
+    if (!user) {
+      setOperationStatus('Connecte-toi pour utiliser AfriSpay.');
+      return;
+    }
+
+    setOperationBusy(true);
+    setOperationStatus('');
+
+    try {
+      const result = await executeWalletOperation({
+        user,
+        type: activeAction,
+        amount: Number(amount),
+        currency,
+        phoneOrRecipient: recipient,
+        accountNumber: wallet?.accountNumber,
+        note
+      });
+      setAmount('');
+      setRecipient('');
+      setNote('');
+      setOperationStatus(
+        result.status === 'pending_operator'
+          ? 'Operation creee. Confirmation operateur en attente.'
+          : 'Operation AfriSpay confirmee.'
+      );
+    } catch (operationError) {
+      setOperationStatus(operationError instanceof Error ? operationError.message : 'Operation AfriSpay impossible.');
+    } finally {
+      setOperationBusy(false);
+    }
+  };
 
   return (
     <div className="min-h-full bg-[#000000] p-4 flex flex-col gap-6">
@@ -131,28 +189,61 @@ export default function WalletDashboard() {
       </div>
 
       {activeActionLabel && activeAction !== 'scan' && (
-        <div className="rounded-2xl border border-[#15EA3E]/20 bg-[#0A0A0A] p-4">
+        <form onSubmit={submitOperation} className="rounded-2xl border border-[#15EA3E]/20 bg-[#0A0A0A] p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Operation</p>
               <h2 className="mt-1 text-lg font-black text-white">{activeActionLabel} AfriSpay</h2>
               <p className="mt-1 text-[11px] font-semibold leading-relaxed text-gray-500">
-                Cette action prepare le flux Mobile Money. Les vraies validations seront confirmees par ton operateur.
+                {operationHelp}
               </p>
             </div>
-            <button onClick={() => setSearchParams({})} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-800 text-gray-500">
+            <button type="button" onClick={() => setSearchParams({})} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-800 text-gray-500">
               <AfriSellIcon name="close" size={16} />
             </button>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <input placeholder="Montant" inputMode="decimal" className="h-12 rounded-2xl border border-gray-800 bg-black px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50" />
-            <input placeholder="Numero" inputMode="tel" className="h-12 rounded-2xl border border-gray-800 bg-black px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50" />
+            <input
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              placeholder="Montant"
+              inputMode="decimal"
+              className="h-12 rounded-2xl border border-gray-800 bg-black px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
+            />
+            <input
+              value={recipient}
+              onChange={(event) => setRecipient(event.target.value)}
+              placeholder={recipientPlaceholder}
+              inputMode={activeAction === 'transfer' ? 'text' : 'tel'}
+              className="h-12 rounded-2xl border border-gray-800 bg-black px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
+            />
           </div>
-          <Link to="/scan" className="mt-3 flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black">
-            Continuer
+          <textarea
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            placeholder="Note optionnelle"
+            rows={2}
+            className="mt-2 w-full resize-none rounded-2xl border border-gray-800 bg-black px-4 py-3 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
+          />
+          {operationStatus && (
+            <p className={cn(
+              "mt-3 rounded-xl border px-3 py-2 text-[11px] font-bold leading-relaxed",
+              operationStatus.includes('impossible') || operationStatus.includes('invalide') || operationStatus.includes('insuffisant') || operationStatus.includes('requis') || operationStatus.includes('Connecte')
+                ? "border-red-500/25 bg-red-500/10 text-red-100"
+                : "border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]"
+            )}>
+              {operationStatus}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={operationBusy}
+            className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {operationBusy ? 'Traitement...' : 'Confirmer'}
             <AfriSellIcon name="arrow" size={16} />
-          </Link>
-        </div>
+          </button>
+        </form>
       )}
 
       {/* Recent Transactions */}
@@ -193,6 +284,11 @@ export default function WalletDashboard() {
                        <div className="flex flex-col">
                           <span className="text-gray-300 font-medium text-xs font-sans tracking-wide">{tx.title}</span>
                           <span className="text-gray-600 text-[10px] font-mono mt-0.5">{tx.dateLabel}</span>
+                          {tx.status && (
+                            <span className="mt-1 w-fit rounded-full border border-gray-800 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.16em] text-gray-500">
+                              {tx.status === 'pending_operator' ? 'En attente' : tx.status}
+                            </span>
+                          )}
                        </div>
                     </div>
                     <div className={cn(

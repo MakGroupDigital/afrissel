@@ -43,7 +43,7 @@ const quickActions: QuickAction[] = [
   { label: 'Depot', route: '/wallet?action=deposit', icon: 'deposit', requiresAuth: true },
   { label: 'Retrait', route: '/wallet?action=withdraw', icon: 'withdraw', requiresAuth: true },
   { label: 'Transfert', route: '/wallet?action=transfer', icon: 'pay', requiresAuth: true },
-  { label: 'Expedier', route: '/safari', icon: 'send' },
+  { label: 'Expedier', route: '/safari/expedier', icon: 'send' },
   { label: 'Chat', route: '/chat', icon: 'chat', requiresAuth: true },
   { label: 'Plus', route: '/apps', icon: 'hub' }
 ];
@@ -112,6 +112,16 @@ const getEngagementStats = (engagement?: FreelanceEngagement) => {
     : 0;
 
   return { likes, ratingAverage, ratingCount };
+};
+
+const getActionErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    const message = record.message || record.code || record.error;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
 };
 
 const normalizeFreelancer = (uid: string, rawProfile: Record<string, unknown>): TopFreelancer | null => {
@@ -284,13 +294,21 @@ export default function EcosystemHome() {
   const handleShareFreelance = async (freelance: TopFreelancer) => {
     const text = `${freelance.name} - ${freelance.role} sur AfriSell`;
 
-    if (navigator.share) {
-      await navigator.share({ title: 'Freelance AfriSell', text, url: window.location.origin + '/ecosystem' });
-      return;
-    }
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Freelance AfriSell', text, url: window.location.origin + '/ecosystem' });
+        setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Partage ouvert' }));
+        return;
+      }
 
-    await navigator.clipboard?.writeText(text);
-    setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Lien copie' }));
+      await navigator.clipboard?.writeText(text);
+      setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Lien copie' }));
+    } catch (shareError) {
+      setFreelanceFeedback((current) => ({
+        ...current,
+        [freelance.id]: getActionErrorMessage(shareError, 'Partage indisponible')
+      }));
+    }
   };
   const handleLikeFreelance = async (freelance: TopFreelancer) => {
     if (!user) {
@@ -301,14 +319,21 @@ export default function EcosystemHome() {
     const likeRef = ref(realtimeDb, `freelanceEngagements/${freelance.id}/likes/${user.uid}`);
     const isLiked = Boolean(freelanceEngagements[freelance.id]?.likes?.[user.uid]);
 
-    if (isLiked) {
-      await remove(likeRef);
-      setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Like retire' }));
-      return;
-    }
+    try {
+      if (isLiked) {
+        await remove(likeRef);
+        setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Like retire' }));
+        return;
+      }
 
-    await set(likeRef, true);
-    setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Like ajoute' }));
+      await set(likeRef, true);
+      setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Like ajoute' }));
+    } catch (likeError) {
+      setFreelanceFeedback((current) => ({
+        ...current,
+        [freelance.id]: getActionErrorMessage(likeError, 'Like impossible')
+      }));
+    }
   };
   const handleRateFreelance = async (freelance: TopFreelancer, rating: number) => {
     if (!user) {
@@ -316,8 +341,15 @@ export default function EcosystemHome() {
       return;
     }
 
-    await set(ref(realtimeDb, `freelanceEngagements/${freelance.id}/ratings/${user.uid}`), rating);
-    setFreelanceFeedback((current) => ({ ...current, [freelance.id]: `${rating}/5 enregistre` }));
+    try {
+      await set(ref(realtimeDb, `freelanceEngagements/${freelance.id}/ratings/${user.uid}`), rating);
+      setFreelanceFeedback((current) => ({ ...current, [freelance.id]: `${rating}/5 enregistre` }));
+    } catch (ratingError) {
+      setFreelanceFeedback((current) => ({
+        ...current,
+        [freelance.id]: getActionErrorMessage(ratingError, 'Note impossible')
+      }));
+    }
   };
 
   useEffect(() => {
@@ -712,7 +744,7 @@ export default function EcosystemHome() {
                   <button
                     key={rating}
                     type="button"
-                    onClick={() => handleRateFreelance(activeFreelance, rating)}
+                    onClick={() => void handleRateFreelance(activeFreelance, rating)}
                     className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.05] active:scale-[0.94]"
                     aria-label={`Noter ${rating} etoile${rating > 1 ? 's' : ''}`}
                   >
@@ -744,7 +776,7 @@ export default function EcosystemHome() {
                 </Link>
                 <button
                   type="button"
-                  onClick={() => handleLikeFreelance(activeFreelance)}
+                  onClick={() => void handleLikeFreelance(activeFreelance)}
                   className={`flex h-8 items-center justify-center rounded-xl border active:scale-[0.96] ${
                     activeUserLiked
                       ? 'border-[#15EA3E]/40 bg-[#15EA3E] text-black'
@@ -759,7 +791,7 @@ export default function EcosystemHome() {
               <div className="mt-1.5 grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
-                  onClick={() => handleShareFreelance(activeFreelance)}
+                  onClick={() => void handleShareFreelance(activeFreelance)}
                   className="flex h-8 items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/[0.05] text-[8px] font-black uppercase tracking-wider text-white/70"
                 >
                   <AfriSellIcon name="share" size={12} />

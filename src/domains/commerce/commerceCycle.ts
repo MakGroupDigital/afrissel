@@ -214,13 +214,11 @@ export async function completeCommerceOrder({ user, profile, product, delivery }
       unreadCount: 1,
       updatedAt: serverTimestamp()
     },
-    [`chatThreads/${threadId}`]: {
-      id: threadId,
-      title: product.seller,
-      type: 'direct',
-      orderId,
-      updatedAt: serverTimestamp()
-    },
+    [`chatThreads/${threadId}/id`]: threadId,
+    [`chatThreads/${threadId}/title`]: product.seller,
+    [`chatThreads/${threadId}/type`]: 'direct',
+    [`chatThreads/${threadId}/orderId`]: orderId,
+    [`chatThreads/${threadId}/updatedAt`]: serverTimestamp(),
     [`chatThreads/${threadId}/members/${user.uid}`]: true,
     [`chatThreads/${threadId}/members/${sellerId}`]: true,
     [`chatThreads/${threadId}/memberNames/${user.uid}`]: customerName,
@@ -292,13 +290,11 @@ export async function shareVillageDealToAfriChat({ user, profile, product }: Vil
       unreadCount: 1,
       updatedAt: serverTimestamp()
     },
-    [`chatThreads/${threadId}`]: {
-      id: threadId,
-      title: product.seller,
-      type: 'direct',
-      productId: product.id,
-      updatedAt: serverTimestamp()
-    },
+    [`chatThreads/${threadId}/id`]: threadId,
+    [`chatThreads/${threadId}/title`]: product.seller,
+    [`chatThreads/${threadId}/type`]: 'direct',
+    [`chatThreads/${threadId}/productId`]: product.id,
+    [`chatThreads/${threadId}/updatedAt`]: serverTimestamp(),
     [`chatThreads/${threadId}/members/${user.uid}`]: true,
     [`chatThreads/${threadId}/members/${sellerId}`]: true,
     [`chatThreads/${threadId}/memberNames/${user.uid}`]: customerName,

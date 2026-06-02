@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { limitToLast, off, onValue, orderByChild, query, ref } from 'firebase/database';
+import { off, onValue, ref } from 'firebase/database';
 import { realtimeDb } from '../lib/firebase';
 import { useFirebaseAuth } from './useFirebaseAuth';
 import { AfriSellIconName } from '../components/AfriSellIcon';
@@ -53,6 +53,14 @@ const formatDate = (value?: RawTransaction['createdAt'] | RawTransaction['timest
     hour: '2-digit',
     minute: '2-digit'
   }).format(new Date(timestamp));
+};
+
+const getTransactionTimestamp = (transaction?: RawTransaction) => {
+  const value = transaction?.createdAt || transaction?.timestamp;
+  if (!value) return 0;
+  if (typeof value === 'object') return Number(value.seconds || 0) * 1000;
+  const timestamp = Number(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 };
 
 const getTransactionIcon = (transaction: RawTransaction): AfriSellIconName => {
@@ -132,11 +140,7 @@ export const useAfriSpayWallet = () => {
     });
 
     const walletRef = ref(realtimeDb, `wallets/${user.uid}`);
-    const transactionsRef = query(
-      ref(realtimeDb, `walletTransactions/${user.uid}`),
-      orderByChild('createdAt'),
-      limitToLast(30)
-    );
+    const transactionsRef = ref(realtimeDb, `walletTransactions/${user.uid}`);
 
     const unsubscribeWallet = onValue(
       walletRef,
@@ -174,7 +178,12 @@ export const useAfriSpayWallet = () => {
         const data = snapshot.val() as Record<string, RawTransaction> | null;
         const nextTransactions = Object.entries(data || {})
           .map(([id, transaction]) => normalizeTransaction(id, transaction))
-          .sort((first, second) => second.id.localeCompare(first.id));
+          .sort((first, second) => {
+            const firstDate = getTransactionTimestamp(data?.[first.id]);
+            const secondDate = getTransactionTimestamp(data?.[second.id]);
+            return secondDate - firstDate || second.id.localeCompare(first.id);
+          })
+          .slice(0, 30);
         setTransactions(nextTransactions);
         writeOfflineCache(transactionsCacheKey, nextTransactions);
       },

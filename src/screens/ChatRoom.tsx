@@ -1,5 +1,5 @@
 import React, { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { AfriChatContact, AfriChatMessage, AfriChatThread, formatChatTime, useAfriChat } from '../hooks/useAfriChat';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
@@ -37,6 +37,16 @@ const getInitials = (value: string) => {
     .join('');
 
   return initials || 'AF';
+};
+
+const getChatActionErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    const message = record.message || record.code || record.error;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
 };
 
 function Avatar({ title, src, size = 'md' }: { title: string; src?: string; size?: 'sm' | 'md' | 'lg' }) {
@@ -123,6 +133,17 @@ function ContactRow({ contact, onOpen }: { key?: React.Key; contact: AfriChatCon
 }
 
 function MessageBubble({ message, isMine }: { key?: React.Key; message: AfriChatMessage; isMine: boolean }) {
+  const messageBadge = message.type && message.type !== 'text'
+    ? {
+      order: 'Commande',
+      village_share: 'Prix Village',
+      payment: 'Paiement',
+      delivery: 'Safari',
+      kyaghanda: 'Kyaghanda',
+      system: 'Systeme'
+    }[message.type]
+    : '';
+
   return (
     <div className={cn('flex w-full', isMine ? 'justify-end' : 'justify-start')}>
       <div className={cn(
@@ -131,7 +152,18 @@ function MessageBubble({ message, isMine }: { key?: React.Key; message: AfriChat
           ? 'rounded-br-md border-[#15EA3E]/30 bg-[#15EA3E]/12 text-white'
           : 'rounded-bl-md border-gray-800 bg-[#0A0A0A] text-gray-200'
       )}>
+        {messageBadge && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-2 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-[#15EA3E]">
+            <AfriSellIcon name={message.type === 'payment' ? 'pay' : message.type === 'delivery' ? 'send' : message.type === 'order' ? 'order' : 'chat'} size={12} />
+            {messageBadge}
+          </div>
+        )}
         <p className="whitespace-pre-wrap text-[13px] font-medium leading-relaxed">{message.text}</p>
+        {message.productId && (
+          <p className="mt-2 rounded-xl bg-black/20 px-2 py-1 text-[10px] font-bold text-white/50">
+            Produit: {message.productId}
+          </p>
+        )}
         <div className={cn('mt-2 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide', isMine ? 'justify-end text-[#15EA3E]/70' : 'text-gray-600')}>
           <span>{formatChatTime(message.createdAt)}</span>
           {isMine && <AfriSellIcon name="check" size={12} />}
@@ -172,6 +204,7 @@ function SettingsPanel() {
 export default function ChatRoom() {
   const { user } = useFirebaseAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const {
     threads,
     contacts,
@@ -181,6 +214,7 @@ export default function ChatRoom() {
     watchThreadMessages,
     sendMessage,
     openDirectThread,
+    createCommunityThread,
     markThreadRead
   } = useAfriChat();
   const [activeTab, setActiveTab] = useState<ChatTab>('threads');
@@ -189,6 +223,8 @@ export default function ChatRoom() {
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [creatingThread, setCreatingThread] = useState('');
+  const [actionStatus, setActionStatus] = useState('');
   const [deviceContacts, setDeviceContacts] = useState<AfriChatContact[]>([]);
   const [contactsStatus, setContactsStatus] = useState('');
   const [importingContacts, setImportingContacts] = useState(false);
@@ -257,11 +293,16 @@ export default function ChatRoom() {
       return;
     }
 
-    const thread = await openDirectThread(contact);
-    if (!thread) return;
+    try {
+      const thread = await openDirectThread(contact);
+      if (!thread) return;
 
-    setFallbackThread(thread);
-    setActiveThreadId(thread.id);
+      setFallbackThread(thread);
+      setActiveThreadId(thread.id);
+      setActionStatus('');
+    } catch (contactError) {
+      setActionStatus(getChatActionErrorMessage(contactError, 'Ouverture de la discussion impossible.'));
+    }
   };
 
   useEffect(() => {
@@ -336,18 +377,67 @@ export default function ChatRoom() {
     if (!activeThread || !draft.trim() || sending) return;
 
     setSending(true);
+    setActionStatus('');
     try {
       await sendMessage(activeThread, draft);
       setDraft('');
+    } catch (messageError) {
+      setActionStatus(getChatActionErrorMessage(messageError, 'Envoi du message impossible.'));
     } finally {
       setSending(false);
+    }
+  };
+
+  const sendQuickMessage = async (type: AfriChatMessage['type'], text: string) => {
+    if (!activeThread || sending) return;
+
+    setSending(true);
+    setActionStatus('');
+    try {
+      await sendMessage(activeThread, text, { type });
+    } catch (messageError) {
+      setActionStatus(getChatActionErrorMessage(messageError, 'Action AfriChat impossible.'));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const createThread = async (type: 'village' | 'kyaghanda' | 'support') => {
+    const config = {
+      village: {
+        title: 'Village Prix Groupes',
+        status: 'Prix Village'
+      },
+      kyaghanda: {
+        title: 'Kyaghanda Business',
+        status: 'Partenaires'
+      },
+      support: {
+        title: 'Support AfriSell',
+        status: 'Assistance'
+      }
+    }[type];
+
+    setCreatingThread(type);
+    setActionStatus('');
+    try {
+      const thread = await createCommunityThread(type, config.title, config.status);
+      if (thread) {
+        setFallbackThread(thread);
+        setActiveThreadId(thread.id);
+        setActiveTab('threads');
+      }
+    } catch (threadError) {
+      setActionStatus(getChatActionErrorMessage(threadError, 'Creation de discussion impossible.'));
+    } finally {
+      setCreatingThread('');
     }
   };
 
   const handleMessageKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      submitMessage();
+      void submitMessage();
     }
   };
 
@@ -382,6 +472,48 @@ export default function ChatRoom() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+            <button
+              type="button"
+              onClick={() => navigate('/market/orders')}
+              className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white/65"
+            >
+              Commandes
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/wallet?action=transfer')}
+              className="shrink-0 rounded-full border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]"
+            >
+              Payer
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/safari/expedier')}
+              className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white/65"
+            >
+              Livraison
+            </button>
+            <button
+              type="button"
+              onClick={() => void sendQuickMessage('village_share', 'Je partage ce Prix Village. Qui rejoint le Village pour debloquer le meilleur prix ?')}
+              className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white/65"
+            >
+              Prix Village
+            </button>
+            <button
+              type="button"
+              onClick={() => void sendQuickMessage('delivery', 'Point Safari: confirme-moi le lieu, l heure et la personne qui recoit la livraison.')}
+              className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white/65"
+            >
+              Suivi Safari
+            </button>
+          </div>
+          {actionStatus && (
+            <div className="mb-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-xs font-medium text-red-200">
+              {actionStatus}
+            </div>
+          )}
           {messages.length ? (
             <div className="flex flex-col gap-3">
               {messages.map((message) => (
@@ -495,9 +627,34 @@ export default function ChatRoom() {
             {error}
           </div>
         )}
+        {actionStatus && (
+          <div className="mb-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-xs font-medium text-red-200">
+            {actionStatus}
+          </div>
+        )}
 
         {activeTab === 'threads' && (
           <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { type: 'village' as const, label: 'Village', icon: 'market' as AfriSellIconName },
+                { type: 'kyaghanda' as const, label: 'Kyaghanda', icon: 'chat' as AfriSellIconName },
+                { type: 'support' as const, label: 'Support', icon: 'shield' as AfriSellIconName }
+              ].map((item) => (
+                <button
+                  key={item.type}
+                  type="button"
+                  onClick={() => void createThread(item.type)}
+                  disabled={Boolean(creatingThread)}
+                  className="rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-3 text-left text-[#15EA3E] disabled:opacity-60"
+                >
+                  <AfriSellIcon name={item.icon} size={17} />
+                  <span className="mt-2 block truncate text-[9px] font-black uppercase tracking-[0.12em]">
+                    {creatingThread === item.type ? '...' : item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
             {loading ? (
               <EmptyState icon="chat" title="Chargement" body="Recuperation de tes discussions AfriChat." />
             ) : filteredThreads.length ? (

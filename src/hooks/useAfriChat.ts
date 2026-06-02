@@ -14,7 +14,7 @@ export type AfriChatThread = {
   lastMessage?: string;
   lastMessageAt?: number | string | { seconds?: number };
   unreadCount?: number;
-  type?: 'direct' | 'group' | 'support' | string;
+  type?: 'direct' | 'group' | 'village' | 'kyaghanda' | 'support' | string;
   status?: string;
 };
 
@@ -22,8 +22,21 @@ export type AfriChatMessage = {
   id: string;
   senderId: string;
   text: string;
+  type?: 'text' | 'order' | 'village_share' | 'payment' | 'delivery' | 'kyaghanda' | 'system';
+  orderId?: string;
+  productId?: string;
+  amount?: number;
+  currency?: string;
   createdAt?: number | string | { seconds?: number };
   status?: string;
+};
+
+export type AfriChatMessageOptions = {
+  type?: AfriChatMessage['type'];
+  orderId?: string;
+  productId?: string;
+  amount?: number;
+  currency?: string;
 };
 
 export type AfriChatContact = {
@@ -86,6 +99,11 @@ const normalizeMessage = (id: string, message: RawMessage): AfriChatMessage => (
   id,
   senderId: message.senderId || '',
   text: message.text || message.message || '',
+  type: message.type || 'text',
+  orderId: message.orderId,
+  productId: message.productId,
+  amount: message.amount,
+  currency: message.currency,
   createdAt: message.createdAt,
   status: message.status
 });
@@ -273,7 +291,7 @@ export const useAfriChat = () => {
     };
   };
 
-  const sendMessage = async (thread: AfriChatThread, text: string) => {
+  const sendMessage = async (thread: AfriChatThread, text: string, options: AfriChatMessageOptions = {}) => {
     if (!user) return;
     const trimmedText = text.trim();
     if (!trimmedText) return;
@@ -285,6 +303,11 @@ export const useAfriChat = () => {
       id: messageId,
       senderId: user.uid,
       text: trimmedText,
+      type: options.type || 'text',
+      orderId: options.orderId || '',
+      productId: options.productId || '',
+      amount: Number(options.amount || 0),
+      currency: options.currency || '',
       createdAt: now,
       status: 'sent'
     };
@@ -320,13 +343,12 @@ export const useAfriChat = () => {
     const updates: Record<string, unknown> = {
       [`chatMessages/${thread.id}/${messageId}`]: message,
       [`userChats/${user.uid}/${thread.id}`]: userChatUpdate,
-      [`chatThreads/${thread.id}`]: {
-        id: thread.id,
-        title: thread.title,
-        lastMessage: trimmedText,
-        lastMessageAt: now,
-        updatedAt: updatedAtValue
-      },
+      [`chatThreads/${thread.id}/id`]: thread.id,
+      [`chatThreads/${thread.id}/title`]: thread.title,
+      [`chatThreads/${thread.id}/type`]: thread.type || 'direct',
+      [`chatThreads/${thread.id}/lastMessage`]: trimmedText,
+      [`chatThreads/${thread.id}/lastMessageAt`]: now,
+      [`chatThreads/${thread.id}/updatedAt`]: updatedAtValue,
       [`chatThreads/${thread.id}/members/${user.uid}`]: true,
       [`chatThreads/${thread.id}/memberNames/${user.uid}`]: profile?.displayName || user.displayName || 'Utilisateur AfriSell'
     };
@@ -418,6 +440,63 @@ export const useAfriChat = () => {
     return thread;
   };
 
+  const createCommunityThread = async (
+    type: 'village' | 'kyaghanda' | 'support',
+    title: string,
+    status: string
+  ): Promise<AfriChatThread | null> => {
+    if (!user) return null;
+
+    const threadRef = push(ref(realtimeDb, `userChats/${user.uid}`));
+    const threadId = threadRef.key;
+    if (!threadId) throw new Error('Creation AfriChat impossible.');
+
+    const now = Date.now();
+    const displayName = profile?.displayName || user.displayName || 'Utilisateur AfriSell';
+    const thread: AfriChatThread = {
+      id: threadId,
+      title,
+      type,
+      status,
+      lastMessage: 'Espace cree. Ajoute les echanges utiles ici.',
+      lastMessageAt: now,
+      unreadCount: 0
+    };
+
+    const updates: Record<string, unknown> = {
+      [`userChats/${user.uid}/${threadId}`]: {
+        threadId,
+        title,
+        type,
+        status,
+        lastMessage: thread.lastMessage,
+        lastMessageAt: now,
+        unreadCount: 0,
+        updatedAt: serverTimestamp()
+      },
+      [`chatThreads/${threadId}/id`]: threadId,
+      [`chatThreads/${threadId}/title`]: title,
+      [`chatThreads/${threadId}/type`]: type,
+      [`chatThreads/${threadId}/status`]: status,
+      [`chatThreads/${threadId}/lastMessage`]: thread.lastMessage,
+      [`chatThreads/${threadId}/lastMessageAt`]: now,
+      [`chatThreads/${threadId}/updatedAt`]: serverTimestamp(),
+      [`chatThreads/${threadId}/members/${user.uid}`]: true,
+      [`chatThreads/${threadId}/memberNames/${user.uid}`]: displayName,
+      [`chatMessages/${threadId}/welcome`]: {
+        id: 'welcome',
+        senderId: 'system',
+        text: thread.lastMessage,
+        type,
+        createdAt: now,
+        status: 'sent'
+      }
+    };
+
+    await update(ref(realtimeDb), updates);
+    return thread;
+  };
+
   const markThreadRead = async (threadId: string) => {
     if (!user || !threadId) return;
 
@@ -436,6 +515,7 @@ export const useAfriChat = () => {
     watchThreadMessages,
     sendMessage,
     openDirectThread,
+    createCommunityThread,
     markThreadRead
   }), [contacts, error, loading, messagesByThread, threads]);
 };

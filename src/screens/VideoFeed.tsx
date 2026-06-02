@@ -13,8 +13,10 @@ import {
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { useAppStore } from '../store/useAppStore';
 import { cn } from '../lib/utils';
+import { shareVillageDealToAfriChat } from '../domains/commerce';
 
 type QuickPanel = 'cart' | 'orders' | 'following' | null;
+type FeedFilter = 'all' | 'vitrines' | 'videos' | 'photos' | 'village';
 const ABC_SOUND_PREF_KEY = 'afrisell:abc-sound-enabled';
 
 function CreatorAvatar({ content }: { content: AfriMarketContent }) {
@@ -108,6 +110,8 @@ function FeedItem({
   likeBurstActive,
   isChromeHidden,
   onBuy,
+  onOpenProduct,
+  onVillage,
   onFollow,
   onLike,
   onComment,
@@ -126,6 +130,8 @@ function FeedItem({
   likeBurstActive: boolean;
   isChromeHidden: boolean;
   onBuy: () => void;
+  onOpenProduct: () => void;
+  onVillage: () => void;
   onFollow: () => void;
   onLike: () => void;
   onComment: () => void;
@@ -276,16 +282,38 @@ function FeedItem({
 
         <div className="pointer-events-auto w-full">
           {content.isSellable ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                stopControlClick(event);
-                onBuy();
-              }}
-              className="w-full rounded-xl bg-[#15EA3E] py-4 text-xs font-black uppercase tracking-widest text-black transition-all active:scale-95"
-            >
-              Acheter maintenant
-            </button>
+            <div className="grid grid-cols-[1fr_auto] gap-2">
+              <button
+                type="button"
+                onClick={(event) => {
+                  stopControlClick(event);
+                  onBuy();
+                }}
+                className="rounded-xl bg-[#15EA3E] py-4 text-xs font-black uppercase tracking-widest text-black transition-all active:scale-95"
+              >
+                Acheter
+              </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  stopControlClick(event);
+                  onOpenProduct();
+                }}
+                className="rounded-xl border border-white/15 bg-white/10 px-4 py-4 text-xs font-black uppercase tracking-widest text-white transition-all active:scale-95"
+              >
+                Details
+              </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  stopControlClick(event);
+                  onVillage();
+                }}
+                className="col-span-2 rounded-xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E] transition-all active:scale-95"
+              >
+                Partager Prix Village dans AfriChat
+              </button>
+            </div>
           ) : isOwnContent ? (
             <button
               type="button"
@@ -735,7 +763,7 @@ function QuickPanelSheet({
 }
 
 export default function VideoFeed() {
-  const { user } = useFirebaseAuth();
+  const { user, profile } = useFirebaseAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const {
@@ -764,8 +792,27 @@ export default function VideoFeed() {
   const [isFeedChromeHidden, setIsFeedChromeHidden] = useState(false);
   const [quickPanel, setQuickPanel] = useState<QuickPanel>(null);
   const [activeContentId, setActiveContentId] = useState('');
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
+  const [feedStatus, setFeedStatus] = useState('');
   const followedCount = Object.keys(followedAuthors).length;
   const isPlaybackBlocked = Boolean(isPublishing || commentContent || quickPanel);
+  const postIdFromUrl = new URLSearchParams(location.search).get('post') || '';
+
+  const filteredContents = useMemo(() => {
+    const nextContents = abcContents.filter((content) => {
+      if (feedFilter === 'vitrines') return content.isSellable;
+      if (feedFilter === 'videos') return content.format === 'video';
+      if (feedFilter === 'photos') return content.format === 'gallery' || content.format === 'article';
+      if (feedFilter === 'village') return content.isSellable && Number(content.buyersNeeded || 0) > 1;
+      return true;
+    });
+
+    if (!postIdFromUrl) return nextContents;
+
+    const sharedPost = nextContents.find((content) => content.id === postIdFromUrl);
+    if (!sharedPost) return nextContents;
+    return [sharedPost, ...nextContents.filter((content) => content.id !== postIdFromUrl)];
+  }, [abcContents, feedFilter, postIdFromUrl]);
 
   useEffect(() => {
     const wantsPublish = new URLSearchParams(location.search).get('publish') === '1';
@@ -782,17 +829,17 @@ export default function VideoFeed() {
   }, [isSoundEnabled]);
 
   useEffect(() => {
-    if (!abcContents.length) {
+    if (!filteredContents.length) {
       setActiveContentId('');
       return;
     }
 
     setActiveContentId((current) => (
-      current && abcContents.some((content) => content.id === current)
+      current && filteredContents.some((content) => content.id === current)
         ? current
-        : abcContents[0].id
+        : filteredContents[0].id
     ));
-  }, [abcContents]);
+  }, [filteredContents]);
 
   const handleShare = async (content: AfriMarketContent) => {
     const shareUrl = `${window.location.origin}/feed?post=${content.id}`;
@@ -812,6 +859,27 @@ export default function VideoFeed() {
       await recordShare(content);
     } catch (shareError) {
       console.error('Partage ABC impossible:', shareError);
+    }
+  };
+
+  const handleVillageShare = async (content: AfriMarketContent) => {
+    if (!user) {
+      navigate('/login', { state: { next: `/feed?post=${content.id}` } });
+      return;
+    }
+    if (!content.isSellable) return;
+
+    setFeedStatus('');
+    try {
+      await shareVillageDealToAfriChat({
+        user,
+        profile,
+        product: toCheckoutProduct(content)
+      });
+      setFeedStatus('Prix Village partage dans AfriChat.');
+      navigate(`/chat?contact=${encodeURIComponent(content.authorId)}&name=${encodeURIComponent(content.authorName)}&status=${encodeURIComponent('Prix Village')}&avatar=${encodeURIComponent(content.authorAvatar || '')}`);
+    } catch (shareError) {
+      setFeedStatus(shareError instanceof Error ? shareError.message : 'Partage Prix Village impossible.');
     }
   };
 
@@ -840,6 +908,27 @@ export default function VideoFeed() {
           </div>
           <div className="pointer-events-auto flex min-w-0 flex-1 gap-2 overflow-x-auto overflow-y-visible py-1 scrollbar-hide">
             {[
+              { id: 'all' as FeedFilter, label: 'Tout' },
+              { id: 'vitrines' as FeedFilter, label: 'Vitrines' },
+              { id: 'village' as FeedFilter, label: 'Village' },
+              { id: 'videos' as FeedFilter, label: 'Videos' },
+              { id: 'photos' as FeedFilter, label: 'Photos' }
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setFeedFilter(item.id)}
+                className={cn(
+                  'h-9 shrink-0 rounded-full border px-3 text-[10px] font-black uppercase tracking-wider shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-colors',
+                  feedFilter === item.id
+                    ? 'border-[#15EA3E]/40 bg-[#15EA3E] text-black'
+                    : 'border-white/10 bg-black/80 text-white/70'
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+            {[
               { id: 'cart' as QuickPanel, label: 'Panier', icon: 'cart' as AfriSellIconName, count: cart.length },
               { id: 'orders' as QuickPanel, label: 'Commandes', icon: 'order' as AfriSellIconName, count: 0 },
               { id: 'following' as QuickPanel, label: 'Suivis', icon: 'follow' as AfriSellIconName, count: followedCount }
@@ -847,7 +936,13 @@ export default function VideoFeed() {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => setQuickPanel(item.id)}
+                onClick={() => {
+                  if (item.id === 'orders') {
+                    navigate('/market/orders');
+                    return;
+                  }
+                  setQuickPanel(item.id);
+                }}
                 className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/80 text-white shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-colors active:scale-95"
                 aria-label={item.label}
                 title={item.label}
@@ -882,14 +977,25 @@ export default function VideoFeed() {
         </div>
       )}
 
+      {feedStatus && (
+        <div className={cn(
+          'absolute left-4 right-4 top-20 z-20 rounded-2xl border p-3 text-xs font-semibold',
+          feedStatus.includes('impossible') || feedStatus.includes('introuvable')
+            ? 'border-red-500/20 bg-red-500/10 text-red-200'
+            : 'border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]'
+        )}>
+          {feedStatus}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex h-full flex-col items-center justify-center px-10 text-center">
           <AfriSellIcon name="video" size={42} className="text-[#15EA3E]" />
           <p className="mt-4 text-sm font-black uppercase tracking-wide text-white">Chargement ABC</p>
         </div>
-      ) : abcContents.length ? (
+      ) : filteredContents.length ? (
         <div className="h-full w-full snap-y snap-mandatory overflow-y-scroll scrollbar-hide">
-          {abcContents.map((content) => (
+          {filteredContents.map((content) => (
             <FeedItem
               key={content.id}
               content={content}
@@ -901,6 +1007,8 @@ export default function VideoFeed() {
               likeBurstActive={likeBurstContentId === content.id}
               isChromeHidden={isFeedChromeHidden}
               onBuy={() => openCheckout(toCheckoutProduct(content))}
+              onOpenProduct={() => navigate(`/market/${content.id}`)}
+              onVillage={() => handleVillageShare(content)}
               onFollow={() => followAuthor(content)}
               onLike={() => handleLike(content)}
               onComment={() => setCommentContent(content)}
@@ -917,7 +1025,9 @@ export default function VideoFeed() {
             <AfriSellIcon name="video" size={28} />
           </div>
           <h2 className="mt-5 text-lg font-black text-white">Aucune publication</h2>
-          <p className="mt-2 text-sm leading-relaxed text-gray-500">Ajoute une video, plusieurs photos ou un article a vendre.</p>
+          <p className="mt-2 text-sm leading-relaxed text-gray-500">
+            {abcContents.length ? 'Aucune publication dans ce filtre.' : 'Ajoute une video, plusieurs photos ou un article a vendre.'}
+          </p>
           <button
             type="button"
             onClick={() => {

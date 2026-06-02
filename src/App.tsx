@@ -106,6 +106,7 @@ function AppRoutes() {
         <Route path="/ecosystem" element={<EcosystemHome />} />
         <Route path="/apps" element={<AppsDirectoryScreen />} />
         <Route path="/safari" element={<SafariServicesScreen />} />
+        <Route path="/safari/:serviceId" element={<SafariServicesScreen />} />
         <Route path="/school" element={<ModuleSuiteScreen moduleId="school" />} />
         <Route path="/school/:actionId" element={<ModuleActionScreen moduleId="school" />} />
         <Route path="/med" element={<ModuleSuiteScreen moduleId="med" />} />

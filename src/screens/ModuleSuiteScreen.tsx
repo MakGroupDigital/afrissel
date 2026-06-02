@@ -1,11 +1,16 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { onValue, ref } from 'firebase/database';
+import { onValue, ref, remove, set } from 'firebase/database';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { useAfriMarket } from '../hooks/useAfriMarket';
 import { realtimeDb } from '../lib/firebase';
 import { cn } from '../lib/utils';
+import { createFreelanceMissionRequest } from '../domains/freelance';
+import { createBiasharaOpportunity } from '../domains/business';
+import { AfriAiIntent, AfriAiResponse, resolveAfriAiRequest } from '../domains/ai';
+import { enrollSchoolTrack, joinSchoolClass, updateSchoolProgress } from '../domains/education';
+import { createTeleconsultationRequest, saveHealthProfile } from '../domains/health';
 
 type ModuleId = 'school' | 'med' | 'freelance' | 'biashara' | 'afriai' | 'fpp';
 
@@ -30,6 +35,11 @@ type TalentProfile = {
   image: string;
   bio: string;
   score: number;
+};
+
+type FreelanceEngagement = {
+  likes?: Record<string, boolean>;
+  ratings?: Record<string, number>;
 };
 
 const moduleMeta: Record<ModuleId, {
@@ -126,9 +136,9 @@ const actionCatalog: Record<ModuleId, ActionCard[]> = {
 const getModuleActionRoute = (moduleId: ModuleId, actionId: string) => `/${moduleId}/${actionId}`;
 
 const schoolTracks = [
-  { title: 'Vendre avec video', level: 'Debutant', progress: 28, image: '/biashara.jpeg' },
-  { title: 'Gestion boutique', level: 'Business', progress: 44, image: '/afrimarket.jpeg' },
-  { title: 'Paiement & securite', level: 'Essentiel', progress: 18, image: '/afrispay.jpeg' }
+  { id: 'video-selling', title: 'Vendre avec video', level: 'Debutant', progress: 28, image: '/biashara.jpeg' },
+  { id: 'shop-management', title: 'Gestion boutique', level: 'Business', progress: 44, image: '/afrimarket.jpeg' },
+  { id: 'payment-security', title: 'Paiement & securite', level: 'Essentiel', progress: 18, image: '/afrispay.jpeg' }
 ];
 
 const medServices = [
@@ -144,6 +154,71 @@ const fppProjects = [
 ];
 
 const getText = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
+
+const getActionErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>;
+    const message = record.message || record.code || record.error;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
+};
+
+const getActionContinueRoute = (moduleId: ModuleId, actionId: string) => {
+  const routes: Record<ModuleId, Record<string, string>> = {
+    school: {
+      cours: '/school',
+      tuteur: '/afriai',
+      classe: '/chat'
+    },
+    med: {
+      teleconsultation: '/med',
+      dossier: '/med',
+      pharmacie: '/market'
+    },
+    freelance: {
+      'publier-service': '/freelance',
+      'paiement-mission': '/wallet?action=transfer',
+      'demandes-clients': '/freelance'
+    },
+    biashara: {
+      'stand-business': '/business',
+      'vitrine-business': '/biashara',
+      kyaghanda: '/chat'
+    },
+    afriai: {
+      'chercher-app': '/apps',
+      traduction: '/chat',
+      'guide-achat': '/market'
+    },
+    fpp: {
+      contribuer: '/wallet?action=transfer',
+      'vente-fpp': '/feed?publish=1',
+      mobiliser: '/chat'
+    }
+  };
+
+  return routes[moduleId][actionId] || `/${moduleId}`;
+};
+
+const formatCompactCount = (value: number) => {
+  if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}K`;
+  return String(value);
+};
+
+const getFreelanceStats = (engagement?: FreelanceEngagement) => {
+  const likes = Object.values(engagement?.likes || {}).filter(Boolean).length;
+  const ratings = Object.values(engagement?.ratings || {})
+    .map(Number)
+    .filter((rating) => Number.isFinite(rating) && rating > 0);
+  const ratingCount = ratings.length;
+  const ratingAverage = ratingCount
+    ? ratings.reduce((total, rating) => total + rating, 0) / ratingCount
+    : 0;
+
+  return { likes, ratingAverage, ratingCount };
+};
 
 function ModuleShell({ moduleId, children }: { moduleId: ModuleId; children: ReactNode }) {
   const meta = moduleMeta[moduleId];
@@ -213,6 +288,61 @@ function ModuleActions({ moduleId }: { moduleId: ModuleId }) {
 }
 
 function SchoolModule() {
+  const { user } = useFirebaseAuth();
+  const [enrollments, setEnrollments] = useState<Record<string, { progress?: number; status?: string }>>({});
+  const [status, setStatus] = useState('');
+
+  useEffect(() => {
+    if (!user) {
+      setEnrollments({});
+      return undefined;
+    }
+
+    const enrollmentRef = ref(realtimeDb, `schoolEnrollments/${user.uid}`);
+    const unsubscribe = onValue(enrollmentRef, (snapshot) => {
+      setEnrollments((snapshot.val() as Record<string, { progress?: number; status?: string }> | null) || {});
+    });
+
+    return unsubscribe;
+  }, [user]);
+
+  const requireUser = () => {
+    if (user) return true;
+    setStatus('Connecte-toi pour suivre ta progression AfriSchool.');
+    return false;
+  };
+
+  const startTrack = async (track: typeof schoolTracks[number]) => {
+    if (!requireUser() || !user) return;
+    try {
+      await enrollSchoolTrack({ user, trackId: track.id, title: track.title, level: track.level });
+      setStatus(`${track.title} ajoute a tes parcours.`);
+    } catch (error) {
+      setStatus(getActionErrorMessage(error, 'Inscription au parcours impossible.'));
+    }
+  };
+
+  const continueTrack = async (track: typeof schoolTracks[number]) => {
+    if (!requireUser() || !user) return;
+    try {
+      const currentProgress = Number(enrollments[track.id]?.progress || track.progress || 0);
+      await updateSchoolProgress(user, track.id, currentProgress + 12);
+      setStatus('Progression mise a jour.');
+    } catch (error) {
+      setStatus(getActionErrorMessage(error, 'Progression impossible.'));
+    }
+  };
+
+  const joinClass = async (track: typeof schoolTracks[number]) => {
+    if (!requireUser() || !user) return;
+    try {
+      await joinSchoolClass({ user, trackId: track.id, title: track.title, level: track.level });
+      setStatus('Classe communautaire rejointe.');
+    } catch (error) {
+      setStatus(getActionErrorMessage(error, 'Classe communautaire impossible.'));
+    }
+  };
+
   return (
     <ModuleShell moduleId="school">
       <ModuleActions moduleId="school" />
@@ -221,6 +351,14 @@ function SchoolModule() {
           <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Parcours actifs</h2>
           <Link to="/afriai" className="text-[10px] font-black text-[#15EA3E]">Tuteur IA</Link>
         </div>
+        {status && (
+          <p className={cn(
+            'mb-3 rounded-xl border px-3 py-2 text-[11px] font-bold leading-relaxed',
+            status.includes('Connecte') ? 'border-red-500/25 bg-red-500/10 text-red-100' : 'border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]'
+          )}>
+            {status}
+          </p>
+        )}
         <div className="space-y-3">
           {schoolTracks.map((track) => (
             <article key={track.title} className="overflow-hidden rounded-[1.3rem] border border-white/10 bg-white/[0.04]">
@@ -230,7 +368,18 @@ function SchoolModule() {
                   <p className="truncate text-sm font-black">{track.title}</p>
                   <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-[#15EA3E]">{track.level}</p>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full bg-[#15EA3E]" style={{ width: `${track.progress}%` }} />
+                    <div className="h-full rounded-full bg-[#15EA3E]" style={{ width: `${Number(enrollments[track.id]?.progress || track.progress)}%` }} />
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <button type="button" onClick={() => void startTrack(track)} className="h-9 rounded-xl bg-[#15EA3E] text-[9px] font-black uppercase tracking-wider text-black">
+                      Demarrer
+                    </button>
+                    <button type="button" onClick={() => void continueTrack(track)} className="h-9 rounded-xl border border-white/10 bg-white/[0.04] text-[9px] font-black uppercase tracking-wider text-white/70">
+                      Continuer
+                    </button>
+                    <button type="button" onClick={() => void joinClass(track)} className="h-9 rounded-xl border border-white/10 bg-white/[0.04] text-[9px] font-black uppercase tracking-wider text-white/70">
+                      Classe
+                    </button>
                   </div>
                 </div>
               </div>
@@ -243,9 +392,101 @@ function SchoolModule() {
 }
 
 function MedModule() {
+  const { user } = useFirebaseAuth();
+  const [need, setNeed] = useState('');
+  const [city, setCity] = useState('');
+  const [urgency, setUrgency] = useState('Normal');
+  const [language, setLanguage] = useState('Francais');
+  const [age, setAge] = useState('');
+  const [allergies, setAllergies] = useState('');
+  const [treatments, setTreatments] = useState('');
+  const [notes, setNotes] = useState('');
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const requireUser = () => {
+    if (user) return true;
+    setStatus('Connecte-toi pour utiliser AfriMed.');
+    return false;
+  };
+
+  const submitConsultation = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!requireUser() || !user) return;
+
+    setBusy(true);
+    setStatus('');
+    try {
+      await createTeleconsultationRequest({ user, need, city, urgency, language });
+      setNeed('');
+      setStatus('Demande de teleconsultation envoyee pour orientation.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Demande AfriMed impossible.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitProfile = async () => {
+    if (!requireUser() || !user) return;
+
+    setBusy(true);
+    setStatus('');
+    try {
+      await saveHealthProfile({ user, age, allergies, treatments, notes });
+      setStatus('Dossier sante enregistre.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Dossier sante impossible.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <ModuleShell moduleId="med">
       <ModuleActions moduleId="med" />
+      <section className="mt-6 rounded-[1.4rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-4">
+        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-[#15EA3E]">Teleconsultation</h2>
+        <form onSubmit={submitConsultation} className="mt-4 space-y-2">
+          <textarea value={need} onChange={(event) => setNeed(event.target.value)} rows={3} placeholder="Symptomes, besoin ou question de sante..." className="w-full resize-none rounded-2xl border border-white/10 bg-black/24 px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+          <div className="grid grid-cols-2 gap-2">
+            <input value={city} onChange={(event) => setCity(event.target.value)} placeholder="Ville" className="h-12 rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+            <select value={urgency} onChange={(event) => setUrgency(event.target.value)} className="h-12 rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50">
+              <option>Normal</option>
+              <option>Urgent</option>
+              <option>Suivi</option>
+            </select>
+          </div>
+          <input value={language} onChange={(event) => setLanguage(event.target.value)} placeholder="Langue preferee" className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+          {status && (
+            <p className={cn(
+              'rounded-xl border px-3 py-2 text-[11px] font-bold leading-relaxed',
+              status.includes('impossible') || status.includes('requis') || status.includes('Connecte')
+                ? 'border-red-500/25 bg-red-500/10 text-red-100'
+                : 'border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]'
+            )}>
+              {status}
+            </p>
+          )}
+          <button type="submit" disabled={busy} className="h-12 w-full rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-wider text-black disabled:opacity-60">
+            {busy ? 'Envoi...' : 'Demander orientation'}
+          </button>
+        </form>
+      </section>
+
+      <section className="mt-5 rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4">
+        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Dossier sante leger</h2>
+        <div className="mt-4 space-y-2">
+          <input value={age} onChange={(event) => setAge(event.target.value)} inputMode="numeric" placeholder="Age" className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+          <input value={allergies} onChange={(event) => setAllergies(event.target.value)} placeholder="Allergies connues" className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+          <input value={treatments} onChange={(event) => setTreatments(event.target.value)} placeholder="Traitements en cours" className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} placeholder="Notes utiles au praticien" className="w-full resize-none rounded-2xl border border-white/10 bg-black/24 px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+          <button type="button" onClick={submitProfile} disabled={busy} className="h-12 w-full rounded-2xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 text-xs font-black uppercase tracking-wider text-[#15EA3E] disabled:opacity-60">
+            Enregistrer dossier
+          </button>
+        </div>
+      </section>
+
       <section className="mt-6">
         <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Services sante</h2>
         <div className="mt-3 space-y-3">
@@ -270,6 +511,14 @@ function MedModule() {
 function FreelanceModule() {
   const { user } = useFirebaseAuth();
   const [talents, setTalents] = useState<TalentProfile[]>([]);
+  const [engagements, setEngagements] = useState<Record<string, FreelanceEngagement>>({});
+  const [selectedTalentId, setSelectedTalentId] = useState('');
+  const [serviceTitle, setServiceTitle] = useState('');
+  const [budget, setBudget] = useState('');
+  const [timeline, setTimeline] = useState('');
+  const [details, setDetails] = useState('');
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     const usersRef = ref(realtimeDb, 'users');
@@ -299,14 +548,144 @@ function FreelanceModule() {
         .sort((first, second) => second.score - first.score || first.name.localeCompare(second.name));
 
       setTalents(nextTalents);
+      setSelectedTalentId((current) => (
+        current && nextTalents.some((talent) => talent.id === current)
+          ? current
+          : nextTalents[0]?.id || ''
+      ));
     });
 
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    const engagementRef = ref(realtimeDb, 'freelanceEngagements');
+    const unsubscribe = onValue(engagementRef, (snapshot) => {
+      setEngagements((snapshot.val() as Record<string, FreelanceEngagement> | null) || {});
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const selectedTalent = talents.find((talent) => talent.id === selectedTalentId) || talents[0];
+  const getContactChatRoute = (talent: TalentProfile) => (
+    `/chat?contact=${encodeURIComponent(talent.id)}&name=${encodeURIComponent(talent.name)}&status=${encodeURIComponent(`${talent.role} - ${talent.city}`)}&avatar=${encodeURIComponent(talent.image)}`
+  );
+
+  const toggleLikeTalent = async (talent: TalentProfile) => {
+    if (!user) {
+      setStatus('Connecte-toi pour liker un talent.');
+      return;
+    }
+
+    const likeRef = ref(realtimeDb, `freelanceEngagements/${talent.id}/likes/${user.uid}`);
+    try {
+      if (engagements[talent.id]?.likes?.[user.uid]) {
+        await remove(likeRef);
+        setStatus('Like retire.');
+        return;
+      }
+
+      await set(likeRef, true);
+      setStatus('Talent ajoute a tes favoris.');
+    } catch (error) {
+      setStatus(getActionErrorMessage(error, 'Action like impossible.'));
+    }
+  };
+
+  const rateTalent = async (talent: TalentProfile, rating: number) => {
+    if (!user) {
+      setStatus('Connecte-toi pour noter un talent.');
+      return;
+    }
+
+    try {
+      await set(ref(realtimeDb, `freelanceEngagements/${talent.id}/ratings/${user.uid}`), rating);
+      setStatus(`${rating}/5 enregistre.`);
+    } catch (error) {
+      setStatus(getActionErrorMessage(error, 'Notation impossible.'));
+    }
+  };
+
+  const submitMission = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!selectedTalent) return;
+
+    if (!user) {
+      setStatus('Connecte-toi pour demander une mission.');
+      return;
+    }
+
+    setBusy(true);
+    setStatus('');
+
+    try {
+      await createFreelanceMissionRequest({
+        user,
+        freelancerId: selectedTalent.id,
+        freelancerName: selectedTalent.name,
+        serviceTitle,
+        budget: Number(budget),
+        timeline,
+        details
+      });
+      setServiceTitle('');
+      setBudget('');
+      setTimeline('');
+      setDetails('');
+      setStatus('Demande de mission envoyee au freelance.');
+    } catch (missionError) {
+      setStatus(missionError instanceof Error ? missionError.message : 'Demande de mission impossible.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <ModuleShell moduleId="freelance">
       <ModuleActions moduleId="freelance" />
+      {selectedTalent && (
+        <section className="mt-6 rounded-[1.4rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-4">
+          <div className="flex items-center gap-3">
+            <img src={selectedTalent.image} alt={selectedTalent.name} className="h-14 w-14 rounded-2xl object-cover" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-black">{selectedTalent.name}</p>
+              <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-wider text-[#15EA3E]">{selectedTalent.role} - {selectedTalent.city}</p>
+            </div>
+            <Link to={user ? getContactChatRoute(selectedTalent) : '/login'} state={!user ? { next: getContactChatRoute(selectedTalent) } : undefined} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black">
+              <AfriSellIcon name="chat" size={17} />
+            </Link>
+          </div>
+
+          <form onSubmit={submitMission} className="mt-4 space-y-2">
+            <input value={serviceTitle} onChange={(event) => setServiceTitle(event.target.value)} placeholder="Service souhaite" className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+            <div className="grid grid-cols-2 gap-2">
+              <input value={budget} onChange={(event) => setBudget(event.target.value)} inputMode="decimal" placeholder="Budget USD" className="h-12 rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+              <input value={timeline} onChange={(event) => setTimeline(event.target.value)} placeholder="Delai" className="h-12 rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+            </div>
+            <textarea value={details} onChange={(event) => setDetails(event.target.value)} rows={3} placeholder="Objectif, livrable attendu, contexte..." className="w-full resize-none rounded-2xl border border-white/10 bg-black/24 px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+            {status && (
+              <p className={cn(
+                'rounded-xl border px-3 py-2 text-[11px] font-bold leading-relaxed',
+                status.includes('impossible') || status.includes('invalide') || status.includes('requis') || status.includes('Connecte')
+                  ? 'border-red-500/25 bg-red-500/10 text-red-100'
+                  : 'border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]'
+              )}>
+                {status}
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <button type="submit" disabled={busy} className="h-12 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-wider text-black disabled:opacity-60">
+                {busy ? 'Envoi...' : 'Demander devis'}
+              </button>
+              <Link to="/wallet?action=transfer" className="flex h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-xs font-black uppercase tracking-wider text-white/70">
+                Payer mission
+              </Link>
+            </div>
+          </form>
+        </section>
+      )}
+
       <section className="mt-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Talents reels</h2>
@@ -316,16 +695,43 @@ function FreelanceModule() {
           <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-1">
             {talents.map((talent) => {
               const chatRoute = `/chat?contact=${encodeURIComponent(talent.id)}&name=${encodeURIComponent(talent.name)}&status=${encodeURIComponent(`${talent.role} - ${talent.city}`)}&avatar=${encodeURIComponent(talent.image)}`;
+              const stats = getFreelanceStats(engagements[talent.id]);
+              const isSelected = selectedTalent?.id === talent.id;
+              const userRating = user ? Number(engagements[talent.id]?.ratings?.[user.uid] || 0) : 0;
+              const isLiked = Boolean(user && engagements[talent.id]?.likes?.[user.uid]);
+
               return (
-                <article key={talent.id} className="w-[178px] shrink-0 overflow-hidden rounded-[1.3rem] border border-white/10 bg-white/[0.04]">
+                <article key={talent.id} className={cn(
+                  'w-[184px] shrink-0 overflow-hidden rounded-[1.3rem] border bg-white/[0.04]',
+                  isSelected ? 'border-[#15EA3E]/45' : 'border-white/10'
+                )}>
                   <img src={talent.image} alt={talent.name} className="h-32 w-full object-cover" />
                   <div className="p-3">
                     <h3 className="truncate text-sm font-black">{talent.name}</h3>
                     <p className="mt-1 truncate text-[10px] font-bold text-[#15EA3E]">{talent.role}</p>
                     <p className="mt-2 line-clamp-2 text-[10px] font-semibold leading-snug text-white/45">{talent.bio}</p>
-                    <Link to={user ? chatRoute : '/login'} state={!user ? { next: chatRoute } : undefined} className="mt-3 flex h-9 items-center justify-center rounded-xl bg-[#15EA3E] text-[10px] font-black uppercase tracking-wider text-black">
-                      Contacter
-                    </Link>
+                    <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-black/24 px-2 py-2">
+                      <button type="button" onClick={() => void toggleLikeTalent(talent)} className={cn('flex items-center gap-1 text-[10px] font-black', isLiked ? 'text-[#15EA3E]' : 'text-white/55')}>
+                        <AfriSellIcon name="heart" size={13} />
+                        {formatCompactCount(stats.likes)}
+                      </button>
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                          <button key={rating} type="button" onClick={() => void rateTalent(talent, rating)} className={rating <= userRating ? 'text-[#15EA3E]' : 'text-white/25'}>
+                            <AfriSellIcon name="star" size={11} />
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-[9px] font-black text-white/45">{stats.ratingCount ? stats.ratingAverage.toFixed(1) : 'New'}</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setSelectedTalentId(talent.id)} className="flex h-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-[9px] font-black uppercase tracking-wider text-white/70">
+                        Mission
+                      </button>
+                      <Link to={user ? chatRoute : '/login'} state={!user ? { next: chatRoute } : undefined} className="flex h-9 items-center justify-center rounded-xl bg-[#15EA3E] text-[9px] font-black uppercase tracking-wider text-black">
+                        Chat
+                      </Link>
+                    </div>
                   </div>
                 </article>
               );
@@ -343,15 +749,87 @@ function FreelanceModule() {
 }
 
 function BiasharaModule() {
+  const { user } = useFirebaseAuth();
   const [idea, setIdea] = useState('');
   const [market, setMarket] = useState('');
+  const [need, setNeed] = useState('');
+  const [offer, setOffer] = useState('');
+  const [partnerType, setPartnerType] = useState('Distributeur');
   const [plan, setPlan] = useState('');
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [opportunities, setOpportunities] = useState<Array<{
+    id: string;
+    idea?: string;
+    market?: string;
+    partnerType?: string;
+    status?: string;
+    ownerId?: string;
+    createdAt?: number;
+  }>>([]);
 
   const generatePlan = (event: FormEvent) => {
     event.preventDefault();
     const cleanIdea = idea.trim() || 'une activite locale';
     const cleanMarket = market.trim() || 'clients AfriSell';
-    setPlan(`Plan rapide: valider ${cleanIdea} avec 10 clients ${cleanMarket}, publier une offre test dans ABC, mesurer les demandes via AfriChat, encaisser via AfriSpay puis chercher partenaires dans Biashara.`);
+    const cleanNeed = need.trim() || 'un partenaire terrain';
+    setPlan(`Plan rapide: valider ${cleanIdea} avec 10 clients ${cleanMarket}, publier une Vitrine ABC, mesurer les demandes via AfriChat, encaisser via AfriSpay, puis chercher ${cleanNeed} dans Biashara et animer le suivi dans Kyaghanda.`);
+  };
+
+  useEffect(() => {
+    if (!user) {
+      setOpportunities([]);
+      return undefined;
+    }
+
+    const opportunitiesRef = ref(realtimeDb, 'biasharaOpportunities');
+    const unsubscribe = onValue(opportunitiesRef, (snapshot) => {
+      const data = snapshot.val() as Record<string, {
+        id?: string;
+        idea?: string;
+        market?: string;
+        partnerType?: string;
+        status?: string;
+        ownerId?: string;
+        createdAt?: number;
+      }> | null;
+      const nextOpportunities = Object.entries(data || {})
+        .map(([id, opportunity]) => ({ ...opportunity, id: opportunity.id || id }))
+        .filter((opportunity) => opportunity.ownerId === user.uid)
+        .sort((first, second) => Number(second.createdAt || 0) - Number(first.createdAt || 0))
+        .slice(0, 4);
+      setOpportunities(nextOpportunities);
+    });
+
+    return unsubscribe;
+  }, [user]);
+
+  const submitOpportunity = async () => {
+    if (!user) {
+      setStatus('Connecte-toi pour publier une opportunite business.');
+      return;
+    }
+
+    setBusy(true);
+    setStatus('');
+
+    try {
+      await createBiasharaOpportunity({
+        user,
+        idea,
+        market,
+        need,
+        offer,
+        partnerType
+      });
+      setNeed('');
+      setOffer('');
+      setStatus('Opportunite Biashara publiee.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Opportunite Biashara impossible.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -366,46 +844,152 @@ function BiasharaModule() {
         </form>
         {plan && <p className="mt-4 rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-3 text-xs font-semibold leading-relaxed text-white/72">{plan}</p>}
       </section>
+
+      <section className="mt-5 rounded-[1.4rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-[#15EA3E]">Opportunite partenaire</h2>
+            <p className="mt-2 text-xs font-semibold leading-relaxed text-white/50">
+              Publie une Vitrine business pour chercher fournisseur, distributeur, investisseur ou partenaire terrain.
+            </p>
+          </div>
+          <Link to="/chat" className="shrink-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[9px] font-black uppercase tracking-wider text-white/65">
+            Kyaghanda
+          </Link>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <select value={partnerType} onChange={(event) => setPartnerType(event.target.value)} className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50">
+            <option>Distributeur</option>
+            <option>Fournisseur</option>
+            <option>Investisseur</option>
+            <option>Partenaire technique</option>
+            <option>Agence terrain</option>
+          </select>
+          <input value={need} onChange={(event) => setNeed(event.target.value)} placeholder="Besoin partenaire" className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+          <textarea value={offer} onChange={(event) => setOffer(event.target.value)} rows={3} placeholder="Ce que tu offres: marge, zone, volume, mission..." className="w-full resize-none rounded-2xl border border-white/10 bg-black/24 px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+        </div>
+
+        {status && (
+          <p className={cn(
+            'mt-3 rounded-xl border px-3 py-2 text-[11px] font-bold leading-relaxed',
+            status.includes('impossible') || status.includes('requis') || status.includes('Connecte')
+              ? 'border-red-500/25 bg-red-500/10 text-red-100'
+              : 'border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]'
+          )}>
+            {status}
+          </p>
+        )}
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button type="button" onClick={submitOpportunity} disabled={busy} className="h-12 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-wider text-black disabled:opacity-60">
+            {busy ? 'Publication...' : 'Publier vitrine'}
+          </button>
+          <Link to="/chat" className="flex h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-xs font-black uppercase tracking-wider text-white/70">
+            Ouvrir chat
+          </Link>
+        </div>
+      </section>
+
+      {opportunities.length > 0 && (
+        <section className="mt-6">
+          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Mes opportunites</h2>
+          <div className="mt-3 space-y-3">
+            {opportunities.map((opportunity) => (
+              <article key={opportunity.id} className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black">{opportunity.idea || 'Opportunite Biashara'}</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-[#15EA3E]">{opportunity.partnerType || 'Partenaire'}</p>
+                    <p className="mt-2 line-clamp-1 text-[11px] font-semibold text-white/45">{opportunity.market || 'Marche cible'}</p>
+                  </div>
+                  <span className="rounded-full border border-[#15EA3E]/20 bg-[#15EA3E]/10 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
+                    {opportunity.status || 'open'}
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </ModuleShell>
   );
 }
 
 function AfriAiModule() {
   const navigate = useNavigate();
+  const { user } = useFirebaseAuth();
   const { abcContents, marketProducts } = useAfriMarket();
   const [prompt, setPrompt] = useState('');
+  const [result, setResult] = useState<(AfriAiResponse & { intent: AfriAiIntent }) | null>(null);
+  const [busy, setBusy] = useState(false);
   const suggestions = useMemo(() => [
-    { label: 'Je veux acheter', route: '/afriai/guide-achat', icon: 'market' as AfriSellIconName },
-    { label: 'Je veux vendre', route: '/biashara/vitrine-business', icon: 'video' as AfriSellIconName },
-    { label: 'Je veux payer', route: '/fpp/contribuer', icon: 'pay' as AfriSellIconName },
-    { label: 'Je veux apprendre', route: '/school/cours', icon: 'school' as AfriSellIconName },
-    { label: 'Je cherche un talent', route: '/freelance/demandes-clients', icon: 'work' as AfriSellIconName },
+    { label: 'Acheter', prompt: 'Je veux acheter un produit avec bon prix', icon: 'market' as AfriSellIconName },
+    { label: 'Vendre', prompt: 'Je veux vendre avec une vitrine video', icon: 'video' as AfriSellIconName },
+    { label: 'Payer', prompt: 'Je veux faire un transfert ou payer', icon: 'pay' as AfriSellIconName },
+    { label: 'Apprendre', prompt: 'Je veux apprendre a vendre en ligne', icon: 'school' as AfriSellIconName },
+    { label: 'Talent', prompt: 'Je cherche un freelance pour une mission', icon: 'work' as AfriSellIconName },
   ], []);
-  const result = useMemo(() => {
-    const query = prompt.trim().toLowerCase();
-    if (!query) return '';
-    if (query.includes('payer') || query.includes('depot') || query.includes('retrait')) return 'Va dans AfriSpay pour payer, deposer, retirer ou scanner un QR.';
-    if (query.includes('cours') || query.includes('apprendre')) return 'AfriSchool peut te proposer un parcours court, puis AfriAI t aide comme tuteur.';
-    if (query.includes('sante') || query.includes('medecin')) return 'AfriMed est le bon module pour orientation, teleconsultation et dossier sante.';
-    if (query.includes('travail') || query.includes('freelance')) return 'A-Freelance relie talents, missions, contrats, chat et paiement.';
-    const match = [...marketProducts, ...abcContents].find((item) => `${item.title} ${item.category}`.toLowerCase().includes(query));
-    return match ? `J ai trouve: ${match.title}. Ouvre le resultat pour continuer.` : 'Je peux te guider vers Market, ABC, AfriSpay, AfriSchool, AfriMed ou A-Freelance selon ton besoin.';
-  }, [abcContents, marketProducts, prompt]);
+
+  const runAssistant = async (nextPrompt = prompt) => {
+    const cleanPrompt = nextPrompt.trim();
+    if (!cleanPrompt) return;
+
+    setBusy(true);
+    try {
+      const response = await resolveAfriAiRequest({
+        user,
+        input: cleanPrompt,
+        contents: [...marketProducts, ...abcContents]
+      });
+      setResult(response);
+      setPrompt(cleanPrompt);
+    } catch (error) {
+      setResult({
+        intent: 'search',
+        answer: getActionErrorMessage(error, 'AfriAI est indisponible. Ouvre directement le module correspondant.'),
+        suggestedRoute: '/apps',
+        confidence: 0
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <ModuleShell moduleId="afriai">
       <section className="mt-5 rounded-[1.4rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-4">
-        <form onSubmit={(event) => event.preventDefault()} className="flex gap-2">
+        <form onSubmit={(event) => {
+          event.preventDefault();
+          void runAssistant();
+        }} className="flex gap-2">
           <input value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Parle ou ecris ton besoin..." className="h-12 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
-          <button type="button" onClick={() => setPrompt('')} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-            <AfriSellIcon name="language" size={18} />
+          <button type="submit" disabled={busy} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#15EA3E] text-black disabled:opacity-60">
+            <AfriSellIcon name={busy ? 'flash' : 'language'} size={18} />
           </button>
         </form>
-        {result && <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-xs font-semibold leading-relaxed text-white/68">{result}</p>}
+        {result && (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="rounded-full border border-[#15EA3E]/20 bg-[#15EA3E]/10 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
+                {result.intent}
+              </span>
+              <span className="text-[9px] font-black uppercase tracking-wider text-white/35">
+                {Math.round(Number(result.confidence || 0) * 100)}%
+              </span>
+            </div>
+            <p className="mt-3 text-xs font-semibold leading-relaxed text-white/68">{result.answer}</p>
+            {result.suggestedRoute && (
+              <button type="button" onClick={() => navigate(result.suggestedRoute || '/apps')} className="mt-3 flex h-10 w-full items-center justify-center rounded-xl bg-[#15EA3E] text-[10px] font-black uppercase tracking-wider text-black">
+                Continuer
+              </button>
+            )}
+          </div>
+        )}
       </section>
       <section className="mt-5 grid grid-cols-2 gap-3">
         {suggestions.map((suggestion) => (
-          <button key={suggestion.label} type="button" onClick={() => navigate(suggestion.route)} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left active:scale-[0.98]">
+          <button key={suggestion.label} type="button" onClick={() => void runAssistant(suggestion.prompt)} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left active:scale-[0.98]">
             <AfriSellIcon name={suggestion.icon} size={18} className="text-[#15EA3E]" />
             <span className="text-xs font-black">{suggestion.label}</span>
           </button>
@@ -549,9 +1133,11 @@ const actionSteps: Record<ModuleId, Record<string, Array<{ title: string; body: 
 
 function ModuleActionDetail({ moduleId, actionId }: { moduleId: ModuleId; actionId: string }) {
   const { user } = useFirebaseAuth();
+  const navigate = useNavigate();
   const action = actionCatalog[moduleId].find((item) => item.id === actionId);
   const steps = actionSteps[moduleId][actionId];
   const meta = moduleMeta[moduleId];
+  const continueRoute = getActionContinueRoute(moduleId, actionId);
 
   if (!action || !steps) {
     return (
@@ -616,7 +1202,7 @@ function ModuleActionDetail({ moduleId, actionId }: { moduleId: ModuleId; action
         <Link to={`/${moduleId}`} className="flex h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-xs font-black uppercase tracking-wider text-white/65">
           Retour
         </Link>
-        <button type="button" className="flex h-12 items-center justify-center rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-wider text-black">
+        <button type="button" onClick={() => navigate(continueRoute)} className="flex h-12 items-center justify-center rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-wider text-black">
           Continuer
         </button>
       </section>

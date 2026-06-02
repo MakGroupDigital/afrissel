@@ -8,3 +8,7 @@ export * as IdentityDomain from './identity';
 export * as MediaDomain from './media';
 export * as AiDomain from './ai';
 export * as ImpactDomain from './impact';
+export * as FreelanceDomain from './freelance';
+export * as BusinessDomain from './business';
+export * as EducationDomain from './education';
+export * as HealthDomain from './health';
