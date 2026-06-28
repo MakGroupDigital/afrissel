@@ -48,6 +48,22 @@
     animation-play-state: paused;
   }
 
+  .africhat-message-wall {
+    background-color: #000000;
+    background-image:
+      linear-gradient(rgba(0, 0, 0, 0.16), rgba(0, 0, 0, 0.16)),
+      url('/fondchatblack.jpeg');
+    background-position: center;
+    background-size: cover;
+  }
+
+  .app-light .africhat-message-wall {
+    background-color: #f7fbf7;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)),
+      url('/fondchatlight.jpeg');
+  }
+
   :is(.ecosystem-light, .app-light) {
     background:
       radial-gradient(circle at 18% 0%, rgba(21, 234, 62, 0.16), transparent 28%),

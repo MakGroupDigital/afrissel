@@ -471,7 +471,7 @@ export default function ChatRoom() {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <div className="africhat-message-wall min-h-0 flex-1 overflow-y-auto px-4 py-4">
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
             <button
               type="button"
