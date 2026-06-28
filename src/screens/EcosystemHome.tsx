@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { onValue, ref, remove, set } from 'firebase/database';
+import { Building2, CalendarDays, UtensilsCrossed } from 'lucide-react';
 import { ecosystemModules } from '../data/ecosystem';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriSellIcon } from '../components/AfriSellIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { AfriMarketContent, formatMarketPrice, useAfriMarket } from '../hooks/useAfriMarket';
 import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
@@ -12,8 +13,7 @@ import { realtimeDb } from '../lib/firebase';
 type QuickAction = {
   label: string;
   route: string;
-  icon: AfriSellIconName;
-  accent?: boolean;
+  visual: 'restaurant' | 'event' | 'real-estate' | 'zandofy';
   requiresAuth?: boolean;
 };
 
@@ -36,16 +36,10 @@ type FreelanceEngagement = {
 };
 
 const quickActions: QuickAction[] = [
-  { label: 'Acheter', route: '/market', icon: 'cart', accent: true },
-  { label: 'Vendre', route: '/feed?publish=1', icon: 'market', requiresAuth: true },
-  { label: 'Publier', route: '/feed?publish=1', icon: 'video', requiresAuth: true },
-  { label: 'Payer', route: '/scan', icon: 'scan', accent: true, requiresAuth: true },
-  { label: 'Depot', route: '/wallet?action=deposit', icon: 'deposit', requiresAuth: true },
-  { label: 'Retrait', route: '/wallet?action=withdraw', icon: 'withdraw', requiresAuth: true },
-  { label: 'Transfert', route: '/wallet?action=transfer', icon: 'pay', requiresAuth: true },
-  { label: 'Expedier', route: '/safari/expedier', icon: 'send' },
-  { label: 'Chat', route: '/chat', icon: 'chat', requiresAuth: true },
-  { label: 'Plus', route: '/apps', icon: 'hub' }
+  { label: 'Restauration', route: '/market', visual: 'restaurant' },
+  { label: 'Event', route: '/biashara/kyaghanda', visual: 'event', requiresAuth: true },
+  { label: 'Immo', route: '/safari/immobilier', visual: 'real-estate' },
+  { label: 'Zandofy', route: '/market', visual: 'zandofy' }
 ];
 
 const fallbackPromos = [
@@ -123,6 +117,27 @@ const getActionErrorMessage = (error: unknown, fallback: string) => {
   }
   return fallback;
 };
+
+function QuickActionArtwork({ visual }: { visual: QuickAction['visual'] }) {
+  if (visual === 'zandofy') {
+    return <img src="/zandofyiconeapp.png" alt="" className="h-full w-full scale-[1.35] object-cover" />;
+  }
+
+  const Icon = visual === 'restaurant'
+    ? UtensilsCrossed
+    : visual === 'event'
+      ? CalendarDays
+      : Building2;
+
+  return (
+    <span className="afrisell-quick-artwork relative flex h-full w-full items-center justify-center overflow-hidden">
+      <span className="absolute left-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#15EA3E]/45" />
+      <span className="absolute bottom-1.5 right-1.5 h-1 w-1 rounded-full bg-[#15EA3E]" />
+      <span className="absolute inset-2 rounded-xl border border-[#15EA3E]/12" />
+      <Icon size={22} strokeWidth={2.15} className="relative z-10 text-[#15EA3E]" />
+    </span>
+  );
+}
 
 const normalizeFreelancer = (uid: string, rawProfile: Record<string, unknown>): TopFreelancer | null => {
   const businessAccount = rawProfile.businessAccount as Record<string, unknown> | undefined;
@@ -488,23 +503,21 @@ export default function EcosystemHome() {
         </form>
       </section>
 
-      <section className="mt-5 shrink-0 overflow-hidden">
-        <div className="scrollbar-hide overflow-x-auto px-4 pb-1">
-          <div className="afrisell-actions-marquee flex w-max gap-3">
-          {[...quickActions, ...quickActions].map((action, index) => (
+      <section className="mt-5 shrink-0 px-4">
+        <div className="grid grid-cols-4 gap-x-3 gap-y-4">
+          {quickActions.map((action) => (
             <Link
-              key={`${action.label}-${index}`}
+              key={action.label}
               to={getActionLink(action)}
               state={action.requiresAuth && !user ? { next: action.route } : undefined}
-              className="flex w-[58px] shrink-0 flex-col items-center gap-2 active:scale-[0.97]"
+              className="flex min-w-0 flex-col items-center gap-2 active:scale-[0.97]"
             >
-              <span className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-[0_10px_24px_rgba(0,0,0,0.24)] ${action.accent ? 'bg-[#15EA3E] text-black' : 'bg-white/[0.06] text-[#15EA3E]'}`}>
-                <AfriSellIcon name={action.icon} size={18} />
+              <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-[#15EA3E]/18 bg-black shadow-[0_10px_24px_rgba(0,0,0,0.24)]">
+                <QuickActionArtwork visual={action.visual} />
               </span>
-              <span className="w-full truncate text-center text-[10px] font-black text-white/66">{action.label}</span>
+              <span className="min-h-5 w-full text-center text-[9px] font-black leading-tight text-white/66">{action.label}</span>
             </Link>
           ))}
-          </div>
         </div>
       </section>
 
@@ -873,10 +886,10 @@ export default function EcosystemHome() {
       <button
         type="button"
         onClick={() => setIsAfriAiOpen((current) => !current)}
-        className="absolute bottom-[104px] right-4 z-50 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#15EA3E]/35 bg-[#15EA3E] text-black shadow-[0_16px_34px_rgba(21,234,62,0.32)] active:scale-[0.96]"
+        className="absolute bottom-[104px] right-4 z-50 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-[#15EA3E]/35 bg-black shadow-[0_16px_34px_rgba(21,234,62,0.32)] active:scale-[0.96]"
         aria-label="Assistant AfriAI"
       >
-        <AfriSellIcon name="language" size={22} />
+        <img src="/afriaiiconeblack.png" alt="" className="h-full w-full scale-[1.8] object-cover" />
       </button>
 
       {isAfriAiOpen && (

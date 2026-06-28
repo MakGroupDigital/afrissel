@@ -64,6 +64,27 @@
       url('/fondchatlight.jpeg');
   }
 
+  .afrisell-quick-artwork {
+    background:
+      radial-gradient(circle at 50% 42%, rgba(21, 234, 62, 0.13), transparent 52%),
+      #030603;
+  }
+
+  .ecosystem-light .afrisell-quick-artwork {
+    background:
+      radial-gradient(circle at 50% 42%, rgba(21, 160, 62, 0.12), transparent 55%),
+      #f7fff6;
+  }
+
+  .afrisell-nav-message {
+    mix-blend-mode: screen;
+  }
+
+  .app-light .afrisell-nav-message {
+    filter: invert(1) hue-rotate(180deg);
+    mix-blend-mode: multiply;
+  }
+
   :is(.ecosystem-light, .app-light) {
     background:
       radial-gradient(circle at 18% 0%, rgba(21, 234, 62, 0.16), transparent 28%),

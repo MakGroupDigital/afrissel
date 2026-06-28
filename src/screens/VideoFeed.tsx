@@ -1,6 +1,6 @@
 import React, { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriSellIcon } from '../components/AfriSellIcon';
 import {
   AfriMarketComment,
   AfriMarketContent,
@@ -16,7 +16,7 @@ import { cn } from '../lib/utils';
 import { shareVillageDealToAfriChat } from '../domains/commerce';
 
 type QuickPanel = 'cart' | 'orders' | 'following' | null;
-type FeedFilter = 'all' | 'vitrines' | 'videos' | 'photos' | 'village';
+type FeedFilter = 'live' | 'for-you' | 'following' | 'paid' | 'friends';
 const ABC_SOUND_PREF_KEY = 'afrisell:abc-sound-enabled';
 
 function CreatorAvatar({ content }: { content: AfriMarketContent }) {
@@ -792,7 +792,7 @@ export default function VideoFeed() {
   const [isFeedChromeHidden, setIsFeedChromeHidden] = useState(false);
   const [quickPanel, setQuickPanel] = useState<QuickPanel>(null);
   const [activeContentId, setActiveContentId] = useState('');
-  const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>('for-you');
   const [feedStatus, setFeedStatus] = useState('');
   const followedCount = Object.keys(followedAuthors).length;
   const isPlaybackBlocked = Boolean(isPublishing || commentContent || quickPanel);
@@ -800,10 +800,11 @@ export default function VideoFeed() {
 
   const filteredContents = useMemo(() => {
     const nextContents = abcContents.filter((content) => {
-      if (feedFilter === 'vitrines') return content.isSellable;
-      if (feedFilter === 'videos') return content.format === 'video';
-      if (feedFilter === 'photos') return content.format === 'gallery' || content.format === 'article';
-      if (feedFilter === 'village') return content.isSellable && Number(content.buyersNeeded || 0) > 1;
+      if (feedFilter === 'live') return content.format === 'video';
+      if (feedFilter === 'paid') return content.isSellable;
+      if (feedFilter === 'following' || feedFilter === 'friends') {
+        return Boolean(followedAuthors[content.authorId]);
+      }
       return true;
     });
 
@@ -812,7 +813,7 @@ export default function VideoFeed() {
     const sharedPost = nextContents.find((content) => content.id === postIdFromUrl);
     if (!sharedPost) return nextContents;
     return [sharedPost, ...nextContents.filter((content) => content.id !== postIdFromUrl)];
-  }, [abcContents, feedFilter, postIdFromUrl]);
+  }, [abcContents, feedFilter, followedAuthors, postIdFromUrl]);
 
   useEffect(() => {
     const wantsPublish = new URLSearchParams(location.search).get('publish') === '1';
@@ -902,72 +903,44 @@ export default function VideoFeed() {
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
       {!isFeedChromeHidden && (
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center gap-2 px-4 pt-5">
-          <div className="rounded-full border border-white/10 bg-black/80 px-3 py-2 shadow-[0_8px_18px_rgba(0,0,0,0.28)]">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white">ABC Feed</p>
-          </div>
-          <div className="pointer-events-auto flex min-w-0 flex-1 gap-2 overflow-x-auto overflow-y-visible py-1 scrollbar-hide">
+      <div className="pointer-events-auto absolute inset-x-0 top-0 z-30 px-3 pt-5">
+          <div className="flex items-center justify-between gap-1 rounded-2xl border border-white/10 bg-black/76 p-1.5 shadow-[0_10px_24px_rgba(0,0,0,0.3)] backdrop-blur-md">
             {[
-              { id: 'all' as FeedFilter, label: 'Tout' },
-              { id: 'vitrines' as FeedFilter, label: 'Vitrines' },
-              { id: 'village' as FeedFilter, label: 'Village' },
-              { id: 'videos' as FeedFilter, label: 'Videos' },
-              { id: 'photos' as FeedFilter, label: 'Photos' }
+              { id: 'live' as FeedFilter, label: 'Live' },
+              { id: 'for-you' as FeedFilter, label: 'Pour moi' },
+              { id: 'following' as FeedFilter, label: 'Suivi' },
+              { id: 'paid' as FeedFilter, label: 'Payant' },
+              { id: 'friends' as FeedFilter, label: 'Amis' }
             ].map((item) => (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setFeedFilter(item.id)}
                 className={cn(
-                  'h-9 shrink-0 rounded-full border px-3 text-[10px] font-black uppercase tracking-wider shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-colors',
+                  'h-8 min-w-0 shrink rounded-xl px-2 text-[9px] font-black transition-colors',
                   feedFilter === item.id
-                    ? 'border-[#15EA3E]/40 bg-[#15EA3E] text-black'
-                    : 'border-white/10 bg-black/80 text-white/70'
+                    ? 'bg-[#15EA3E] text-black'
+                    : 'text-white/62'
                 )}
               >
                 {item.label}
               </button>
             ))}
-            {[
-              { id: 'cart' as QuickPanel, label: 'Panier', icon: 'cart' as AfriSellIconName, count: cart.length },
-              { id: 'orders' as QuickPanel, label: 'Commandes', icon: 'order' as AfriSellIconName, count: 0 },
-              { id: 'following' as QuickPanel, label: 'Suivis', icon: 'follow' as AfriSellIconName, count: followedCount }
-            ].map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  if (item.id === 'orders') {
-                    navigate('/market/orders');
-                    return;
-                  }
-                  setQuickPanel(item.id);
-                }}
-                className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/80 text-white shadow-[0_8px_18px_rgba(0,0,0,0.28)] transition-colors active:scale-95"
-                aria-label={item.label}
-                title={item.label}
-              >
-                <AfriSellIcon name={item.icon} size={16} className="text-[#15EA3E]" />
-                <span className="absolute -right-1 top-0 flex h-4 min-w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[#15EA3E] px-1 text-[8px] font-black text-black">
-                  {item.count}
-                </span>
-              </button>
-            ))}
-          </div>
           <button
             type="button"
             onClick={() => {
               if (!user) {
-                navigate('/login', { state: { next: '/feed?publish=1' } });
+                navigate('/login', { state: { next: '/feed' } });
                 return;
               }
-              setIsPublishing(true);
+              setFeedStatus('Aucune nouvelle notification pour le moment.');
             }}
-            className="pointer-events-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black shadow-[0_12px_26px_rgba(21,234,62,0.26)]"
-            aria-label="Publier sur ABC"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[#15EA3E] transition-colors active:bg-white/10"
+            aria-label="Notifications"
           >
-            <AfriSellIcon name="clip" size={19} />
+            <AfriSellIcon name="notifications" size={17} />
           </button>
+          </div>
       </div>
       )}
 
