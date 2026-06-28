@@ -22,6 +22,12 @@ export type AfriMarketContent = {
   media: AfriMarketMedia[];
   coverURL: string;
   isSellable: boolean;
+  linkedProductId?: string;
+  linkedProductTitle?: string;
+  linkedProductImage?: string;
+  linkedProductPrice?: number;
+  linkedProductVillagePrice?: number;
+  linkedProductCurrency?: string;
   price?: number;
   villagePrice?: number;
   currency?: string;
@@ -31,6 +37,8 @@ export type AfriMarketContent = {
   commentsCount?: number;
   sharesCount?: number;
   followsCount?: number;
+  isLive?: boolean;
+  liveStatus?: 'scheduled' | 'live' | 'ended' | string;
   createdAt?: number | string | { seconds?: number };
   updatedAt?: number | string | { seconds?: number };
   status?: 'active' | 'hidden' | 'deleted' | string;
@@ -52,6 +60,7 @@ export type AfriMarketPostInput = {
   category: string;
   files: File[];
   isSellable: boolean;
+  linkedProductId?: string;
   price?: number;
   villagePrice?: number;
   buyersNeeded?: number;
@@ -171,7 +180,7 @@ const normalizeMedia = (content: RawContent): AfriMarketMedia[] => {
 
 const normalizeContent = (id: string, content: RawContent): AfriMarketContent => {
   const media = normalizeMedia(content);
-  const isSellable = Boolean(content.isSellable || content.format === 'article' || content.villagePrice);
+  const isSellable = Boolean(content.isSellable || content.linkedProductId || content.format === 'article' || content.villagePrice);
 
   return {
     id,
@@ -185,6 +194,12 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     media,
     coverURL: content.coverURL || media[0]?.secureUrl || media[0]?.mediaUrl || content.imageUrl || '',
     isSellable,
+    linkedProductId: content.linkedProductId || '',
+    linkedProductTitle: content.linkedProductTitle || '',
+    linkedProductImage: content.linkedProductImage || '',
+    linkedProductPrice: content.linkedProductPrice !== undefined ? toNumber(content.linkedProductPrice) : undefined,
+    linkedProductVillagePrice: content.linkedProductVillagePrice !== undefined ? toNumber(content.linkedProductVillagePrice) : undefined,
+    linkedProductCurrency: content.linkedProductCurrency || content.currency || 'USD',
     price: content.price !== undefined ? toNumber(content.price) : undefined,
     villagePrice: content.villagePrice !== undefined ? toNumber(content.villagePrice) : undefined,
     currency: content.currency || 'USD',
@@ -194,6 +209,8 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     commentsCount: toNumber(content.commentsCount),
     sharesCount: toNumber(content.sharesCount),
     followsCount: toNumber(content.followsCount),
+    isLive: Boolean(content.isLive),
+    liveStatus: content.liveStatus || '',
     createdAt: content.createdAt,
     updatedAt: content.updatedAt,
     status: content.status || 'active'
@@ -249,6 +266,7 @@ export const toCheckoutProduct = (content: AfriMarketContent): Product => ({
 
 const shouldSyncWithMarket = (content: AfriMarketContent) => (
   content.isSellable &&
+  !content.linkedProductId &&
   content.media.length > 0 &&
   content.media.every((item) => item.resourceType === 'image')
 );
@@ -262,6 +280,8 @@ export const useAfriMarket = () => {
   const [abcContents, setAbcContents] = useState<AfriMarketContent[]>(() => readOfflineCache(ABC_CACHE_KEY, []));
   const [marketProducts, setMarketProducts] = useState<AfriMarketContent[]>(() => readOfflineCache(MARKET_CACHE_KEY, []));
   const [followedAuthors, setFollowedAuthors] = useState<Record<string, boolean>>({});
+  const [followerAuthors, setFollowerAuthors] = useState<Record<string, boolean>>({});
+  const [mutualAuthors, setMutualAuthors] = useState<Record<string, boolean>>({});
   const [likedContents, setLikedContents] = useState<Record<string, boolean>>({});
   const [commentsByContent, setCommentsByContent] = useState<Record<string, AfriMarketComment[]>>({});
   const [loading, setLoading] = useState(() => !readOfflineCache<AfriMarketContent[]>(ABC_CACHE_KEY, []).length);
@@ -303,6 +323,7 @@ export const useAfriMarket = () => {
     const abcRef = ref(realtimeDb, 'abcPosts');
     const marketRef = ref(realtimeDb, 'marketProducts');
     const followsRef = user ? ref(realtimeDb, `follows/${user.uid}`) : null;
+    const followersRef = user ? ref(realtimeDb, `followers/${user.uid}`) : null;
     const likesRef = user ? ref(realtimeDb, `contentLikesByUser/${user.uid}`) : null;
 
     const unsubscribeAbc = onValue(
@@ -378,6 +399,13 @@ export const useAfriMarket = () => {
         })
       : undefined;
 
+    const unsubscribeFollowers = followersRef
+      ? onValue(followersRef, (snapshot) => {
+          const data = snapshot.val() as Record<string, unknown> | null;
+          setFollowerAuthors(Object.fromEntries(Object.keys(data || {}).map((authorId) => [authorId, true])));
+        })
+      : undefined;
+
     const unsubscribeLikes = likesRef
       ? onValue(likesRef, (snapshot) => {
           const fallback = readOfflineCache<Record<string, boolean>>(scopedCacheKey('contentLikesByUser', user?.uid), {});
@@ -399,13 +427,26 @@ export const useAfriMarket = () => {
       unsubscribeAbc();
       unsubscribeMarket();
       unsubscribeFollows?.();
+      unsubscribeFollowers?.();
       unsubscribeLikes?.();
       off(abcRef);
       off(marketRef);
       if (followsRef) off(followsRef);
+      if (followersRef) off(followersRef);
       if (likesRef) off(likesRef);
     };
   }, [user]);
+
+  useEffect(() => {
+    const followerIds = new Set(Object.keys(followerAuthors));
+    setMutualAuthors(
+      Object.fromEntries(
+        Object.keys(followedAuthors)
+          .filter((authorId) => followerIds.has(authorId))
+          .map((authorId) => [authorId, true])
+      )
+    );
+  }, [followedAuthors, followerAuthors]);
 
   const publishContent = async (input: AfriMarketPostInput) => {
     if (!user) {
@@ -424,10 +465,6 @@ export const useAfriMarket = () => {
     if (hasVideo && (files.length > 1 || hasImage)) {
       throw new Error('Choisis une seule video ou plusieurs photos.');
     }
-    if (input.isSellable && !Number(input.villagePrice || input.price)) {
-      throw new Error('Ajoute le prix de vente.');
-    }
-
     const postRef = push(ref(realtimeDb, 'abcPosts'));
     const postId = postRef.key;
     if (!postId) throw new Error('Publication impossible pour le moment.');
@@ -441,8 +478,10 @@ export const useAfriMarket = () => {
     const authorName = profile?.businessName || profile?.displayName || user.displayName || 'Utilisateur AfriSell';
     const authorAvatar = profile?.logoURL || profile?.photoURL || user.photoURL || '';
     const isVideo = media.some((item) => item.resourceType === 'video');
-    const isSellable = Boolean(input.isSellable);
-    const isMarketEligible = isSellable && media.length > 0 && media.every((item) => item.resourceType === 'image');
+    const linkedProduct = input.linkedProductId
+      ? marketProducts.find((product) => product.id === input.linkedProductId)
+      : undefined;
+    const isSellable = Boolean(linkedProduct);
 
     const payload: AfriMarketContent = {
       id: postId,
@@ -451,16 +490,22 @@ export const useAfriMarket = () => {
       authorAvatar,
       title,
       description,
-      category: isSellable ? input.category || 'Autres' : 'Partage',
-      format: isSellable && !isVideo ? 'article' : isVideo ? 'video' : 'gallery',
+      category: input.category || 'Partage',
+      format: isVideo ? 'video' : 'gallery',
       media,
       coverURL: media[0]?.secureUrl || media[0]?.mediaUrl || '',
       isSellable,
-      price: isSellable ? Number(input.price || input.villagePrice || 0) : undefined,
-      villagePrice: isSellable ? Number(input.villagePrice || input.price || 0) : undefined,
-      currency: input.currency || 'USD',
+      linkedProductId: linkedProduct?.id || '',
+      linkedProductTitle: linkedProduct?.title || '',
+      linkedProductImage: linkedProduct?.coverURL || '',
+      linkedProductPrice: linkedProduct?.price,
+      linkedProductVillagePrice: linkedProduct?.villagePrice,
+      linkedProductCurrency: linkedProduct?.currency,
+      price: undefined,
+      villagePrice: undefined,
+      currency: linkedProduct?.currency || input.currency || 'USD',
       buyersCount: 0,
-      buyersNeeded: isSellable ? Number(input.buyersNeeded || 1) : 0,
+      buyersNeeded: 0,
       likesCount: 0,
       commentsCount: 0,
       sharesCount: 0,
@@ -487,12 +532,6 @@ export const useAfriMarket = () => {
         createdAt: now
       };
     });
-
-    if (isMarketEligible) {
-      updates[`marketProducts/${postId}`] = payload;
-    } else {
-      updates[`marketProducts/${postId}`] = null;
-    }
 
     await update(ref(realtimeDb), stripUndefined(updates));
     return payload;
@@ -667,6 +706,7 @@ export const useAfriMarket = () => {
     abcContents,
     marketProducts,
     followedAuthors,
+    mutualAuthors,
     likedContents,
     commentsByContent,
     loading,
@@ -677,5 +717,5 @@ export const useAfriMarket = () => {
     watchComments,
     addComment,
     recordShare
-  }), [abcContents, commentsByContent, error, followedAuthors, likedContents, loading, marketProducts]);
+  }), [abcContents, commentsByContent, error, followedAuthors, likedContents, loading, marketProducts, mutualAuthors]);
 };

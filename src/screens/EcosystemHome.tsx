@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { FormEvent, UIEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { onValue, ref, remove, set } from 'firebase/database';
 import { Building2, CalendarDays, UtensilsCrossed } from 'lucide-react';
@@ -79,13 +79,6 @@ const fallbackAbc = [
 
 const freelanceSubtypes = new Set(['freelancer', 'creative', 'tech_service', 'local_service']);
 const supplierSubtypes = new Set(['supplier', 'b2b_supplier', 'b2c_supplier', 'importer', 'local_distributor']);
-
-const moduleCategories = [
-  { id: 'daily', label: 'Vie quotidienne' },
-  { id: 'growth', label: 'Croissance' },
-  { id: 'engagement', label: 'Engagement' },
-  { id: 'impact', label: 'Impact' }
-] as const;
 
 const getProfileText = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 
@@ -215,6 +208,8 @@ export default function EcosystemHome() {
   const [isLightMode, setIsLightMode] = useState(() => window.localStorage.getItem('afrisell:ecosystem-theme') === 'light');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAfriAiOpen, setIsAfriAiOpen] = useState(false);
+  const [isHomeChromeVisible, setIsHomeChromeVisible] = useState(true);
+  const lastHomeScrollTopRef = useRef(0);
   const { profile, user } = useFirebaseAuth();
   const { abcContents, marketProducts } = useAfriMarket();
   const { balance, currency, loading: walletLoading } = useAfriSpayWallet();
@@ -284,6 +279,20 @@ export default function EcosystemHome() {
       return;
     }
     navigate(firstResult.route);
+  };
+  const handleHomeScroll = (event: UIEvent<HTMLDivElement>) => {
+    const nextScrollTop = event.currentTarget.scrollTop;
+    const delta = nextScrollTop - lastHomeScrollTopRef.current;
+
+    if (nextScrollTop <= 12) {
+      setIsHomeChromeVisible(true);
+    } else if (delta > 5) {
+      setIsHomeChromeVisible(false);
+    } else if (delta < -5) {
+      setIsHomeChromeVisible(true);
+    }
+
+    lastHomeScrollTopRef.current = nextScrollTop;
   };
   const visibleFreelancers = useMemo(() => {
     if (!topFreelancers.length) return [];
@@ -412,7 +421,12 @@ export default function EcosystemHome() {
   }, [isLightMode]);
 
   return (
-    <main className={`flex h-full min-h-0 flex-col overflow-hidden bg-[#050705] pt-4 text-white ${isLightMode ? 'ecosystem-light' : ''}`}>
+    <main className={`flex h-full min-h-0 flex-col overflow-hidden bg-[#050705] text-white ${isLightMode ? 'ecosystem-light' : ''}`}>
+      <div data-home-chrome className={`relative z-40 shrink-0 transition-[max-height,opacity,transform] duration-300 ease-out ${
+        isHomeChromeVisible
+          ? 'max-h-[270px] translate-y-0 overflow-visible pb-1 pt-4 opacity-100'
+          : 'pointer-events-none max-h-0 -translate-y-3 overflow-hidden opacity-0'
+      }`}>
       <header className="shrink-0 px-4">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
@@ -520,8 +534,9 @@ export default function EcosystemHome() {
           ))}
         </div>
       </section>
+      </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pb-7 pt-1 scrollbar-hide">
+      <div data-home-scroll onScroll={handleHomeScroll} className="min-h-0 flex-1 overflow-y-auto pb-7 pt-1 scrollbar-hide">
       <section className="px-4">
         <div className="relative mt-4 overflow-hidden rounded-[1.6rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.34)]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_20%,rgba(21,234,62,0.18),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.07),transparent_42%)]" />
@@ -585,43 +600,6 @@ export default function EcosystemHome() {
               <AfriSellIcon name="arrow" size={13} className="text-[#15EA3E]" />
             </Link>
           </div>
-        </div>
-      </section>
-
-      <section className="mt-6 px-4">
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Modules par categories</h2>
-            <p className="mt-1 text-[10px] font-semibold text-white/34">Stands, Villages, Kyaghanda, Vitrines, AfriCoin et FPP relies.</p>
-          </div>
-          <Link to="/apps" className="text-[10px] font-black text-[#15EA3E]">Tout voir</Link>
-        </div>
-
-        <div className="space-y-4">
-          {moduleCategories.map((category) => {
-            const modules = ecosystemModules.filter((module) => module.category === category.id);
-            if (!modules.length) return null;
-
-            return (
-              <div key={category.id}>
-                <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#15EA3E]">{category.label}</p>
-                <div className="grid grid-cols-4 gap-2">
-                  {modules.map((module) => (
-                    <Link
-                      key={module.id}
-                      to={module.route}
-                      className="min-w-0 rounded-[1rem] border border-white/10 bg-white/[0.04] p-2 text-center active:scale-[0.98]"
-                    >
-                      <span className="mx-auto flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-[#15EA3E]/18 bg-black/22">
-                        <img src={module.logo} alt="" className="h-full w-full object-cover" />
-                      </span>
-                      <span className="mt-2 block truncate text-[9px] font-black text-white">{module.shortName}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
         </div>
       </section>
 
@@ -701,114 +679,79 @@ export default function EcosystemHome() {
 
         <div className="relative overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-2.5">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_12%,rgba(21,234,62,0.16),transparent_34%)]" />
-          <div className="relative h-[154px]">
-            {visibleFreelancers.slice().reverse().map((freelance, reverseIndex) => {
-              const stackIndex = visibleFreelancers.length - 1 - reverseIndex;
+
+          <div className="relative grid grid-cols-2 gap-2">
+            {visibleFreelancers.slice(0, 2).map((freelance, offset) => {
               const stats = getEngagementStats(freelanceEngagements[freelance.id]);
-              const rotation = stackIndex === 0 ? 0 : stackIndex === 1 ? -4 : 4;
-              const translateY = stackIndex * 6;
-              const scale = 1 - stackIndex * 0.055;
+              const isActive = freelance.id === activeFreelance?.id;
 
               return (
-                <article
+                <button
                   key={freelance.id}
-                  className="absolute inset-x-0 top-0 mx-auto h-[142px] max-w-[132px] overflow-hidden rounded-[1rem] border border-[#15EA3E]/20 bg-[#090D09] shadow-[0_14px_28px_rgba(0,0,0,0.38)] transition-all duration-500"
-                  style={{
-                    zIndex: 20 - stackIndex,
-                    transform: `translateY(${translateY}px) rotate(${rotation}deg) scale(${scale})`,
-                    opacity: 1 - stackIndex * 0.18
-                  }}
+                  type="button"
+                  onClick={() => setActiveFreelanceIndex((activeFreelanceIndex + offset) % topFreelancers.length)}
+                  className={`relative h-[126px] overflow-hidden rounded-[1rem] border text-left shadow-[0_12px_24px_rgba(0,0,0,0.28)] transition-all ${
+                    isActive ? 'border-[#15EA3E]/55' : 'border-white/10'
+                  }`}
                 >
-                  <img src={freelance.image} alt={freelance.name} className="h-[88px] w-full object-cover" />
-                  <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_34%,rgba(0,0,0,0.92))]" />
-                  <div className="absolute left-1.5 top-1.5 flex items-center gap-0.5 rounded-full bg-[#15EA3E] px-1.5 py-0.5 text-[8px] font-black text-black">
+                  <img src={freelance.image} alt={freelance.name} className="h-full w-full object-cover" />
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_30%,rgba(0,0,0,0.92))]" />
+                  <span className="absolute left-1.5 top-1.5 flex items-center gap-0.5 rounded-full bg-[#15EA3E] px-1.5 py-0.5 text-[8px] font-black text-black">
                     <AfriSellIcon name="heart" size={9} className="fill-current" />
                     {formatCompactCount(stats.likes)}
-                  </div>
-                  <div className="absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-full border border-white/10 bg-black/55 px-1.5 py-0.5 text-[8px] font-black text-white backdrop-blur">
+                  </span>
+                  <span className="absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[8px] font-black text-white">
                     <AfriSellIcon name="star" size={9} className="fill-current text-[#FFD84D]" />
                     {stats.ratingCount ? stats.ratingAverage.toFixed(1) : freelance.rating}
-                  </div>
-                  <div className="absolute inset-x-0 bottom-0 p-2">
-                    <h3 className="truncate text-xs font-black">{freelance.name}</h3>
-                    <p className="mt-0.5 truncate text-[8px] font-bold text-[#15EA3E]">{freelance.role}</p>
-                  </div>
-                </article>
+                  </span>
+                  <span className="absolute inset-x-0 bottom-0 p-2">
+                    <span className="block truncate text-xs font-black text-white">{freelance.name}</span>
+                    <span className="mt-0.5 block truncate text-[8px] font-bold text-[#15EA3E]">{freelance.role}</span>
+                  </span>
+                </button>
               );
             })}
           </div>
 
           {activeFreelance && (
-            <div className="relative z-30 -mt-1">
-              <div className="mb-2 flex items-center justify-center gap-2 text-[9px] font-black text-white/62">
-                <span className="flex items-center gap-0.5 text-[#FFD84D]">
-                  <AfriSellIcon name="star" size={11} className="fill-current" />
-                  {activeStats.ratingCount ? activeStats.ratingAverage.toFixed(1) : '0.0'}
-                </span>
-                <span>{formatCompactCount(activeStats.ratingCount)} notes</span>
-                <span className="flex items-center gap-0.5 text-[#15EA3E]">
-                  <AfriSellIcon name="heart" size={11} className="fill-current" />
-                  {formatCompactCount(activeStats.likes)}
-                </span>
+            <div className="relative z-10 mt-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1 text-[9px] font-black text-white/62">
+                  <AfriSellIcon name="star" size={11} className="fill-current text-[#FFD84D]" />
+                  <span>{activeStats.ratingCount ? activeStats.ratingAverage.toFixed(1) : '0.0'}</span>
+                  <span>{formatCompactCount(activeStats.ratingCount)} notes</span>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map((rating) => (
+                    <button
+                      key={rating}
+                      type="button"
+                      onClick={() => void handleRateFreelance(activeFreelance, rating)}
+                      className="flex h-6 w-6 items-center justify-center active:scale-[0.94]"
+                      aria-label={`Noter ${rating} etoile${rating > 1 ? 's' : ''}`}
+                    >
+                      <AfriSellIcon
+                        name="star"
+                        size={13}
+                        className={rating <= activeUserRating ? 'fill-current text-[#FFD84D]' : 'text-white/28'}
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="mb-2 flex items-center justify-center gap-1">
-                {[1, 2, 3, 4, 5].map((rating) => (
-                  <button
-                    key={rating}
-                    type="button"
-                    onClick={() => void handleRateFreelance(activeFreelance, rating)}
-                    className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 bg-white/[0.05] active:scale-[0.94]"
-                    aria-label={`Noter ${rating} etoile${rating > 1 ? 's' : ''}`}
-                  >
-                    <AfriSellIcon
-                      name="star"
-                      size={13}
-                      className={rating <= activeUserRating ? 'fill-current text-[#FFD84D]' : 'text-white/28'}
-                    />
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-[34px_1fr_34px] gap-1.5">
-                <button
-                  type="button"
-                  onClick={moveFreelanceStack}
-                  className="flex h-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-white/60 active:scale-[0.96]"
-                  aria-label="Passer"
-                >
-                  <AfriSellIcon name="close" size={13} />
+              <div className="mt-2 grid grid-cols-5 gap-1.5">
+                <button type="button" onClick={moveFreelanceStack} className="flex h-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-white/60" aria-label="Profil suivant" title="Profil suivant">
+                  <AfriSellIcon name="arrow" size={13} />
                 </button>
-                <Link
-                  to={user ? getContactChatRoute(activeFreelance) : '/login'}
-                  state={!user ? { next: getContactChatRoute(activeFreelance) } : undefined}
-                  className="flex h-8 items-center justify-center gap-1.5 rounded-xl bg-[#15EA3E] text-[9px] font-black uppercase tracking-wider text-black active:scale-[0.98]"
-                >
-                  <AfriSellIcon name="chat" size={12} />
-                  Contacter
+                <Link to={user ? getContactChatRoute(activeFreelance) : '/login'} state={!user ? { next: getContactChatRoute(activeFreelance) } : undefined} className="flex h-8 items-center justify-center rounded-xl bg-[#15EA3E] text-black" aria-label="Contacter" title="Contacter">
+                  <AfriSellIcon name="chat" size={13} />
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => void handleLikeFreelance(activeFreelance)}
-                  className={`flex h-8 items-center justify-center rounded-xl border active:scale-[0.96] ${
-                    activeUserLiked
-                      ? 'border-[#15EA3E]/40 bg-[#15EA3E] text-black'
-                      : 'border-[#15EA3E]/30 bg-[#15EA3E]/10 text-[#15EA3E]'
-                  }`}
-                  aria-label="Liker"
-                >
+                <button type="button" onClick={() => void handleLikeFreelance(activeFreelance)} className={`flex h-8 items-center justify-center rounded-xl border ${activeUserLiked ? 'border-[#15EA3E] bg-[#15EA3E] text-black' : 'border-[#15EA3E]/30 bg-[#15EA3E]/10 text-[#15EA3E]'}`} aria-label="Liker" title="Liker">
                   <AfriSellIcon name="heart" size={13} className={activeUserLiked ? 'fill-current' : ''} />
                 </button>
-              </div>
-
-              <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => void handleShareFreelance(activeFreelance)}
-                  className="flex h-8 items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/[0.05] text-[8px] font-black uppercase tracking-wider text-white/70"
-                >
-                  <AfriSellIcon name="share" size={12} />
-                  Partager
+                <button type="button" onClick={() => void handleShareFreelance(activeFreelance)} className="flex h-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-white/70" aria-label="Partager" title="Partager">
+                  <AfriSellIcon name="share" size={13} />
                 </button>
                 <button
                   type="button"
@@ -816,15 +759,16 @@ export default function EcosystemHome() {
                     setFreelanceFeedback((current) => ({ ...current, [activeFreelance.id]: 'Recommande' }));
                     moveFreelanceStack();
                   }}
-                  className="flex h-8 items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/[0.05] text-[8px] font-black uppercase tracking-wider text-white/70"
+                  className="flex h-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-white/70"
+                  aria-label="Recommander"
+                  title="Recommander"
                 >
-                  <AfriSellIcon name="follow" size={12} />
-                  Recommander
+                  <AfriSellIcon name="follow" size={13} />
                 </button>
               </div>
 
               {freelanceFeedback[activeFreelance.id] && (
-                <p className="mt-2 rounded-xl bg-[#15EA3E]/10 px-2 py-1 text-center text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
+                <p className="mt-1.5 rounded-xl bg-[#15EA3E]/10 px-2 py-1 text-center text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
                   {freelanceFeedback[activeFreelance.id]}
                 </p>
               )}

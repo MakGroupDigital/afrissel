@@ -42,7 +42,10 @@ export type AfriSellIconName =
   | 'withdraw'
   | 'flash'
   | 'keyboard'
-  | 'signal';
+  | 'signal'
+  | 'play'
+  | 'home'
+  | 'plus';
 
 interface AfriSellIconProps {
   name: AfriSellIconName;
@@ -51,6 +54,19 @@ interface AfriSellIconProps {
 }
 
 const paths: Record<AfriSellIconName, React.ReactNode> = {
+  home: (
+    <>
+      <path d="M4.5 11.2 12 5l7.5 6.2" />
+      <path d="M6.5 10.2V19h11v-8.8" />
+      <path d="M10 19v-5h4v5" />
+    </>
+  ),
+  plus: (
+    <>
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </>
+  ),
   hub: (
     <>
       <rect x="4" y="4" width="6" height="6" rx="2" />
@@ -172,6 +188,7 @@ const paths: Record<AfriSellIconName, React.ReactNode> = {
       <path d="m10 9 3 3-3 3V9Z" />
     </>
   ),
+  play: <path d="M9 6.5v11l8.5-5.5L9 6.5Z" />,
   school: (
     <>
       <path d="m3.5 9 8.5-4 8.5 4-8.5 4-8.5-4Z" />

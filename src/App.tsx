@@ -23,6 +23,7 @@ import WalletDashboard from './screens/WalletDashboard';
 import ChatRoom from './screens/ChatRoom';
 import ScannerScreen from './screens/ScannerScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import PublicProfileScreen from './screens/PublicProfileScreen';
 import BusinessDashboardScreen from './screens/BusinessDashboardScreen';
 import { useFirebaseAuth } from './hooks/useFirebaseAuth';
 import { realtimeDb } from './lib/firebase';
@@ -128,6 +129,7 @@ function AppRoutes() {
         <Route path="/chat" element={<RequireAuth><ChatRoom /></RequireAuth>} />
         <Route path="/scan" element={<RequireAuth><ScannerScreen /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><ProfileScreen /></RequireAuth>} />
+        <Route path="/u/:userId" element={<PublicProfileScreen />} />
         <Route path="/business" element={<RequireAuth><BusinessDashboardScreen /></RequireAuth>} />
       </Routes>
     </PhoneWrapper>

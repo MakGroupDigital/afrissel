@@ -1,10 +1,9 @@
 import React, { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AfriSellIcon } from '../components/AfriSellIcon';
 import {
   AfriMarketComment,
   AfriMarketContent,
-  MARKET_CATEGORIES,
   formatMarketPrice,
   formatMarketTime,
   toCheckoutProduct,
@@ -14,10 +13,33 @@ import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { useAppStore } from '../store/useAppStore';
 import { cn } from '../lib/utils';
 import { shareVillageDealToAfriChat } from '../domains/commerce';
+import type { AfriSellUserProfile } from '../hooks/useFirebaseAuth';
 
 type QuickPanel = 'cart' | 'orders' | 'following' | null;
 type FeedFilter = 'live' | 'for-you' | 'following' | 'paid' | 'friends';
 const ABC_SOUND_PREF_KEY = 'afrisell:abc-sound-enabled';
+const MARKET_BUSINESS_CATEGORY_IDS = new Set(['commerce']);
+const MARKET_BUSINESS_SERVICE_IDS = new Set(['store', 'supplier', 'producer']);
+
+const hasMarketBusinessAccount = (profile?: AfriSellUserProfile | null) => {
+  if (!profile) return false;
+  const accounts = [
+    profile.businessAccount,
+    ...Object.values(profile.businessAccounts || {})
+  ].filter(Boolean);
+
+  return accounts.some((account) => (
+    MARKET_BUSINESS_CATEGORY_IDS.has(account?.categoryId || '') ||
+    MARKET_BUSINESS_SERVICE_IDS.has(account?.serviceId || '') ||
+    profile.primaryRole === 'seller'
+  ));
+};
+
+const getLinkedProductPrice = (content: AfriMarketContent, product?: AfriMarketContent) => (
+  product
+    ? formatMarketPrice(product.villagePrice || product.price, product.currency)
+    : formatMarketPrice(content.linkedProductVillagePrice || content.linkedProductPrice, content.linkedProductCurrency || content.currency)
+);
 
 function CreatorAvatar({ content }: { content: AfriMarketContent }) {
   const initials = content.authorName
@@ -43,15 +65,39 @@ function CreatorAvatar({ content }: { content: AfriMarketContent }) {
 function FeedMedia({
   content,
   soundEnabled,
-  isActive
+  isActive,
+  isPausedByUser
 }: {
   content: AfriMarketContent;
   soundEnabled: boolean;
   isActive: boolean;
+  isPausedByUser: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [videoProgress, setVideoProgress] = useState(0);
   const firstMedia = content.media[0];
   const isVideo = firstMedia?.resourceType === 'video';
+  const progressPercent = videoDuration ? Math.min((videoProgress / videoDuration) * 100, 100) : 0;
+
+  const syncVideoProgress = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    setVideoDuration(Number.isFinite(video.duration) ? video.duration : 0);
+    setVideoProgress(video.currentTime || 0);
+  };
+
+  const seekVideo = (event: ChangeEvent<HTMLInputElement>) => {
+    const video = videoRef.current;
+    const nextTime = Number(event.target.value);
+    setVideoProgress(nextTime);
+    if (!video || !Number.isFinite(nextTime)) return;
+    video.currentTime = nextTime;
+  };
+
+  const stopProgressControl = (event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  };
 
   useEffect(() => {
     const video = videoRef.current;
@@ -59,7 +105,7 @@ function FeedMedia({
 
     video.muted = !soundEnabled || !isActive;
 
-    if (isActive) {
+    if (isActive && !isPausedByUser) {
       void video.play().catch(() => {
         video.muted = true;
         void video.play().catch(() => undefined);
@@ -71,21 +117,43 @@ function FeedMedia({
     return () => {
       video.pause();
     };
-  }, [isActive, isVideo, soundEnabled, firstMedia?.secureUrl, firstMedia?.mediaUrl]);
+  }, [isActive, isPausedByUser, isVideo, soundEnabled, firstMedia?.secureUrl, firstMedia?.mediaUrl]);
 
   if (isVideo) {
     return (
-      <video
-        ref={videoRef}
-        src={firstMedia.secureUrl || firstMedia.mediaUrl}
-        className="h-full w-full object-cover"
-        autoPlay={isActive}
-        muted={!soundEnabled || !isActive}
-        loop
-        playsInline
-        preload={isActive ? 'auto' : 'metadata'}
-        controls={false}
-      />
+      <div className="relative h-full w-full">
+        <video
+          ref={videoRef}
+          src={firstMedia.secureUrl || firstMedia.mediaUrl}
+          className="h-full w-full object-cover"
+          autoPlay={isActive && !isPausedByUser}
+          muted={!soundEnabled || !isActive}
+          loop
+          playsInline
+          preload={isActive ? 'auto' : 'metadata'}
+          controls={false}
+          onLoadedMetadata={syncVideoProgress}
+          onDurationChange={syncVideoProgress}
+          onTimeUpdate={syncVideoProgress}
+        />
+        <div className="absolute inset-x-4 bottom-[84px] z-30">
+          <input
+            type="range"
+            min="0"
+            max={videoDuration || 0}
+            step="0.01"
+            value={Math.min(videoProgress, videoDuration || videoProgress)}
+            onChange={seekVideo}
+            onClick={stopProgressControl}
+            onPointerDown={stopProgressControl}
+            onPointerMove={stopProgressControl}
+            onTouchStart={stopProgressControl}
+            className="abc-video-progress w-full"
+            aria-label="Progression video"
+            style={{ '--abc-video-progress': `${progressPercent}%` } as React.CSSProperties}
+          />
+        </div>
+      </div>
     );
   }
 
@@ -102,6 +170,7 @@ function FeedMedia({
 
 function FeedItem({
   content,
+  linkedProduct,
   isOwnContent,
   isFollowed,
   isLiked,
@@ -122,6 +191,7 @@ function FeedItem({
 }: {
   key?: React.Key;
   content: AfriMarketContent;
+  linkedProduct?: AfriMarketContent;
   isOwnContent: boolean;
   isFollowed: boolean;
   isLiked: boolean;
@@ -141,9 +211,33 @@ function FeedItem({
   onVisible: () => void;
 }) {
   const itemRef = useRef<HTMLElement | null>(null);
+  const clickTimerRef = useRef<number | null>(null);
+  const [isPausedByUser, setIsPausedByUser] = useState(false);
   const isVideo = content.media[0]?.resourceType === 'video';
+  const hasLinkedProduct = Boolean(content.linkedProductId);
+  const productTitle = linkedProduct?.title || content.linkedProductTitle || 'Produit associe';
+  const productPrice = getLinkedProductPrice(content, linkedProduct);
   const stopControlClick = (event: React.MouseEvent) => {
     event.stopPropagation();
+  };
+
+  const handleContentTap = () => {
+    if (!isVideo) {
+      onToggleChrome();
+      return;
+    }
+
+    if (clickTimerRef.current) {
+      window.clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+      setIsPausedByUser((current) => !current);
+      return;
+    }
+
+    clickTimerRef.current = window.setTimeout(() => {
+      onToggleChrome();
+      clickTimerRef.current = null;
+    }, 240);
   };
 
   useEffect(() => {
@@ -165,19 +259,39 @@ function FeedItem({
     return () => observer.disconnect();
   }, [onVisible]);
 
+  useEffect(() => {
+    if (!isActive) {
+      setIsPausedByUser(false);
+    }
+  }, [isActive, content.id]);
+
+  useEffect(() => () => {
+    if (clickTimerRef.current) {
+      window.clearTimeout(clickTimerRef.current);
+    }
+  }, []);
+
   return (
     <article
       ref={itemRef}
-      onClick={onToggleChrome}
+      onClick={handleContentTap}
       className="relative flex h-full w-full snap-start items-center justify-center overflow-hidden bg-black"
     >
       <div className="absolute inset-0">
-        <FeedMedia content={content} soundEnabled={soundEnabled} isActive={isActive} />
+        <FeedMedia content={content} soundEnabled={soundEnabled} isActive={isActive} isPausedByUser={isPausedByUser} />
         {!isChromeHidden && <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/18 to-black" />}
       </div>
 
+      {isPausedByUser && isVideo && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-black/45 text-[#15EA3E] backdrop-blur-md">
+            <AfriSellIcon name="play" size={26} />
+          </div>
+        </div>
+      )}
+
       {!isChromeHidden && (
-      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-end p-5 pb-[116px]">
+      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-end px-5 pb-[102px] pt-5">
         {isVideo && (
           <div className="pointer-events-auto absolute right-5 top-20">
             <button
@@ -187,49 +301,104 @@ function FeedItem({
                 onToggleSound();
               }}
               className={cn(
-                'flex h-10 items-center gap-2 rounded-full border px-3 text-[10px] font-black uppercase tracking-wider backdrop-blur-md transition-colors',
+                'flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition-colors',
                 soundEnabled
                   ? 'border-[#15EA3E]/40 bg-[#15EA3E]/15 text-[#15EA3E]'
                   : 'border-white/10 bg-black/45 text-white/70'
               )}
+              aria-label={soundEnabled ? 'Couper le son' : 'Activer le son'}
             >
               <AfriSellIcon name="signal" size={14} />
-              {soundEnabled ? 'Son' : 'Muet'}
             </button>
           </div>
         )}
 
-        <div className="mb-3 flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-[#15EA3E]" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white">
-            ABC {content.format === 'article' ? 'Article' : content.format === 'video' ? 'Video' : 'Photos'}
-          </span>
-          {content.media.length > 1 && (
-            <span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-white/70">
-              {content.media.length} photos
-            </span>
-          )}
-        </div>
-
-        <div className="mb-6 flex items-end justify-between gap-4">
+        <div className="mb-0 flex items-end justify-between gap-4">
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex items-center gap-2">
-              <CreatorAvatar content={content} />
+              <div className="relative shrink-0">
+                <Link
+                  to={`/u/${content.authorId}`}
+                  onClick={stopControlClick}
+                  className="block active:scale-95"
+                  aria-label={`Voir le profil de ${content.authorName}`}
+                >
+                  <CreatorAvatar content={content} />
+                </Link>
+                {!isOwnContent && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      stopControlClick(event);
+                      onFollow();
+                    }}
+                    disabled={isFollowed}
+                    className={cn(
+                      'pointer-events-auto absolute -right-1.5 top-1/2 flex h-[18px] w-[18px] -translate-y-1/2 items-center justify-center rounded-full border text-[11px] font-black leading-none shadow-[0_0_10px_rgba(0,0,0,0.42)] transition-transform active:scale-90',
+                      isFollowed
+                        ? 'border-[#15EA3E]/70 bg-[#15EA3E] text-black'
+                        : 'border-black/60 bg-white text-black'
+                    )}
+                    aria-label={isFollowed ? 'Utilisateur suivi' : 'Suivre cet utilisateur'}
+                    title={isFollowed ? 'Utilisateur suivi' : 'Suivre'}
+                  >
+                    +
+                  </button>
+                )}
+              </div>
               <div className="min-w-0">
-                <h3 className="truncate text-xs font-black uppercase tracking-wider text-gray-200">@{content.authorName.replace(/\s+/g, '')}</h3>
+                <Link
+                  to={`/u/${content.authorId}`}
+                  onClick={stopControlClick}
+                  className="block truncate text-xs font-black uppercase tracking-wider text-gray-200 active:text-[#15EA3E]"
+                >
+                  @{content.authorName.replace(/\s+/g, '')}
+                </Link>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">{formatMarketTime(content.createdAt)}</p>
               </div>
             </div>
-            <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight text-white">{content.title}</h2>
-            <p className="line-clamp-3 max-w-[90%] text-sm font-medium leading-snug text-[#e0e0e0]">{content.description}</p>
-            {content.isSellable && (
-              <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h2 className="mt-1.5 line-clamp-2 text-lg font-black leading-tight text-white">{content.title}</h2>
+            <p className="line-clamp-2 max-w-[94%] text-sm font-medium leading-snug text-[#e0e0e0]">{content.description}</p>
+            {hasLinkedProduct && (
+              <div className="pointer-events-auto mt-1 flex flex-wrap items-center gap-2">
                 <span className="text-xs font-black uppercase tracking-wide text-[#15EA3E]">
-                  Prix: {formatMarketPrice(content.villagePrice || content.price, content.currency)}
+                  {productTitle}
                 </span>
-                <span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-white/60">
-                  Village {content.buyersCount || 0}/{content.buyersNeeded || 1}
-                </span>
+                {productPrice ? (
+                  <span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-white/70">
+                    {productPrice}
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    stopControlClick(event);
+                    onBuy();
+                  }}
+                  className="rounded-full bg-[#15EA3E] px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-black active:scale-95"
+                >
+                  Acheter
+                </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    stopControlClick(event);
+                    onOpenProduct();
+                  }}
+                  className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-white active:scale-95"
+                >
+                  Details
+                </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    stopControlClick(event);
+                    onVillage();
+                  }}
+                  className="rounded-full border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-[#15EA3E] active:scale-95"
+                >
+                  Prix Village
+                </button>
               </div>
             )}
           </div>
@@ -280,65 +449,6 @@ function FeedItem({
           </div>
         </div>
 
-        <div className="pointer-events-auto w-full">
-          {content.isSellable ? (
-            <div className="grid grid-cols-[1fr_auto] gap-2">
-              <button
-                type="button"
-                onClick={(event) => {
-                  stopControlClick(event);
-                  onBuy();
-                }}
-                className="rounded-xl bg-[#15EA3E] py-4 text-xs font-black uppercase tracking-widest text-black transition-all active:scale-95"
-              >
-                Acheter
-              </button>
-              <button
-                type="button"
-                onClick={(event) => {
-                  stopControlClick(event);
-                  onOpenProduct();
-                }}
-                className="rounded-xl border border-white/15 bg-white/10 px-4 py-4 text-xs font-black uppercase tracking-widest text-white transition-all active:scale-95"
-              >
-                Details
-              </button>
-              <button
-                type="button"
-                onClick={(event) => {
-                  stopControlClick(event);
-                  onVillage();
-                }}
-                className="col-span-2 rounded-xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E] transition-all active:scale-95"
-              >
-                Partager Prix Village dans AfriChat
-              </button>
-            </div>
-          ) : isOwnContent ? (
-            <button
-              type="button"
-              disabled
-              className="w-full rounded-xl border border-white/10 bg-white/8 py-4 text-xs font-black uppercase tracking-widest text-white/50"
-            >
-              Ta publication
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={(event) => {
-                stopControlClick(event);
-                onFollow();
-              }}
-              disabled={isFollowed}
-              className={cn(
-                'w-full rounded-xl py-4 text-xs font-black uppercase tracking-widest transition-all active:scale-95',
-                isFollowed ? 'border border-[#15EA3E]/30 bg-[#15EA3E]/10 text-[#15EA3E]' : 'bg-white text-black'
-              )}
-            >
-              {isFollowed ? 'Deja suivi' : 'Suivre'}
-            </button>
-          )}
-        </div>
       </div>
       )}
 
@@ -366,32 +476,33 @@ function FeedItem({
 function PublishPanel({
   open,
   onClose,
-  onPublished
+  onPublished,
+  canAssociateProduct,
+  marketProducts
 }: {
   open: boolean;
   onClose: () => void;
   onPublished: () => void;
+  canAssociateProduct: boolean;
+  marketProducts: AfriMarketContent[];
 }) {
   const { publishContent } = useAfriMarket();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Services');
   const [files, setFiles] = useState<File[]>([]);
-  const [isSellable, setIsSellable] = useState(false);
-  const [price, setPrice] = useState('');
-  const [villagePrice, setVillagePrice] = useState('');
-  const [buyersNeeded, setBuyersNeeded] = useState('1');
-  const [currency, setCurrency] = useState('USD');
+  const [linkedProductId, setLinkedProductId] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const availableProducts = useMemo(() => marketProducts, [marketProducts]);
+  const hasLinkedProduct = Boolean(linkedProductId);
 
   const fileLabel = useMemo(() => {
-    if (!files.length) return isSellable ? 'Photos produit ou video de vente' : 'Video ou photos';
+    if (!files.length) return 'Video ou photos';
     const hasVideo = files.some((file) => file.type.startsWith('video/'));
     if (hasVideo) return files[0]?.name || '1 video';
     return `${files.length} photo${files.length > 1 ? 's' : ''}`;
-  }, [files, isSellable]);
+  }, [files]);
 
   if (!open) return null;
 
@@ -410,21 +521,15 @@ function PublishPanel({
       await publishContent({
         title,
         description,
-        category: isSellable ? category : 'Partage',
+        category: 'Partage',
         files,
-        isSellable,
-        price: Number(price || villagePrice || 0),
-        villagePrice: Number(villagePrice || price || 0),
-        buyersNeeded: Number(buyersNeeded || 1),
-        currency
+        isSellable: hasLinkedProduct,
+        linkedProductId
       });
       setTitle('');
       setDescription('');
       setFiles([]);
-      setIsSellable(false);
-      setPrice('');
-      setVillagePrice('');
-      setBuyersNeeded('1');
+      setLinkedProductId('');
       onPublished();
       onClose();
     } catch (publishError) {
@@ -453,32 +558,21 @@ function PublishPanel({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setIsSellable(false)}
-            className={cn('rounded-2xl border p-3 text-left', !isSellable ? 'border-[#15EA3E]/40 bg-[#15EA3E]/10 text-white' : 'border-gray-800 bg-[#050505] text-gray-500')}
-          >
+        <div className="rounded-2xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 p-3">
+          <div className="flex items-center gap-2 text-[#15EA3E]">
             <AfriSellIcon name="video" size={18} />
-            <span className="mt-2 block text-xs font-black">Partager</span>
-            <span className="mt-1 block text-[10px] leading-snug">Video ou photos pour le feed.</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsSellable(true)}
-            className={cn('rounded-2xl border p-3 text-left', isSellable ? 'border-[#15EA3E]/40 bg-[#15EA3E]/10 text-white' : 'border-gray-800 bg-[#050505] text-gray-500')}
-          >
-            <AfriSellIcon name="market" size={18} />
-            <span className="mt-2 block text-xs font-black">Stand</span>
-            <span className="mt-1 block text-[10px] leading-snug">Vitrine video/photo avec Prix Village.</span>
-          </button>
+            <span className="text-xs font-black uppercase tracking-wider">Contenu ABC</span>
+          </div>
+          <p className="mt-2 text-[11px] font-semibold leading-relaxed text-white/60">
+            Publie comme sur un feed video. Le bouton Acheter apparait seulement si tu associes un produit Market existant.
+          </p>
         </div>
 
         <div className="mt-4 space-y-3">
           <input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder={isSellable ? 'Nom de l article' : 'Titre'}
+            placeholder="Titre"
             className="h-12 w-full rounded-2xl border border-gray-800 bg-[#050505] px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
           />
           <textarea
@@ -488,18 +582,6 @@ function PublishPanel({
             rows={4}
             className="w-full resize-none rounded-2xl border border-gray-800 bg-[#050505] px-4 py-3 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
           />
-          {isSellable && (
-            <select
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              className="h-12 w-full rounded-2xl border border-gray-800 bg-[#050505] px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
-            >
-              {MARKET_CATEGORIES.filter((categoryName) => categoryName !== 'Tout').map((categoryName) => (
-                <option key={categoryName} value={categoryName}>{categoryName}</option>
-              ))}
-            </select>
-          )}
-
           <input
             ref={fileInputRef}
             type="file"
@@ -517,43 +599,30 @@ function PublishPanel({
             <AfriSellIcon name="clip" size={18} className="text-[#15EA3E]" />
           </button>
 
-          {isSellable && (
-            <p className="-mt-1 text-[10px] font-semibold leading-relaxed text-gray-500">
-              Les Stands photo apparaissent dans Market. Les Vitrines video restent dans ABC avec Prix Village.
-            </p>
-          )}
-
-          {isSellable && (
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={villagePrice}
-                onChange={(event) => setVillagePrice(event.target.value)}
-                inputMode="decimal"
-                placeholder="Prix"
-                className="h-12 rounded-2xl border border-gray-800 bg-[#050505] px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
-              />
+          {canAssociateProduct ? (
+            <div className="rounded-2xl border border-gray-800 bg-[#050505] p-3">
+              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Associer a un produit Market</label>
               <select
-                value={currency}
-                onChange={(event) => setCurrency(event.target.value)}
-                className="h-12 rounded-2xl border border-gray-800 bg-[#050505] px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
+                value={linkedProductId}
+                onChange={(event) => setLinkedProductId(event.target.value)}
+                className="mt-3 h-12 w-full rounded-2xl border border-gray-800 bg-black px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
               >
-                <option value="USD">USD</option>
-                <option value="CDF">CDF</option>
+                <option value="">Aucun produit associe</option>
+                {availableProducts.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.title} - {formatMarketPrice(product.villagePrice || product.price, product.currency)}
+                  </option>
+                ))}
               </select>
-              <input
-                value={price}
-                onChange={(event) => setPrice(event.target.value)}
-                inputMode="decimal"
-                placeholder="Ancien prix"
-                className="h-12 rounded-2xl border border-gray-800 bg-[#050505] px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
-              />
-              <input
-                value={buyersNeeded}
-                onChange={(event) => setBuyersNeeded(event.target.value)}
-                inputMode="numeric"
-                placeholder="Village"
-                className="h-12 rounded-2xl border border-gray-800 bg-[#050505] px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
-              />
+              {!availableProducts.length && (
+                <p className="mt-2 text-[10px] font-semibold leading-relaxed text-gray-500">
+                  Aucun produit Market disponible pour l instant. Cree d abord un produit dans Market, puis associe-le a ta video ABC.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-gray-800 bg-[#050505] p-3 text-[11px] font-semibold leading-relaxed text-gray-500">
+              L association a un produit est reservee aux comptes business Market. Active un compte E-commerce dans Profil &gt; Business account.
             </div>
           )}
         </div>
@@ -768,7 +837,9 @@ export default function VideoFeed() {
   const navigate = useNavigate();
   const {
     abcContents,
+    marketProducts,
     followedAuthors,
+    mutualAuthors,
     likedContents,
     commentsByContent,
     loading,
@@ -795,15 +866,26 @@ export default function VideoFeed() {
   const [feedFilter, setFeedFilter] = useState<FeedFilter>('for-you');
   const [feedStatus, setFeedStatus] = useState('');
   const followedCount = Object.keys(followedAuthors).length;
+  const canAssociateProduct = hasMarketBusinessAccount(profile);
+  const ownedMarketProducts = useMemo(
+    () => marketProducts.filter((product) => product.authorId === user?.uid),
+    [marketProducts, user?.uid]
+  );
+  const marketProductsById = useMemo(
+    () => Object.fromEntries(marketProducts.map((product) => [product.id, product])),
+    [marketProducts]
+  );
   const isPlaybackBlocked = Boolean(isPublishing || commentContent || quickPanel);
   const postIdFromUrl = new URLSearchParams(location.search).get('post') || '';
 
   const filteredContents = useMemo(() => {
     const nextContents = abcContents.filter((content) => {
-      if (feedFilter === 'live') return content.format === 'video';
-      if (feedFilter === 'paid') return content.isSellable;
+      if (feedFilter === 'live') return Boolean(content.isLive || content.liveStatus === 'live');
+      if (feedFilter === 'paid') return Boolean(content.linkedProductId);
       if (feedFilter === 'following' || feedFilter === 'friends') {
-        return Boolean(followedAuthors[content.authorId]);
+        return feedFilter === 'friends'
+          ? Boolean(mutualAuthors[content.authorId])
+          : Boolean(followedAuthors[content.authorId]);
       }
       return true;
     });
@@ -813,7 +895,7 @@ export default function VideoFeed() {
     const sharedPost = nextContents.find((content) => content.id === postIdFromUrl);
     if (!sharedPost) return nextContents;
     return [sharedPost, ...nextContents.filter((content) => content.id !== postIdFromUrl)];
-  }, [abcContents, feedFilter, followedAuthors, postIdFromUrl]);
+  }, [abcContents, feedFilter, followedAuthors, mutualAuthors, postIdFromUrl]);
 
   useEffect(() => {
     const wantsPublish = new URLSearchParams(location.search).get('publish') === '1';
@@ -828,6 +910,12 @@ export default function VideoFeed() {
   useEffect(() => {
     window.localStorage.setItem(ABC_SOUND_PREF_KEY, isSoundEnabled ? '1' : '0');
   }, [isSoundEnabled]);
+
+  useEffect(() => {
+    if (!feedStatus) return undefined;
+    const timer = window.setTimeout(() => setFeedStatus(''), 3200);
+    return () => window.clearTimeout(timer);
+  }, [feedStatus]);
 
   useEffect(() => {
     if (!filteredContents.length) {
@@ -868,14 +956,16 @@ export default function VideoFeed() {
       navigate('/login', { state: { next: `/feed?post=${content.id}` } });
       return;
     }
-    if (!content.isSellable) return;
+    if (!content.linkedProductId) return;
+    const linkedProduct = content.linkedProductId ? marketProductsById[content.linkedProductId] : undefined;
+    const product = linkedProduct || content;
 
     setFeedStatus('');
     try {
       await shareVillageDealToAfriChat({
         user,
         profile,
-        product: toCheckoutProduct(content)
+        product: toCheckoutProduct(product)
       });
       setFeedStatus('Prix Village partage dans AfriChat.');
       navigate(`/chat?contact=${encodeURIComponent(content.authorId)}&name=${encodeURIComponent(content.authorName)}&status=${encodeURIComponent('Prix Village')}&avatar=${encodeURIComponent(content.authorAvatar || '')}`);
@@ -892,8 +982,11 @@ export default function VideoFeed() {
         setLikeBurstContentId((current) => current === content.id ? '' : current);
       }, 1350);
 
-      if (content.isSellable) {
-        addToCart(toCheckoutProduct(content));
+      if (content.linkedProductId) {
+        const linkedProduct = content.linkedProductId ? marketProductsById[content.linkedProductId] : undefined;
+        if (linkedProduct) {
+          addToCart(toCheckoutProduct(linkedProduct));
+        }
       }
     }
 
@@ -953,7 +1046,7 @@ export default function VideoFeed() {
       {feedStatus && (
         <div className={cn(
           'absolute left-4 right-4 top-20 z-20 rounded-2xl border p-3 text-xs font-semibold',
-          feedStatus.includes('impossible') || feedStatus.includes('introuvable')
+          feedStatus.includes('impossible') || feedStatus.includes('introuvable') || feedStatus.includes('pas encore disponible')
             ? 'border-red-500/20 bg-red-500/10 text-red-200'
             : 'border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]'
         )}>
@@ -968,10 +1061,15 @@ export default function VideoFeed() {
         </div>
       ) : filteredContents.length ? (
         <div className="h-full w-full snap-y snap-mandatory overflow-y-scroll scrollbar-hide">
-          {filteredContents.map((content) => (
+          {filteredContents.map((content) => {
+            const linkedProduct = content.linkedProductId ? marketProductsById[content.linkedProductId] : undefined;
+            const productRoute = content.linkedProductId || linkedProduct ? `/market/${content.linkedProductId || linkedProduct?.id}` : `/market/${content.id}`;
+
+            return (
             <FeedItem
               key={content.id}
               content={content}
+              linkedProduct={linkedProduct}
               isOwnContent={content.authorId === user?.uid}
               isFollowed={Boolean(followedAuthors[content.authorId])}
               isLiked={Boolean(likedContents[content.id])}
@@ -979,8 +1077,15 @@ export default function VideoFeed() {
               soundEnabled={isSoundEnabled}
               likeBurstActive={likeBurstContentId === content.id}
               isChromeHidden={isFeedChromeHidden}
-              onBuy={() => openCheckout(toCheckoutProduct(content))}
-              onOpenProduct={() => navigate(`/market/${content.id}`)}
+              onBuy={() => {
+                const product = linkedProduct || (!content.linkedProductId ? content : null);
+                if (product) {
+                  openCheckout(toCheckoutProduct(product));
+                } else {
+                  navigate(productRoute);
+                }
+              }}
+              onOpenProduct={() => navigate(productRoute)}
               onVillage={() => handleVillageShare(content)}
               onFollow={() => followAuthor(content)}
               onLike={() => handleLike(content)}
@@ -990,20 +1095,27 @@ export default function VideoFeed() {
               onToggleChrome={() => setIsFeedChromeHidden((current) => !current)}
               onVisible={() => setActiveContentId(content.id)}
             />
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="flex h-full flex-col items-center justify-center px-10 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-gray-800 bg-[#050505] text-[#15EA3E]">
             <AfriSellIcon name="video" size={28} />
           </div>
-          <h2 className="mt-5 text-lg font-black text-white">Aucune publication</h2>
+          <h2 className="mt-5 text-lg font-black text-white">{feedFilter === 'live' ? 'Aucun live pour le moment' : 'Aucune publication'}</h2>
           <p className="mt-2 text-sm leading-relaxed text-gray-500">
-            {abcContents.length ? 'Aucune publication dans ce filtre.' : 'Ajoute une video, plusieurs photos ou un article a vendre.'}
+            {feedFilter === 'live'
+              ? 'Les directs ABC seront disponibles dans une prochaine version.'
+              : abcContents.length ? 'Aucune publication dans ce filtre.' : 'Ajoute une video ou plusieurs photos.'}
           </p>
           <button
             type="button"
             onClick={() => {
+              if (feedFilter === 'live') {
+                setFeedStatus('La fonctionnalite Live ABC n est pas encore disponible.');
+                return;
+              }
               if (!user) {
                 navigate('/login', { state: { next: '/feed?publish=1' } });
                 return;
@@ -1012,7 +1124,7 @@ export default function VideoFeed() {
             }}
             className="mt-5 rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-widest text-black"
           >
-            Publier
+            {feedFilter === 'live' ? 'Lancer un live' : 'Publier'}
           </button>
         </div>
       )}
@@ -1021,6 +1133,8 @@ export default function VideoFeed() {
         open={isPublishing}
         onClose={() => setIsPublishing(false)}
         onPublished={() => undefined}
+        canAssociateProduct={canAssociateProduct}
+        marketProducts={ownedMarketProducts}
       />
 
       <CommentPanel

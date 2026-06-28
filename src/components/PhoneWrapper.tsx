@@ -15,6 +15,7 @@ export default function PhoneWrapper({ children }: PhoneWrapperProps) {
   const location = useLocation();
   const immersivePaths = ['/', '/onboarding', '/login', '/scan'];
   const isImmersive = immersivePaths.includes(location.pathname);
+  const isFeed = location.pathname === '/feed';
   const [isLightMode, setIsLightMode] = useState(() => window.localStorage.getItem('afrisell:ecosystem-theme') === 'light');
 
   useEffect(() => {
@@ -55,7 +56,7 @@ export default function PhoneWrapper({ children }: PhoneWrapperProps) {
 
         <div className={cn(
           "flex-1 w-full h-full overflow-y-auto scrollbar-hide",
-          isImmersive ? "p-0" : "pt-8 pb-[80px]"
+          isImmersive || isFeed ? "p-0" : "pt-2 pb-[80px] [padding-top:max(0.5rem,env(safe-area-inset-top))]"
         )}>
           {children}
         </div>
