@@ -119,6 +119,8 @@ export default function CreatePostScreen() {
     canvas.height = video.videoHeight;
     const context = canvas.getContext('2d');
     if (!context) return;
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     canvas.toBlob((blob) => {
       if (!blob) return;
@@ -182,7 +184,7 @@ export default function CreatePostScreen() {
 
   return (
     <main className="relative h-full overflow-hidden bg-black text-white">
-      <video ref={videoRef} muted playsInline autoPlay className="absolute inset-0 h-full w-full object-cover" />
+      <video ref={videoRef} muted playsInline autoPlay className="absolute inset-0 h-full w-full -scale-x-100 object-cover" />
       {previewUrl && (
         selectedFiles[0]?.type.startsWith('video/') ? (
           <video src={previewUrl} controls playsInline className="absolute inset-0 h-full w-full object-cover" />

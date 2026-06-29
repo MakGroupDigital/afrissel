@@ -28,7 +28,7 @@ export type AfriChatMessage = {
   amount?: number;
   currency?: string;
   createdAt?: number | string | { seconds?: number };
-  status?: string;
+  status?: 'queued' | 'sent' | 'read' | string;
 };
 
 export type AfriChatMessageOptions = {
@@ -500,6 +500,18 @@ export const useAfriChat = () => {
   const markThreadRead = async (threadId: string) => {
     if (!user || !threadId) return;
 
+    const updates: Record<string, unknown> = {
+      [`userChats/${user.uid}/${threadId}/unreadCount`]: 0,
+      [`userChats/${user.uid}/${threadId}/readAt`]: serverTimestamp()
+    };
+
+    (messagesByThread[threadId] || []).forEach((message) => {
+      if (message.senderId && message.senderId !== user.uid && message.status !== 'read') {
+        updates[`chatMessages/${threadId}/${message.id}/status`] = 'read';
+      }
+    });
+
+    await update(ref(realtimeDb), updates);
     await update(ref(realtimeDb, `userChats/${user.uid}/${threadId}`), {
       unreadCount: 0,
       readAt: serverTimestamp()
