@@ -17,6 +17,8 @@ import ModuleSuiteScreen, { ModuleActionScreen } from './screens/ModuleSuiteScre
 import VideoFeed from './screens/VideoFeed';
 import CreatePostScreen from './screens/CreatePostScreen';
 import AfriAiTalkScreen from './screens/AfriAiTalkScreen';
+import QuickActionOffersScreen from './screens/QuickActionOffersScreen';
+import ZandofyMarketplaceScreen from './screens/ZandofyMarketplaceScreen';
 import MarketHome from './screens/MarketHome';
 import ProductDetailScreen from './screens/ProductDetailScreen';
 import MarketOrdersScreen from './screens/MarketOrdersScreen';
@@ -107,6 +109,8 @@ function AppRoutes() {
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/account-setup" element={<RequireAuth requireCompletedProfile={false}><AccountSetupScreen /></RequireAuth>} />
         <Route path="/ecosystem" element={<EcosystemHome />} />
+        <Route path="/offers/:sectionId" element={<QuickActionOffersScreen />} />
+        <Route path="/zandofy" element={<ZandofyMarketplaceScreen />} />
         <Route path="/apps" element={<AppsDirectoryScreen />} />
         <Route path="/safari" element={<SafariServicesScreen />} />
         <Route path="/safari/:serviceId" element={<SafariServicesScreen />} />

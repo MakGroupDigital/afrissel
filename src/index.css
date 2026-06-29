@@ -311,6 +311,27 @@
   }
 }
 
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  body::before {
+    content: "Capture bloquee - donnees AfriSpay protegees";
+    visibility: visible !important;
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    color: #15EA3E;
+    font: 700 18px Quicksand, sans-serif;
+    text-align: center;
+    padding: 32px;
+  }
+}
+
 @keyframes abc-like-burst {
   0% {
     opacity: 0;

@@ -1,11 +1,20 @@
 import React from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { get, ref, serverTimestamp, update } from 'firebase/database';
 import { cn } from '../lib/utils';
 import { InvertedAfricaLogo } from '../components/InvertedAfricaLogo';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { executeWalletOperation, WalletOperationType } from '../domains/payment';
+import { realtimeDb } from '../lib/firebase';
+
+type WalletSecuritySettings = {
+  pinEnabled: boolean;
+  pinHash?: string;
+  biometricEnabled: boolean;
+  biometricCredentialId?: string;
+};
 
 const formatMoney = (amount: number, currency: string) =>
   new Intl.NumberFormat('fr-FR', {
@@ -14,10 +23,35 @@ const formatMoney = (amount: number, currency: string) =>
     maximumFractionDigits: 2
   }).format(amount);
 
+const settingsKey = (uid?: string) => `afrissel:settings:${uid || 'guest'}`;
+const credentialKey = (uid?: string) => `afrissel:wallet-biometric:${uid || 'guest'}`;
+
+const hashPin = async (pin: string) => {
+  const encoded = new TextEncoder().encode(pin);
+  const digest = await crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+};
+
+const arrayBufferToBase64Url = (buffer: ArrayBuffer) => {
+  const bytes = Array.from(new Uint8Array(buffer));
+  const binary = String.fromCharCode(...bytes);
+  return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+};
+
+const base64UrlToArrayBuffer = (value: string) => {
+  const padded = `${value}${'='.repeat((4 - value.length % 4) % 4)}`.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = window.atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes.buffer;
+};
+
 export default function WalletDashboard() {
-  const { user } = useFirebaseAuth();
+  const { user, profile } = useFirebaseAuth();
   const { wallet, balance, currency, accountLabel, transactions, loading, error } = useAfriSpayWallet();
-  const [showBalance, setShowBalance] = React.useState(true);
+  const [showBalance, setShowBalance] = React.useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeAction = searchParams.get('action') as WalletOperationType | 'scan' | null;
   const [amount, setAmount] = React.useState('');
@@ -25,6 +59,17 @@ export default function WalletDashboard() {
   const [note, setNote] = React.useState('');
   const [operationStatus, setOperationStatus] = React.useState('');
   const [operationBusy, setOperationBusy] = React.useState(false);
+  const [pinInput, setPinInput] = React.useState('');
+  const [newPin, setNewPin] = React.useState('');
+  const [securityStatus, setSecurityStatus] = React.useState('');
+  const [securitySettings, setSecuritySettings] = React.useState<WalletSecuritySettings>({
+    pinEnabled: false,
+    biometricEnabled: false
+  });
+  const [privacyShieldVisible, setPrivacyShieldVisible] = React.useState(false);
+  const isKycVerified = profile?.kycStatus === 'verified';
+  const hasWalletPin = Boolean(securitySettings.pinEnabled && securitySettings.pinHash);
+  const canUseBiometric = Boolean(securitySettings.biometricEnabled && securitySettings.biometricCredentialId);
 
   const actions = [
     { label: 'Dépôt', action: 'deposit', icon: 'deposit' as AfriSellIconName, color: 'text-white' },
@@ -48,6 +93,234 @@ export default function WalletDashboard() {
     setNote('');
     setOperationStatus('');
   }, [activeAction]);
+
+  React.useEffect(() => {
+    if (!user) return;
+
+    const savedSettings = window.localStorage.getItem(settingsKey(user.uid));
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings) as { account?: WalletSecuritySettings };
+        setSecuritySettings({
+          pinEnabled: Boolean(parsed.account?.pinEnabled),
+          pinHash: parsed.account?.pinHash,
+          biometricEnabled: Boolean(parsed.account?.biometricEnabled),
+          biometricCredentialId: parsed.account?.biometricCredentialId || window.localStorage.getItem(credentialKey(user.uid)) || undefined
+        });
+      } catch {
+        // Remote settings below remain the source of truth if local parsing fails.
+      }
+    }
+
+    void get(ref(realtimeDb, `userSettings/${user.uid}`)).then((snapshot) => {
+      if (!snapshot.exists()) return;
+      const remote = snapshot.val() as { account?: WalletSecuritySettings };
+      setSecuritySettings((current) => ({
+        ...current,
+        pinEnabled: Boolean(remote.account?.pinEnabled),
+        pinHash: remote.account?.pinHash,
+        biometricEnabled: Boolean(remote.account?.biometricEnabled),
+        biometricCredentialId: remote.account?.biometricCredentialId || current.biometricCredentialId
+      }));
+    }).catch(() => undefined);
+  }, [user]);
+
+  React.useEffect(() => {
+    const showShield = () => {
+      setPrivacyShieldVisible(true);
+      window.setTimeout(() => setPrivacyShieldVisible(false), 2400);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'PrintScreen' || (event.metaKey && event.shiftKey) || (event.ctrlKey && event.key.toLowerCase() === 'p')) {
+        showShield();
+      }
+    };
+    const handleVisibility = () => {
+      if (document.hidden) setPrivacyShieldVisible(true);
+      else window.setTimeout(() => setPrivacyShieldVisible(false), 900);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('blur', showShield);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('blur', showShield);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
+
+  const persistAccountSecurity = async (nextSettings: WalletSecuritySettings) => {
+    if (!user) return;
+    const savedSettings = window.localStorage.getItem(settingsKey(user.uid));
+    const parsedSettings = savedSettings ? JSON.parse(savedSettings) as Record<string, unknown> : {};
+    const nextLocalSettings = {
+      ...parsedSettings,
+      account: {
+        ...((parsedSettings.account as Record<string, unknown> | undefined) || {}),
+        ...nextSettings
+      }
+    };
+    window.localStorage.setItem(settingsKey(user.uid), JSON.stringify(nextLocalSettings));
+    await update(ref(realtimeDb, `userSettings/${user.uid}`), {
+      account: nextSettings,
+      updatedAt: serverTimestamp()
+    });
+    setSecuritySettings(nextSettings);
+  };
+
+  const defineWalletPin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user) return;
+    if (newPin.length < 4) {
+      setSecurityStatus('Choisis un PIN de 4 chiffres minimum.');
+      return;
+    }
+
+    const pinHash = await hashPin(newPin);
+    const nextSettings = {
+      ...securitySettings,
+      pinEnabled: true,
+      pinHash
+    };
+    await persistAccountSecurity(nextSettings);
+    setNewPin('');
+    setShowBalance(true);
+    setSecurityStatus('PIN AfriSpay defini. Solde deverrouille.');
+  };
+
+  const unlockWithPin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!securitySettings.pinHash) return;
+    const pinHash = await hashPin(pinInput);
+    if (pinHash !== securitySettings.pinHash) {
+      setSecurityStatus('PIN incorrect.');
+      return;
+    }
+    setPinInput('');
+    setShowBalance(true);
+    setSecurityStatus('Solde deverrouille.');
+  };
+
+  const enableBiometric = async () => {
+    if (!user || !hasWalletPin) {
+      setSecurityStatus('Definis d abord ton PIN AfriSpay.');
+      return;
+    }
+    if (!window.PublicKeyCredential || !navigator.credentials?.create) {
+      setSecurityStatus('Biometrie indisponible sur cet appareil.');
+      return;
+    }
+
+    try {
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          rp: { name: 'AfriSell' },
+          user: {
+            id: new TextEncoder().encode(user.uid),
+            name: user.email || user.uid,
+            displayName: profile?.displayName || user.displayName || 'AfriSell'
+          },
+          pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+          authenticatorSelection: {
+            authenticatorAttachment: 'platform',
+            userVerification: 'required'
+          },
+          timeout: 60000,
+          attestation: 'none'
+        }
+      }) as PublicKeyCredential | null;
+
+      if (!credential?.rawId) throw new Error('Biometrie non activee.');
+      const credentialId = arrayBufferToBase64Url(credential.rawId);
+      window.localStorage.setItem(credentialKey(user.uid), credentialId);
+      await persistAccountSecurity({
+        ...securitySettings,
+        biometricEnabled: true,
+        biometricCredentialId: credentialId
+      });
+      setSecurityStatus('Biometrie activee pour AfriSpay.');
+    } catch {
+      setSecurityStatus('Activation biometrie annulee ou indisponible.');
+    }
+  };
+
+  const unlockWithBiometric = async () => {
+    if (!securitySettings.biometricCredentialId || !navigator.credentials?.get) {
+      setSecurityStatus('Biometrie non configuree.');
+      return;
+    }
+
+    try {
+      const credential = await navigator.credentials.get({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          allowCredentials: [{
+            id: base64UrlToArrayBuffer(securitySettings.biometricCredentialId),
+            type: 'public-key'
+          }],
+          userVerification: 'required',
+          timeout: 60000
+        }
+      });
+      if (!credential) throw new Error('Biometrie refusee.');
+      setShowBalance(true);
+      setSecurityStatus('Solde deverrouille par biometrie.');
+    } catch {
+      setSecurityStatus('Verification biometrie annulee ou refusee.');
+    }
+  };
+
+  if (!isKycVerified) {
+    return (
+      <main className="flex min-h-full flex-col bg-black px-4 pb-8 pt-4 text-white">
+        <header className="flex items-center justify-between">
+          <Link to="/ecosystem" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Retour">
+            <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+          </Link>
+          <div className="text-center">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriSpay</p>
+            <h1 className="text-sm font-black">Acces restreint</h1>
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 text-[#15EA3E]">
+            <AfriSellIcon name="shield" size={18} />
+          </div>
+        </header>
+
+        <section className="mt-8 overflow-hidden rounded-[2rem] border border-[#15EA3E]/20 bg-[#071007] p-5">
+          <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] border border-[#15EA3E]/25 bg-black/35 text-[#15EA3E]">
+            <img src="/afrispay.jpeg" alt="" className="absolute inset-4 rounded-2xl object-cover opacity-45" />
+            <AfriSellIcon name="shield" size={32} className="relative z-10" />
+          </div>
+          <h2 className="mt-6 text-center text-2xl font-black leading-tight">Verification requise</h2>
+          <p className="mt-3 text-center text-sm font-semibold leading-relaxed text-white/52">
+            Pour acceder a notre solution de paiement AfriSpay, ton identite doit etre verifiee. Complete ton ID/KYC pour activer depot, retrait, transfert, QR et paiements.
+          </p>
+
+          <div className="mt-5 grid gap-2">
+            {[
+              'Protection des transactions',
+              'Conformite paiement',
+              'Acces wallet et carte AfriSpay'
+            ].map((item) => (
+              <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                <AfriSellIcon name="check" size={15} className="text-[#15EA3E]" />
+                <span className="text-xs font-bold text-white/62">{item}</span>
+              </div>
+            ))}
+          </div>
+
+          <Link to="/profile" className="mt-6 flex h-12 w-full items-center justify-center rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black">
+            Se faire verifier
+          </Link>
+          <Link to="/ecosystem" className="mt-3 flex h-11 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-xs font-black uppercase tracking-[0.14em] text-white/60">
+            Retour accueil
+          </Link>
+        </section>
+      </main>
+    );
+  }
 
   const submitOperation = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -87,7 +360,7 @@ export default function WalletDashboard() {
   };
 
   return (
-    <div className="min-h-full bg-[#000000] p-4 flex flex-col gap-6">
+    <div className="relative min-h-full bg-[#000000] p-4 flex flex-col gap-6">
       
       {/* Header */}
       <header className="px-2 py-2 flex justify-between items-center">
@@ -97,7 +370,16 @@ export default function WalletDashboard() {
             <span className="text-lg font-bold text-[#15EA3E] font-mono tracking-tight">
               {loading ? 'Chargement...' : balanceLabel}
             </span>
-            <button onClick={() => setShowBalance(!showBalance)} className="text-gray-500 hover:text-[#15EA3E] transition-colors">
+            <button
+              onClick={() => {
+                if (showBalance) {
+                  setShowBalance(false);
+                  return;
+                }
+                setSecurityStatus(hasWalletPin ? 'Entre ton PIN ou utilise la biometrie pour afficher le solde.' : 'Definis un PIN AfriSpay pour afficher le solde.');
+              }}
+              className="text-gray-500 hover:text-[#15EA3E] transition-colors"
+            >
               <AfriSellIcon name={showBalance ? 'eyeOff' : 'eye'} size={14} />
             </button>
           </div>
@@ -159,6 +441,74 @@ export default function WalletDashboard() {
           </div>
         </div>
       </div>
+
+      {!showBalance && (
+        <section className="rounded-2xl border border-[#15EA3E]/20 bg-[#071007] p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
+              <AfriSellIcon name="lock" size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black text-white">Solde protege</p>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/45">
+                {hasWalletPin
+                  ? 'Entre ton PIN AfriSpay ou utilise la biometrie pour afficher ton solde.'
+                  : 'Definis un PIN AfriSpay. Il sera demande avant chaque affichage du solde.'}
+              </p>
+            </div>
+          </div>
+
+          {hasWalletPin ? (
+            <form onSubmit={unlockWithPin} className="mt-4 grid gap-2">
+              <input
+                value={pinInput}
+                onChange={(event) => setPinInput(event.target.value.replace(/[^\d]/g, '').slice(0, 8))}
+                inputMode="numeric"
+                type="password"
+                placeholder="PIN AfriSpay"
+                className="h-12 rounded-2xl border border-white/10 bg-black px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <button type="submit" className="h-11 rounded-2xl bg-[#15EA3E] text-[10px] font-black uppercase tracking-wider text-black">
+                  Deverrouiller
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void (canUseBiometric ? unlockWithBiometric() : enableBiometric())}
+                  className="h-11 rounded-2xl border border-white/10 bg-white/[0.05] text-[10px] font-black uppercase tracking-wider text-white/70"
+                >
+                  {canUseBiometric ? 'Biometrie' : 'Activer bio'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={defineWalletPin} className="mt-4 grid gap-2">
+              <input
+                value={newPin}
+                onChange={(event) => setNewPin(event.target.value.replace(/[^\d]/g, '').slice(0, 8))}
+                inputMode="numeric"
+                type="password"
+                placeholder="Nouveau PIN AfriSpay"
+                className="h-12 rounded-2xl border border-white/10 bg-black px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
+              />
+              <button type="submit" className="h-11 rounded-2xl bg-[#15EA3E] text-[10px] font-black uppercase tracking-wider text-black">
+                Definir le PIN
+              </button>
+            </form>
+          )}
+
+          {securityStatus && (
+            <p className={cn(
+              'mt-3 rounded-xl border px-3 py-2 text-[10px] font-semibold leading-relaxed',
+              securityStatus.includes('incorrect') || securityStatus.includes('indisponible') || securityStatus.includes('refuse')
+                ? 'border-red-500/25 bg-red-500/10 text-red-100'
+                : 'border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]'
+            )}>
+              {securityStatus}
+            </p>
+          )}
+        </section>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-4 gap-3">
@@ -302,6 +652,18 @@ export default function WalletDashboard() {
             })}
          </div>
       </div>
+
+      {privacyShieldVisible && (
+        <div className="absolute inset-0 z-[90] flex flex-col items-center justify-center bg-black px-8 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]">
+            <AfriSellIcon name="shield" size={28} />
+          </div>
+          <h2 className="mt-5 text-xl font-black">Capture bloquee</h2>
+          <p className="mt-2 text-sm font-semibold leading-relaxed text-white/45">
+            Les donnees AfriSpay sont masquees pour proteger ton solde et tes transactions.
+          </p>
+        </div>
+      )}
 
     </div>
   );

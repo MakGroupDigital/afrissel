@@ -36,10 +36,10 @@ type FreelanceEngagement = {
 };
 
 const quickActions: QuickAction[] = [
-  { label: 'Restauration', route: '/market', visual: 'restaurant' },
-  { label: 'Event', route: '/biashara/kyaghanda', visual: 'event', requiresAuth: true },
-  { label: 'Immo', route: '/safari/immobilier', visual: 'real-estate' },
-  { label: 'Zandofy', route: '/market', visual: 'zandofy' }
+  { label: 'Restauration', route: '/offers/restauration', visual: 'restaurant' },
+  { label: 'Event', route: '/offers/event', visual: 'event' },
+  { label: 'Immo', route: '/offers/immo', visual: 'real-estate' },
+  { label: 'Zandofy', route: '/zandofy', visual: 'zandofy' }
 ];
 
 const fallbackPromos = [

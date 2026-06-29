@@ -1,6 +1,6 @@
 import React, { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { off, onValue, push, ref, set } from 'firebase/database';
+import { get, off, onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { AfriChatContact, AfriChatMessage, AfriChatThread, formatChatTime, useAfriChat } from '../hooks/useAfriChat';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
@@ -35,6 +35,43 @@ type ChatStory = {
   resourceType: 'image' | 'video';
   createdAt: number;
   expiresAt: number;
+};
+
+type ContactRequest = {
+  id: string;
+  fromId: string;
+  fromName: string;
+  fromAvatar?: string;
+  fromEmail?: string;
+  fromPhone?: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt?: number;
+};
+
+type RawUserProfile = {
+  uid?: string;
+  email?: string;
+  displayName?: string;
+  businessName?: string;
+  photoURL?: string;
+  logoURL?: string;
+  phone?: string;
+  phoneLocal?: string;
+  city?: string;
+  country?: string;
+};
+
+type ContactSearchResult = {
+  id: string;
+  profile: RawUserProfile;
+};
+
+type BarcodeDetectorConstructor = new (options?: { formats?: string[] }) => {
+  detect: (source: CanvasImageSource) => Promise<Array<{ rawValue?: string }>>;
+};
+
+type WindowWithBarcodeDetector = Window & {
+  BarcodeDetector?: BarcodeDetectorConstructor;
 };
 
 const chatSpaces: Array<{ id: ChatSpace; label: string; icon: AfriSellIconName }> = [
@@ -154,12 +191,16 @@ function ThreadRow({ thread, active, onOpen }: { key?: React.Key; thread: AfriCh
   );
 }
 
-function ContactRow({ contact, onOpen }: { key?: React.Key; contact: AfriChatContact; onOpen: () => void | Promise<void> }) {
+function ContactRow({ contact, onOpen, disabled = false }: { key?: React.Key; contact: AfriChatContact; onOpen: () => void | Promise<void>; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-center gap-3 rounded-2xl border border-gray-900 bg-[#050505] p-3 text-left transition-colors hover:border-gray-700 hover:bg-[#0A0A0A]"
+      disabled={disabled}
+      className={cn(
+        'flex w-full items-center gap-3 rounded-2xl border border-gray-900 bg-[#050505] p-3 text-left transition-colors hover:border-gray-700 hover:bg-[#0A0A0A]',
+        disabled && 'cursor-not-allowed opacity-55 hover:border-gray-900 hover:bg-[#050505]'
+      )}
     >
       <Avatar title={contact.displayName} src={contact.avatarURL} />
       <div className="min-w-0 flex-1">
@@ -167,7 +208,7 @@ function ContactRow({ contact, onOpen }: { key?: React.Key; contact: AfriChatCon
         <p className="mt-1 truncate text-xs text-gray-500">{contact.status || 'Disponible sur AfriChat'}</p>
       </div>
       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#15EA3E]/10 text-[#15EA3E]">
-        <AfriSellIcon name="send" size={17} />
+        <AfriSellIcon name={disabled ? 'check' : 'send'} size={17} />
       </div>
     </button>
   );
@@ -305,6 +346,14 @@ export default function ChatRoom() {
   const [deviceContacts, setDeviceContacts] = useState<AfriChatContact[]>([]);
   const [contactsStatus, setContactsStatus] = useState('');
   const [importingContacts, setImportingContacts] = useState(false);
+  const [incomingRequests, setIncomingRequests] = useState<ContactRequest[]>([]);
+  const [manualContactValue, setManualContactValue] = useState('');
+  const [manualLookupResult, setManualLookupResult] = useState<ContactSearchResult | null>(null);
+  const [manualLookupLoading, setManualLookupLoading] = useState(false);
+  const [addingContact, setAddingContact] = useState(false);
+  const [showAddContactPanel, setShowAddContactPanel] = useState(false);
+  const [showQrScanner, setShowQrScanner] = useState(false);
+  const [qrStatus, setQrStatus] = useState('');
   const [stories, setStories] = useState<ChatStory[]>([]);
   const [storyFile, setStoryFile] = useState<File | null>(null);
   const [storyPreview, setStoryPreview] = useState('');
@@ -314,6 +363,9 @@ export default function ChatRoom() {
   const [showConversationPanel, setShowConversationPanel] = useState(false);
   const [showChatSettings, setShowChatSettings] = useState(false);
   const storyInputRef = useRef<HTMLInputElement | null>(null);
+  const qrVideoRef = useRef<HTMLVideoElement | null>(null);
+  const qrStreamRef = useRef<MediaStream | null>(null);
+  const qrScanTimerRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const contactRouteHandledRef = useRef('');
 
@@ -327,6 +379,14 @@ export default function ChatRoom() {
   const activeParticipantId = activeThread?.participantId && !activeThread.participantId.startsWith('device_')
     ? activeThread.participantId
     : '';
+  const acceptedContactIds = useMemo(() => new Set(
+    contacts
+      .filter((contact) => !contact.id.startsWith('device_') && !String(contact.status || '').toLowerCase().includes('demande'))
+      .map((contact) => contact.id)
+  ), [contacts]);
+  const visibleStories = useMemo(() => (
+    stories.filter((story) => story.authorId === user?.uid || acceptedContactIds.has(story.authorId))
+  ), [acceptedContactIds, stories, user?.uid]);
 
   const filteredThreads = useMemo(() => {
     const directThreads = threads.filter((thread) => !thread.type || ['direct', 'support'].includes(thread.type));
@@ -391,9 +451,32 @@ export default function ChatRoom() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const requestsRef = ref(realtimeDb, `chatContactRequests/${user.uid}`);
+    const unsubscribe = onValue(requestsRef, (snapshot) => {
+      const data = snapshot.val() as Record<string, Omit<ContactRequest, 'id'>> | null;
+      const nextRequests = Object.entries(data || {})
+        .map(([id, request]) => ({ ...request, id }))
+        .filter((request) => request.status === 'pending')
+        .sort((first, second) => Number(second.createdAt || 0) - Number(first.createdAt || 0));
+      setIncomingRequests(nextRequests);
+    });
+
+    return () => {
+      unsubscribe();
+      off(requestsRef);
+    };
+  }, [user]);
+
   useEffect(() => () => {
     if (storyPreview) URL.revokeObjectURL(storyPreview);
   }, [storyPreview]);
+
+  useEffect(() => () => {
+    stopQrScanner();
+  }, []);
 
   useEffect(() => {
     if (!activeThreadId) return undefined;
@@ -417,6 +500,10 @@ export default function ChatRoom() {
 
   const openContact = async (contact: AfriChatContact) => {
     if (!user) return;
+    if (String(contact.status || '').toLowerCase().includes('demande')) {
+      setContactsStatus('Cette discussion sera disponible quand la demande sera acceptee.');
+      return;
+    }
 
     const expectedThreadId = contact.threadId || [user.uid, contact.id].sort().join('_');
     const existingThread = threads.find((thread) => thread.id === expectedThreadId);
@@ -502,6 +589,242 @@ export default function ChatRoom() {
       setContactsStatus('Acces aux contacts annule ou refuse par l appareil.');
     } finally {
       setImportingContacts(false);
+    }
+  };
+
+  const normalizeLookupValue = (value: string) => value.trim().toLowerCase();
+  const normalizePhoneValue = (value: string) => value.replace(/[^\d+]/g, '');
+
+  const extractContactIdentifier = (rawValue: string) => {
+    const cleanValue = rawValue.trim();
+    if (!cleanValue) return '';
+
+    try {
+      const url = new URL(cleanValue);
+      const contact = url.searchParams.get('contact') || url.searchParams.get('user') || url.searchParams.get('uid');
+      if (contact) return contact;
+      const profileMatch = url.pathname.match(/\/u\/([^/]+)/);
+      if (profileMatch?.[1]) return decodeURIComponent(profileMatch[1]);
+    } catch {
+      // Plain text QR payloads are supported below.
+    }
+
+    return cleanValue
+      .replace(/^afrisell:(user|contact):/i, '')
+      .replace(/^user:/i, '')
+      .trim();
+  };
+
+  const findUserByIdentifier = async (identifier: string) => {
+    const cleanIdentifier = extractContactIdentifier(identifier);
+    if (!cleanIdentifier) return null;
+
+    const directSnapshot = await get(ref(realtimeDb, `users/${cleanIdentifier}`));
+    if (directSnapshot.exists()) {
+      return { id: cleanIdentifier, profile: directSnapshot.val() as RawUserProfile };
+    }
+
+    const lookup = normalizeLookupValue(cleanIdentifier);
+    const phoneLookup = normalizePhoneValue(cleanIdentifier);
+    const usersSnapshot = await get(ref(realtimeDb, 'users'));
+    const users = usersSnapshot.val() as Record<string, RawUserProfile> | null;
+    const match = Object.entries(users || {}).find(([, candidate]) => {
+      const email = normalizeLookupValue(candidate.email || '');
+      const phone = normalizePhoneValue(candidate.phone || candidate.phoneLocal || '');
+      return (
+        Boolean(email && email === lookup) ||
+        Boolean(phoneLookup && phone && phone.endsWith(phoneLookup.replace(/^\+/, ''))) ||
+        Boolean(phoneLookup && phone === phoneLookup)
+      );
+    });
+
+    return match ? { id: match[0], profile: match[1] } : null;
+  };
+
+  useEffect(() => {
+    const cleanValue = manualContactValue.trim();
+    if ((!showAddContactPanel && !showQrScanner) || cleanValue.length < 3) {
+      setManualLookupResult(null);
+      setManualLookupLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setManualLookupLoading(true);
+    const timer = window.setTimeout(() => {
+      void findUserByIdentifier(cleanValue)
+        .then((match) => {
+          if (!active) return;
+          setManualLookupResult(match);
+        })
+        .catch(() => {
+          if (!active) return;
+          setManualLookupResult(null);
+        })
+        .finally(() => {
+          if (active) setManualLookupLoading(false);
+        });
+    }, 360);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [manualContactValue, showAddContactPanel, showQrScanner]);
+
+  const requestChatContact = async (identifier: string, knownMatch?: ContactSearchResult | null) => {
+    if (!user) return;
+    const cleanIdentifier = extractContactIdentifier(identifier);
+    if (!cleanIdentifier || addingContact) return;
+
+    setAddingContact(true);
+    setContactsStatus('');
+    try {
+      const match = knownMatch || await findUserByIdentifier(cleanIdentifier);
+      if (!match) {
+        setContactsStatus('Aucun utilisateur AfriSell trouve avec cet identifiant.');
+        return;
+      }
+      if (match.id === user.uid) {
+        setContactsStatus('Tu ne peux pas t ajouter toi-meme.');
+        return;
+      }
+
+      const displayName = match.profile.businessName || match.profile.displayName || 'Utilisateur AfriSell';
+      const avatarURL = match.profile.logoURL || match.profile.photoURL || '';
+      const currentUserName = profile?.displayName || user.displayName || 'Utilisateur AfriSell';
+      const currentUserAvatar = profile?.photoURL || user.photoURL || '';
+      const now = Date.now();
+      const updates: Record<string, unknown> = {
+        [`chatContactRequests/${match.id}/${user.uid}`]: {
+          fromId: user.uid,
+          fromName: currentUserName,
+          fromAvatar: currentUserAvatar,
+          fromEmail: profile?.email || user.email || '',
+          fromPhone: profile?.phone || '',
+          status: 'pending',
+          createdAt: now,
+          updatedAt: serverTimestamp()
+        },
+        [`chatContacts/${user.uid}/${match.id}`]: {
+          id: match.id,
+          displayName,
+          avatarURL,
+          status: 'Demande envoyee',
+          requestStatus: 'pending',
+          updatedAt: serverTimestamp()
+        }
+      };
+
+      await update(ref(realtimeDb), updates);
+      setManualContactValue('');
+      setManualLookupResult(null);
+      setShowAddContactPanel(false);
+      setShowQrScanner(false);
+      setContactsStatus('Demande envoyee. La discussion et les stories seront disponibles apres acceptation.');
+    } catch (addError) {
+      setContactsStatus(getChatActionErrorMessage(addError, 'Ajout du contact impossible.'));
+    } finally {
+      setAddingContact(false);
+    }
+  };
+
+  const acceptContactRequest = async (request: ContactRequest) => {
+    if (!user) return;
+
+    const currentUserName = profile?.displayName || user.displayName || 'Utilisateur AfriSell';
+    const currentUserAvatar = profile?.photoURL || user.photoURL || '';
+    const updates: Record<string, unknown> = {
+      [`chatContactRequests/${user.uid}/${request.fromId}/status`]: 'accepted',
+      [`chatContactRequests/${user.uid}/${request.fromId}/acceptedAt`]: serverTimestamp(),
+      [`chatContacts/${user.uid}/${request.fromId}`]: {
+        id: request.fromId,
+        displayName: request.fromName,
+        avatarURL: request.fromAvatar || '',
+        status: 'Contact AfriChat',
+        requestStatus: 'accepted',
+        updatedAt: serverTimestamp()
+      },
+      [`chatContacts/${request.fromId}/${user.uid}`]: {
+        id: user.uid,
+        displayName: currentUserName,
+        avatarURL: currentUserAvatar,
+        status: 'Contact AfriChat',
+        requestStatus: 'accepted',
+        updatedAt: serverTimestamp()
+      }
+    };
+
+    try {
+      await update(ref(realtimeDb), updates);
+      setContactsStatus('Demande acceptee. Tu peux lancer la discussion.');
+    } catch (acceptError) {
+      setContactsStatus(getChatActionErrorMessage(acceptError, 'Acceptation impossible.'));
+    }
+  };
+
+  const rejectContactRequest = async (request: ContactRequest) => {
+    if (!user) return;
+    try {
+      await update(ref(realtimeDb), {
+        [`chatContactRequests/${user.uid}/${request.fromId}/status`]: 'rejected',
+        [`chatContactRequests/${user.uid}/${request.fromId}/rejectedAt`]: serverTimestamp()
+      });
+    } catch (rejectError) {
+      setContactsStatus(getChatActionErrorMessage(rejectError, 'Refus impossible.'));
+    }
+  };
+
+  const stopQrScanner = () => {
+    if (qrScanTimerRef.current) {
+      window.clearInterval(qrScanTimerRef.current);
+      qrScanTimerRef.current = null;
+    }
+    qrStreamRef.current?.getTracks().forEach((track) => track.stop());
+    qrStreamRef.current = null;
+  };
+
+  const startQrScanner = async () => {
+    setShowQrScanner(true);
+    setQrStatus('Ouverture camera...');
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setQrStatus('Camera indisponible sur ce navigateur.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false
+      });
+      qrStreamRef.current = stream;
+      if (qrVideoRef.current) {
+        qrVideoRef.current.srcObject = stream;
+        await qrVideoRef.current.play().catch(() => undefined);
+      }
+
+      const BarcodeDetector = (window as WindowWithBarcodeDetector).BarcodeDetector;
+      if (!BarcodeDetector) {
+        setQrStatus('Camera active. Si le QR n est pas detecte, colle le code manuellement.');
+        return;
+      }
+
+      const detector = new BarcodeDetector({ formats: ['qr_code'] });
+      setQrStatus('Place le QR AfriSell dans le cadre.');
+      qrScanTimerRef.current = window.setInterval(() => {
+        const video = qrVideoRef.current;
+        if (!video || !video.videoWidth) return;
+
+        void detector.detect(video).then((codes) => {
+          const rawValue = codes[0]?.rawValue;
+          if (!rawValue) return;
+          stopQrScanner();
+          setQrStatus('QR detecte.');
+          void requestChatContact(rawValue);
+        }).catch(() => undefined);
+      }, 700);
+    } catch {
+      setQrStatus('Autorise la camera pour scanner un QR utilisateur.');
     }
   };
 
@@ -892,6 +1215,59 @@ export default function ChatRoom() {
 
         {activeSpace === 'chat' && (
           <div className="space-y-3">
+            <div className="rounded-[1.35rem] border border-white/10 bg-[#050505] p-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
+                  <AfriSellIcon name="plus" size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black text-white">Ajouter un utilisateur</p>
+                  <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-gray-500">Scanne un QR ou ajoute un email/numero AfriSell.</p>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => void startQrScanner()}
+                  className="rounded-2xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 py-3 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]"
+                >
+                  Scanner QR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddContactPanel(true)}
+                  className="rounded-2xl border border-white/10 bg-white/[0.05] py-3 text-[10px] font-black uppercase tracking-wider text-white/70"
+                >
+                  Ajouter manuel
+                </button>
+              </div>
+            </div>
+
+            {incomingRequests.length > 0 && (
+              <div className="space-y-2 rounded-[1.35rem] border border-[#15EA3E]/18 bg-[#071007] p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Demandes recues</p>
+                {incomingRequests.map((request) => (
+                  <div key={request.id} className="rounded-2xl border border-white/10 bg-black/24 p-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar title={request.fromName} src={request.fromAvatar} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-black text-white">{request.fromName}</p>
+                        <p className="mt-0.5 truncate text-[10px] font-semibold text-white/42">{request.fromEmail || request.fromPhone || 'Demande AfriChat'}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => void acceptContactRequest(request)} className="rounded-xl bg-[#15EA3E] py-2 text-[10px] font-black uppercase tracking-wider text-black">
+                        Accepter
+                      </button>
+                      <button type="button" onClick={() => void rejectContactRequest(request)} className="rounded-xl border border-white/10 bg-white/[0.05] py-2 text-[10px] font-black uppercase tracking-wider text-white/55">
+                        Refuser
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="rounded-[1.35rem] border border-[#15EA3E]/18 bg-[#071007] p-3">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/12 text-[#15EA3E]">
@@ -934,7 +1310,12 @@ export default function ChatRoom() {
               <div className="space-y-2">
                 <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Contacts</p>
                 {filteredContacts.slice(0, 4).map((contact) => (
-                  <ContactRow key={contact.id} contact={contact} onOpen={() => openContact(contact)} />
+                  <ContactRow
+                    key={contact.id}
+                    contact={contact}
+                    disabled={String(contact.status || '').toLowerCase().includes('demande')}
+                    onOpen={() => openContact(contact)}
+                  />
                 ))}
               </div>
             )}
@@ -1087,9 +1468,9 @@ export default function ChatRoom() {
                 </button>
               </div>
             </div>
-            {stories.length ? (
+            {visibleStories.length ? (
               <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-1">
-                {stories.map((story) => (
+                {visibleStories.map((story) => (
                   <article key={story.id} className="relative h-48 w-32 shrink-0 overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#050505]">
                     {story.resourceType === 'video' ? (
                       <video src={story.mediaUrl} muted playsInline className="h-full w-full object-cover" />
@@ -1112,7 +1493,7 @@ export default function ChatRoom() {
                 ))}
               </div>
             ) : (
-              <EmptyState icon="video" title="Aucune story" body="Les stories recentes de tes contacts seront affichees ici." />
+              <EmptyState icon="video" title="Aucune story" body="Les stories de tes contacts acceptes seront affichees ici." />
             )}
           </div>
         )}
@@ -1142,6 +1523,173 @@ export default function ChatRoom() {
           })}
         </div>
       </nav>
+      {showAddContactPanel && (
+        <div className="absolute inset-0 z-50 flex items-end bg-black/55 backdrop-blur-sm">
+          <section className="w-full rounded-t-[2rem] border-t border-white/10 bg-[#050505] p-5 shadow-[0_-24px_60px_rgba(0,0,0,0.5)]">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Nouveau contact</p>
+                <h2 className="mt-1 text-lg font-black text-white">Ajouter hors contacts</h2>
+              </div>
+              <button type="button" onClick={() => setShowAddContactPanel(false)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/55">
+                <AfriSellIcon name="close" size={14} />
+              </button>
+            </div>
+            <label className="flex h-12 items-center gap-3 rounded-2xl border border-white/10 bg-black/35 px-3">
+              <AfriSellIcon name="mail" size={16} className="text-white/35" />
+              <input
+                value={manualContactValue}
+                onChange={(event) => setManualContactValue(event.target.value)}
+                placeholder="Email, numero ou code QR AfriSell"
+                className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-white outline-none placeholder:text-white/28"
+              />
+            </label>
+            <p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/42">
+              Une demande sera envoyee. La discussion et les stories seront accessibles apres acceptation.
+            </p>
+            {manualLookupLoading && (
+              <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white/45">
+                Recherche dans AfriSell...
+              </p>
+            )}
+            {!manualLookupLoading && manualContactValue.trim().length >= 3 && !manualLookupResult && (
+              <p className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[10px] font-semibold leading-relaxed text-red-100">
+                Aucun utilisateur trouve pour cette saisie.
+              </p>
+            )}
+            {manualLookupResult && (
+              <div className="mt-3 rounded-[1.35rem] border border-[#15EA3E]/20 bg-[#071007] p-3">
+                <div className="flex items-center gap-3">
+                  <Avatar
+                    title={manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriSell'}
+                    src={manualLookupResult.profile.logoURL || manualLookupResult.profile.photoURL}
+                    size="lg"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-black text-white">
+                      {manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriSell'}
+                    </p>
+                    <p className="mt-1 truncate text-[10px] font-semibold text-white/45">
+                      {[manualLookupResult.profile.city, manualLookupResult.profile.country].filter(Boolean).join(', ') || manualLookupResult.profile.email || manualLookupResult.profile.phone || 'Profil AfriSell'}
+                    </p>
+                    {manualLookupResult.id === user?.uid && (
+                      <p className="mt-1 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">C est ton compte</p>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/u/${manualLookupResult.id}`)}
+                    className="rounded-xl border border-white/10 bg-white/[0.05] py-2 text-[10px] font-black uppercase tracking-wider text-white/70"
+                  >
+                    Voir profil
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void requestChatContact(manualContactValue, manualLookupResult)}
+                    disabled={addingContact || manualLookupResult.id === user?.uid}
+                    className="rounded-xl bg-[#15EA3E] py-2 text-[10px] font-black uppercase tracking-wider text-black disabled:bg-gray-800 disabled:text-gray-500"
+                  >
+                    {addingContact ? 'Envoi...' : 'Demander'}
+                  </button>
+                </div>
+              </div>
+            )}
+            {contactsStatus && (
+              <p className={cn(
+                'mt-3 rounded-2xl border px-3 py-2 text-[10px] font-semibold leading-relaxed',
+                contactsStatus.includes('impossible') || contactsStatus.includes('Aucun') || contactsStatus.includes('peux pas')
+                  ? 'border-red-500/20 bg-red-500/10 text-red-100'
+                  : 'border-[#15EA3E]/20 bg-[#15EA3E]/10 text-[#15EA3E]'
+              )}>
+                {contactsStatus}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => void requestChatContact(manualContactValue, manualLookupResult)}
+              disabled={addingContact || !manualLookupResult || manualLookupResult.id === user?.uid}
+              className="mt-4 w-full rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black disabled:bg-gray-800 disabled:text-gray-500"
+            >
+              {addingContact ? 'Envoi...' : 'Envoyer la demande'}
+            </button>
+          </section>
+        </div>
+      )}
+      {showQrScanner && (
+        <div className="absolute inset-0 z-50 flex flex-col bg-black">
+          <video ref={qrVideoRef} muted playsInline className="absolute inset-0 h-full w-full object-cover opacity-80" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.78),transparent_34%,rgba(0,0,0,0.92))]" />
+          <header className="relative z-10 flex items-center justify-between px-4 pt-5">
+            <button
+              type="button"
+              onClick={() => {
+                stopQrScanner();
+                setShowQrScanner(false);
+              }}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/45 text-white backdrop-blur"
+            >
+              <AfriSellIcon name="close" size={16} />
+            </button>
+            <div className="text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">AfriChat</p>
+              <h2 className="text-sm font-black">Scanner utilisateur</h2>
+            </div>
+            <div className="h-10 w-10" />
+          </header>
+          <section className="relative z-10 flex flex-1 items-center justify-center px-8">
+            <div className="relative h-64 w-64 rounded-[2rem] border-2 border-[#15EA3E] shadow-[0_0_45px_rgba(21,234,62,0.22)]">
+              <div className="absolute left-6 right-6 top-1/2 h-0.5 bg-[#15EA3E] shadow-[0_0_18px_rgba(21,234,62,0.9)]" />
+              <div className="absolute -left-1 -top-1 h-10 w-10 rounded-tl-[2rem] border-l-4 border-t-4 border-white" />
+              <div className="absolute -right-1 -top-1 h-10 w-10 rounded-tr-[2rem] border-r-4 border-t-4 border-white" />
+              <div className="absolute -bottom-1 -left-1 h-10 w-10 rounded-bl-[2rem] border-b-4 border-l-4 border-white" />
+              <div className="absolute -bottom-1 -right-1 h-10 w-10 rounded-br-[2rem] border-b-4 border-r-4 border-white" />
+              <AfriSellIcon name="scan" size={34} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white/30" />
+            </div>
+          </section>
+          <section className="relative z-10 rounded-t-[2rem] border-t border-white/10 bg-[#050705]/95 p-5 pb-8 backdrop-blur">
+            <p className="text-center text-xs font-bold text-white/62">{qrStatus}</p>
+            {manualLookupResult && (
+              <div className="mt-4 rounded-2xl border border-[#15EA3E]/20 bg-[#071007] p-3">
+                <div className="flex items-center gap-3">
+                  <Avatar
+                    title={manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriSell'}
+                    src={manualLookupResult.profile.logoURL || manualLookupResult.profile.photoURL}
+                    size="sm"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-black text-white">{manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriSell'}</p>
+                    <p className="mt-0.5 truncate text-[10px] font-semibold text-white/42">{manualLookupResult.profile.email || manualLookupResult.profile.phone || 'Profil AfriSell'}</p>
+                  </div>
+                  <button type="button" onClick={() => navigate(`/u/${manualLookupResult.id}`)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-[9px] font-black uppercase tracking-wider text-white/70">
+                    Profil
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="mt-4 flex gap-2">
+              <label className="flex h-12 flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3">
+                <AfriSellIcon name="keyboard" size={16} className="text-white/35" />
+                <input
+                  value={manualContactValue}
+                  onChange={(event) => setManualContactValue(event.target.value)}
+                  placeholder="Coller le code"
+                  className="w-full bg-transparent text-xs font-bold text-white outline-none placeholder:text-white/28"
+                />
+              </label>
+              <button onClick={() => void requestChatContact(manualContactValue, manualLookupResult)} disabled={addingContact || !manualLookupResult} className="h-12 rounded-2xl bg-[#15EA3E] px-4 text-xs font-black uppercase tracking-[0.12em] text-black disabled:bg-gray-800 disabled:text-gray-500">
+                Demander
+              </button>
+            </div>
+            {contactsStatus && (
+              <p className="mt-3 rounded-xl border border-white/10 bg-black/30 p-2 text-[10px] font-semibold leading-relaxed text-white/55">
+                {contactsStatus}
+              </p>
+            )}
+          </section>
+        </div>
+      )}
       {showChatSettings && <ChatSettingsSheet onClose={() => setShowChatSettings(false)} />}
     </div>
   );
