@@ -11,8 +11,7 @@ type NavigationItem = {
   image?: string;
   imageClassName?: string;
   iconSize?: number;
-  textOnly?: boolean;
-  shape: 'plain' | 'wide' | 'soft' | 'chat' | 'corner';
+  shape: 'plain' | 'wide' | 'soft' | 'chat';
 };
 
 export default function BottomNavigation() {
@@ -25,7 +24,6 @@ export default function BottomNavigation() {
     { image: '/icone decouvrir barre de navigation sans fond.png', label: 'Découvrir', path: '/feed', imageClassName: 'scale-[0.84]', shape: 'wide' },
     { image: '/afrimarket sans nom icone sans fond.png', label: 'Marché', path: '/market', imageClassName: 'scale-[0.86]', shape: 'soft' },
     { image: '/icone message barre de navigation sans nom clean.png', label: 'Messages', path: '/chat', imageClassName: 'scale-[0.9]', shape: 'chat' },
-    { label: 'Moi', path: '/profile', shape: 'corner', textOnly: true },
   ];
 
   const openCreatePage = () => {
@@ -74,18 +72,16 @@ function NavigationLink({ item, pathname }: { key?: React.Key; item: NavigationI
     plain: 'w-[2.05rem] rounded-full',
     wide: 'w-[3.55rem] rounded-[0.95rem]',
     soft: 'w-[2.55rem] rounded-full',
-    chat: 'w-[3.05rem] [border-radius:1.4rem_0.85rem_1.4rem_0.95rem]',
-    corner: 'w-[2rem] rounded-full'
+    chat: 'w-[3.05rem] [border-radius:1.4rem_0.85rem_1.4rem_0.95rem]'
   }[item.shape];
 
   const iconShellClass = {
     plain: 'h-7 w-7',
     wide: 'h-7 w-10',
     soft: 'h-[2.15rem] w-[2.15rem]',
-    chat: 'h-7 w-9',
-    corner: item.textOnly ? 'h-7 min-w-8 px-1' : 'h-7 w-7'
+    chat: 'h-7 w-9'
   }[item.shape];
-  const showLabel = item.textOnly || (item.shape !== 'plain' && item.shape !== 'corner');
+  const showLabel = item.shape !== 'plain';
 
   return (
     <NavLink
@@ -93,7 +89,7 @@ function NavigationLink({ item, pathname }: { key?: React.Key; item: NavigationI
       className={cn(
         'group flex h-full shrink-0 flex-col items-center justify-center gap-0.5 transition-all duration-300',
         shellClass,
-        item.shape === 'plain' || item.shape === 'corner'
+        item.shape === 'plain'
           ? 'bg-transparent'
           : isActive ? 'bg-white/[0.075]' : 'hover:bg-white/[0.035]',
         item.shape === 'soft' && isActive && 'ring-1 ring-[#15EA3E]/24',
@@ -107,14 +103,7 @@ function NavigationLink({ item, pathname }: { key?: React.Key; item: NavigationI
         iconShellClass,
         isActive ? 'scale-[1.02]' : 'opacity-82'
       )}>
-        {item.textOnly ? (
-          <span className={cn(
-            'text-[10px] font-black uppercase tracking-wide transition-colors',
-            isActive ? 'text-[#15EA3E]' : 'text-white/62 group-hover:text-white/86'
-          )}>
-            Moi
-          </span>
-        ) : item.image ? (
+        {item.image ? (
           <img
             src={item.image}
             alt=""
@@ -135,7 +124,7 @@ function NavigationLink({ item, pathname }: { key?: React.Key; item: NavigationI
           />
         )}
       </span>
-      {showLabel && !item.textOnly && (
+      {showLabel && (
         <span className={cn(
           'max-w-full truncate text-center text-[7.2px] font-bold leading-none transition-colors duration-300',
           isActive ? 'text-[#15EA3E]' : 'text-white/52 group-hover:text-white/72',
