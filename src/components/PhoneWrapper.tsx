@@ -13,7 +13,7 @@ interface PhoneWrapperProps {
 
 export default function PhoneWrapper({ children }: PhoneWrapperProps) {
   const location = useLocation();
-  const immersivePaths = ['/', '/onboarding', '/login', '/scan', '/create'];
+  const immersivePaths = ['/', '/onboarding', '/login', '/scan', '/create', '/afriai/talk'];
   const isImmersive = immersivePaths.includes(location.pathname);
   const isFeed = location.pathname === '/feed';
   const [isLightMode, setIsLightMode] = useState(() => window.localStorage.getItem('afrisell:ecosystem-theme') === 'light');

@@ -16,6 +16,7 @@ import SafariServicesScreen from './screens/SafariServicesScreen';
 import ModuleSuiteScreen, { ModuleActionScreen } from './screens/ModuleSuiteScreen';
 import VideoFeed from './screens/VideoFeed';
 import CreatePostScreen from './screens/CreatePostScreen';
+import AfriAiTalkScreen from './screens/AfriAiTalkScreen';
 import MarketHome from './screens/MarketHome';
 import ProductDetailScreen from './screens/ProductDetailScreen';
 import MarketOrdersScreen from './screens/MarketOrdersScreen';
@@ -117,6 +118,7 @@ function AppRoutes() {
         <Route path="/freelance/:actionId" element={<ModuleActionScreen moduleId="freelance" />} />
         <Route path="/biashara" element={<ModuleSuiteScreen moduleId="biashara" />} />
         <Route path="/biashara/:actionId" element={<ModuleActionScreen moduleId="biashara" />} />
+        <Route path="/afriai/talk" element={<RequireAuth><AfriAiTalkScreen /></RequireAuth>} />
         <Route path="/afriai" element={<ModuleSuiteScreen moduleId="afriai" />} />
         <Route path="/afriai/:actionId" element={<ModuleActionScreen moduleId="afriai" />} />
         <Route path="/fpp" element={<ModuleSuiteScreen moduleId="fpp" />} />

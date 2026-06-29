@@ -207,7 +207,6 @@ export default function EcosystemHome() {
   const [activeFreelanceIndex, setActiveFreelanceIndex] = useState(0);
   const [isLightMode, setIsLightMode] = useState(() => window.localStorage.getItem('afrisell:ecosystem-theme') === 'light');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAfriAiOpen, setIsAfriAiOpen] = useState(false);
   const [isHomeChromeVisible, setIsHomeChromeVisible] = useState(true);
   const lastHomeScrollTopRef = useRef(0);
   const homeScrollDirectionRef = useRef<'up' | 'down' | null>(null);
@@ -847,41 +846,12 @@ export default function EcosystemHome() {
 
       <button
         type="button"
-        onClick={() => setIsAfriAiOpen((current) => !current)}
+        onClick={() => navigate(user ? '/afriai/talk' : '/login', !user ? { state: { next: '/afriai/talk' } } : undefined)}
         className="absolute bottom-[104px] right-4 z-50 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-[#15EA3E]/35 bg-black shadow-[0_16px_34px_rgba(21,234,62,0.32)] active:scale-[0.96]"
         aria-label="Assistant AfriAI"
       >
         <img src="/afriaiiconeblack.png" alt="" className="h-full w-full scale-[1.8] object-cover" />
       </button>
-
-      {isAfriAiOpen && (
-        <div className="absolute bottom-[174px] right-4 z-50 w-[292px] overflow-hidden rounded-[1.5rem] border border-[#15EA3E]/24 bg-[#070A07]/96 p-4 shadow-[0_20px_54px_rgba(0,0,0,0.54)] backdrop-blur-xl">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">AfriAI</p>
-              <h3 className="mt-1 text-sm font-black text-white">Assistant universel</h3>
-              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/50">
-                Recherche, traduction et aide vocale seront connectees ici. Pour l instant, utilise la recherche universelle.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsAfriAiOpen(false)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-white/55"
-              aria-label="Fermer AfriAI"
-            >
-              <AfriSellIcon name="close" size={13} />
-            </button>
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {['Parler', 'Traduire', 'Aider'].map((label) => (
-              <button key={label} type="button" className="rounded-xl border border-white/10 bg-white/[0.05] px-2 py-2 text-[9px] font-black uppercase tracking-wider text-white/70">
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </main>
   );
 }
