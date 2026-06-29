@@ -221,7 +221,12 @@ function FeedItem({
     event.stopPropagation();
   };
 
-  const handleContentTap = () => {
+  const handleContentTap = (event: React.MouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('a, button, input, textarea, select, [data-feed-control="true"]')) {
+      return;
+    }
+
     if (!isVideo) {
       onToggleChrome();
       return;
@@ -315,7 +320,7 @@ function FeedItem({
 
         <div className="mb-0 flex items-end justify-between gap-4">
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <div className="flex items-center gap-2">
+            <div className="pointer-events-auto flex items-center gap-2" data-feed-control="true">
               <div className="relative shrink-0">
                 <Link
                   to={`/u/${content.authorId}`}

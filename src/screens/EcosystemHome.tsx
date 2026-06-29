@@ -210,6 +210,8 @@ export default function EcosystemHome() {
   const [isAfriAiOpen, setIsAfriAiOpen] = useState(false);
   const [isHomeChromeVisible, setIsHomeChromeVisible] = useState(true);
   const lastHomeScrollTopRef = useRef(0);
+  const homeScrollDirectionRef = useRef<'up' | 'down' | null>(null);
+  const homeChromeLockUntilRef = useRef(0);
   const { profile, user } = useFirebaseAuth();
   const { abcContents, marketProducts } = useAfriMarket();
   const { balance, currency, loading: walletLoading } = useAfriSpayWallet();
@@ -283,12 +285,24 @@ export default function EcosystemHome() {
   const handleHomeScroll = (event: UIEvent<HTMLDivElement>) => {
     const nextScrollTop = event.currentTarget.scrollTop;
     const delta = nextScrollTop - lastHomeScrollTopRef.current;
+    const now = window.performance.now();
 
-    if (nextScrollTop <= 12) {
+    if (Math.abs(delta) < 10 || now < homeChromeLockUntilRef.current) {
+      lastHomeScrollTopRef.current = nextScrollTop;
+      return;
+    }
+
+    if (nextScrollTop <= 24) {
+      homeScrollDirectionRef.current = 'up';
+      homeChromeLockUntilRef.current = now + 320;
       setIsHomeChromeVisible(true);
-    } else if (delta > 5) {
+    } else if (delta > 16 && nextScrollTop > 150 && homeScrollDirectionRef.current !== 'down') {
+      homeScrollDirectionRef.current = 'down';
+      homeChromeLockUntilRef.current = now + 320;
       setIsHomeChromeVisible(false);
-    } else if (delta < -5) {
+    } else if (delta < -24 && homeScrollDirectionRef.current !== 'up') {
+      homeScrollDirectionRef.current = 'up';
+      homeChromeLockUntilRef.current = now + 320;
       setIsHomeChromeVisible(true);
     }
 
@@ -686,9 +700,9 @@ export default function EcosystemHome() {
               const isActive = freelance.id === activeFreelance?.id;
 
               return (
-                <button
+                <Link
                   key={freelance.id}
-                  type="button"
+                  to={`/u/${freelance.id}`}
                   onClick={() => setActiveFreelanceIndex((activeFreelanceIndex + offset) % topFreelancers.length)}
                   className={`relative h-[126px] overflow-hidden rounded-[1rem] border text-left shadow-[0_12px_24px_rgba(0,0,0,0.28)] transition-all ${
                     isActive ? 'border-[#15EA3E]/55' : 'border-white/10'
@@ -708,7 +722,7 @@ export default function EcosystemHome() {
                     <span className="block truncate text-xs font-black text-white">{freelance.name}</span>
                     <span className="mt-0.5 block truncate text-[8px] font-bold text-[#15EA3E]">{freelance.role}</span>
                   </span>
-                </button>
+                </Link>
               );
             })}
           </div>
@@ -794,7 +808,7 @@ export default function EcosystemHome() {
                   key={supplier.id}
                   className="w-[154px] shrink-0 overflow-hidden rounded-[1.2rem] border border-white/10 bg-white/[0.04]"
                 >
-                  <div className="relative h-24">
+                  <Link to={`/u/${supplier.id}`} className="relative block h-24">
                     <img src={supplier.image} alt={supplier.name} className="h-full w-full object-cover" />
                     <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_36%,rgba(0,0,0,0.82))]" />
                     <span className="absolute left-2 top-2 rounded-full bg-[#15EA3E] px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-black">
@@ -804,7 +818,7 @@ export default function EcosystemHome() {
                       <h3 className="truncate text-xs font-black">{supplier.name}</h3>
                       <p className="mt-0.5 truncate text-[9px] font-bold text-[#15EA3E]">{supplier.role}</p>
                     </div>
-                  </div>
+                  </Link>
 
                   <div className="p-2">
                     <p className="line-clamp-2 min-h-[28px] text-[10px] font-semibold leading-snug text-white/48">
