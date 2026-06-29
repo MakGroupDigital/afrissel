@@ -15,6 +15,7 @@ import AppsDirectoryScreen from './screens/AppsDirectoryScreen';
 import SafariServicesScreen from './screens/SafariServicesScreen';
 import ModuleSuiteScreen, { ModuleActionScreen } from './screens/ModuleSuiteScreen';
 import VideoFeed from './screens/VideoFeed';
+import CreatePostScreen from './screens/CreatePostScreen';
 import MarketHome from './screens/MarketHome';
 import ProductDetailScreen from './screens/ProductDetailScreen';
 import MarketOrdersScreen from './screens/MarketOrdersScreen';
@@ -121,6 +122,7 @@ function AppRoutes() {
         <Route path="/fpp" element={<ModuleSuiteScreen moduleId="fpp" />} />
         <Route path="/fpp/:actionId" element={<ModuleActionScreen moduleId="fpp" />} />
         <Route path="/feed" element={<VideoFeed />} />
+        <Route path="/create" element={<RequireAuth><CreatePostScreen /></RequireAuth>} />
         <Route path="/market" element={<MarketHome />} />
         <Route path="/market/orders" element={<MarketOrdersScreen />} />
         <Route path="/market/stand/:sellerId" element={<SellerStandScreen />} />
