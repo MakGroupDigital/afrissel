@@ -1,6 +1,6 @@
 import React, { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { get, off, onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
+import { get, off, onValue, push, ref, runTransaction, serverTimestamp, set, update } from 'firebase/database';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { AfriChatContact, AfriChatMessage, AfriChatThread, formatChatTime, useAfriChat } from '../hooks/useAfriChat';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
@@ -35,6 +35,8 @@ type ChatStory = {
   resourceType: 'image' | 'video';
   createdAt: number;
   expiresAt: number;
+  viewsCount?: number;
+  kissesCount?: number;
 };
 
 type ContactRequest = {
@@ -252,7 +254,16 @@ function MessageStatusTicks({ status }: { status?: AfriChatMessage['status'] }) 
   );
 }
 
-function MessageBubble({ message, isMine }: { key?: React.Key; message: AfriChatMessage; isMine: boolean }) {
+function MessageBubble({
+  message,
+  isMine,
+  onOpenKiss
+}: {
+  key?: React.Key;
+  message: AfriChatMessage;
+  isMine: boolean;
+  onOpenKiss?: () => void;
+}) {
   const messageBadge = message.type && message.type !== 'text'
     ? {
       order: 'Commande',
@@ -260,25 +271,102 @@ function MessageBubble({ message, isMine }: { key?: React.Key; message: AfriChat
       payment: 'Paiement',
       delivery: 'Safari',
       kyaghanda: 'Kyaghanda',
-      system: 'Systeme'
+      system: 'Système',
+      kiss: 'Bisous',
+      image: 'Photo',
+      video: 'Vidéo',
+      file: 'Fichier',
+      contact: 'Contact',
+      location: 'Position'
     }[message.type]
     : '';
+  const isKiss = message.type === 'kiss';
+  const isImage = message.type === 'image' && message.mediaUrl;
+  const isVideo = message.type === 'video' && message.mediaUrl;
+  const isFile = message.type === 'file';
+  const isLocation = message.type === 'location';
+  const badgeIcon: AfriSellIconName = message.type === 'kiss'
+    ? 'kiss'
+    : message.type === 'payment'
+      ? 'pay'
+      : message.type === 'delivery'
+        ? 'send'
+        : message.type === 'order'
+          ? 'order'
+          : message.type === 'image'
+            ? 'gallery'
+            : message.type === 'video'
+              ? 'video'
+              : message.type === 'file'
+                ? 'file'
+                : message.type === 'contact'
+                  ? 'contact'
+                  : message.type === 'location'
+                    ? 'location'
+                    : 'chat';
 
   return (
     <div className={cn('flex w-full', isMine ? 'justify-end' : 'justify-start')}>
-      <div className={cn(
+      <button
+        type="button"
+        onClick={isKiss ? onOpenKiss : undefined}
+        disabled={!isKiss}
+        className={cn(
         'max-w-[82%] rounded-2xl border px-3.5 py-3',
+        isKiss ? 'text-left active:scale-[0.98]' : 'cursor-default text-left',
         isMine
           ? 'rounded-br-md border-[#15EA3E]/30 bg-[#15EA3E]/12 text-white'
           : 'rounded-bl-md border-gray-800 bg-[#0A0A0A] text-gray-200'
       )}>
         {messageBadge && (
           <div className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-2 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-[#15EA3E]">
-            <AfriSellIcon name={message.type === 'payment' ? 'pay' : message.type === 'delivery' ? 'send' : message.type === 'order' ? 'order' : 'chat'} size={12} />
+            <AfriSellIcon name={badgeIcon} size={12} />
             {messageBadge}
           </div>
         )}
-        <p className="whitespace-pre-wrap text-[13px] font-medium leading-relaxed">{message.text}</p>
+        {isKiss ? (
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black shadow-[0_0_26px_rgba(21,234,62,0.45)]">
+              <AfriSellIcon name="kiss" size={24} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-black">Bisous reçu</span>
+              <span className="mt-0.5 block text-[10px] font-semibold text-white/45">{isMine ? 'Envoyé avec effet' : 'Appuie pour ouvrir l’effet'}</span>
+            </span>
+          </div>
+        ) : isImage ? (
+          <a href={message.mediaUrl} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+            <img src={message.mediaUrl} alt={message.fileName || 'Photo AfriChat'} className="max-h-72 w-full object-cover" />
+            {message.text && <span className="block px-3 py-2 text-[12px] font-semibold text-white/70">{message.text}</span>}
+          </a>
+        ) : isVideo ? (
+          <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+            <video src={message.mediaUrl} controls playsInline className="max-h-72 w-full bg-black object-cover" />
+            {message.text && <p className="px-3 py-2 text-[12px] font-semibold text-white/70">{message.text}</p>}
+          </div>
+        ) : isFile ? (
+          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/8 text-[#15EA3E]">
+              <AfriSellIcon name="file" size={18} />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-black">{message.fileName || message.text}</span>
+              <span className="mt-0.5 block text-[10px] font-semibold text-white/45">{message.mimeType || 'Document'}</span>
+            </span>
+          </div>
+        ) : isLocation ? (
+          <a href={message.text.replace('Position partagée: ', '')} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black">
+              <AfriSellIcon name="location" size={18} />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-black">Position partagée</span>
+              <span className="mt-0.5 block truncate text-[10px] font-semibold text-white/45">Ouvrir la carte</span>
+            </span>
+          </a>
+        ) : (
+          <p className="whitespace-pre-wrap text-[13px] font-medium leading-relaxed">{message.text}</p>
+        )}
         {message.productId && (
           <p className="mt-2 rounded-xl bg-black/20 px-2 py-1 text-[10px] font-bold text-white/50">
             Produit: {message.productId}
@@ -288,7 +376,30 @@ function MessageBubble({ message, isMine }: { key?: React.Key; message: AfriChat
           <span>{formatChatTime(message.createdAt)}</span>
           {isMine && <MessageStatusTicks status={message.status} />}
         </div>
-      </div>
+      </button>
+    </div>
+  );
+}
+
+function KissEffectOverlay({ effectKey }: { effectKey: number }) {
+  if (effectKey <= 0) return null;
+
+  return (
+    <div key={effectKey} className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+      <div className="absolute inset-0 bg-[#15EA3E]/10 animate-ping" />
+      {Array.from({ length: 18 }).map((_, index) => (
+        <div
+          key={index}
+          className="absolute flex h-9 w-9 items-center justify-center rounded-full bg-[#15EA3E] text-black shadow-[0_0_24px_rgba(21,234,62,0.78)]"
+          style={{
+            left: `${8 + ((index * 23) % 84)}%`,
+            bottom: `${-10 - (index % 5) * 7}%`,
+            animation: `story-kiss-float ${1300 + (index % 6) * 120}ms ease-out ${index * 38}ms forwards`
+          }}
+        >
+          <AfriSellIcon name="kiss" size={17} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -353,8 +464,10 @@ export default function ChatRoom() {
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [attaching, setAttaching] = useState(false);
   const [creatingThread, setCreatingThread] = useState('');
   const [actionStatus, setActionStatus] = useState('');
+  const [actionStatusKind, setActionStatusKind] = useState<'error' | 'success'>('error');
   const [deviceContacts, setDeviceContacts] = useState<AfriChatContact[]>([]);
   const [contactsStatus, setContactsStatus] = useState('');
   const [importingContacts, setImportingContacts] = useState(false);
@@ -372,14 +485,50 @@ export default function ChatRoom() {
   const [storyCaption, setStoryCaption] = useState('');
   const [storyStatus, setStoryStatus] = useState('');
   const [storyPublishing, setStoryPublishing] = useState(false);
+  const [activeStory, setActiveStory] = useState<ChatStory | null>(null);
+  const [storyProgress, setStoryProgress] = useState(0);
+  const [storyReply, setStoryReply] = useState('');
+  const [storyReplyStatus, setStoryReplyStatus] = useState('');
+  const [storyReplySending, setStoryReplySending] = useState(false);
+  const [kissEffectKey, setKissEffectKey] = useState(0);
   const [showConversationPanel, setShowConversationPanel] = useState(false);
   const [showChatSettings, setShowChatSettings] = useState(false);
   const storyInputRef = useRef<HTMLInputElement | null>(null);
+  const chatCameraInputRef = useRef<HTMLInputElement | null>(null);
+  const chatGalleryInputRef = useRef<HTMLInputElement | null>(null);
+  const chatFileInputRef = useRef<HTMLInputElement | null>(null);
+  const viewedStoriesRef = useRef(new Set<string>());
   const qrVideoRef = useRef<HTMLVideoElement | null>(null);
   const qrStreamRef = useRef<MediaStream | null>(null);
   const qrScanTimerRef = useRef<number | null>(null);
+  const actionStatusTimerRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const contactRouteHandledRef = useRef('');
+
+  const showActionStatus = (message: string, kind: 'error' | 'success' = 'error', autoHide = false) => {
+    if (actionStatusTimerRef.current) {
+      window.clearTimeout(actionStatusTimerRef.current);
+      actionStatusTimerRef.current = null;
+    }
+
+    setActionStatusKind(kind);
+    setActionStatus(message);
+
+    if (autoHide) {
+      actionStatusTimerRef.current = window.setTimeout(() => {
+        setActionStatus('');
+        actionStatusTimerRef.current = null;
+      }, 2800);
+    }
+  };
+
+  const clearActionStatus = () => {
+    if (actionStatusTimerRef.current) {
+      window.clearTimeout(actionStatusTimerRef.current);
+      actionStatusTimerRef.current = null;
+    }
+    setActionStatus('');
+  };
 
   const activeThread = useMemo(
     () => threads.find((thread) => thread.id === activeThreadId) || (fallbackThread?.id === activeThreadId ? fallbackThread : null),
@@ -404,6 +553,31 @@ export default function ChatRoom() {
   const visibleStories = useMemo(() => (
     stories.filter((story) => story.authorId === user?.uid || acceptedContactIds.has(story.authorId))
   ), [acceptedContactIds, stories, user?.uid]);
+
+  const openStoryViewer = (story: ChatStory) => {
+    setStoryProgress(0);
+    setStoryReply('');
+    setStoryReplyStatus('');
+    setActiveStory(story);
+  };
+
+  const closeStoryViewer = () => {
+    setStoryProgress(0);
+    setStoryReply('');
+    setStoryReplyStatus('');
+    setActiveStory(null);
+  };
+
+  const goToNextStory = () => {
+    if (!activeStory) return;
+    const currentIndex = visibleStories.findIndex((story) => story.authorId === activeStory.authorId && story.id === activeStory.id);
+    const nextStory = currentIndex >= 0 ? visibleStories[currentIndex + 1] : null;
+    if (nextStory) {
+      openStoryViewer(nextStory);
+      return;
+    }
+    closeStoryViewer();
+  };
 
   const filteredThreads = useMemo(() => {
     const directThreads = threads.filter((thread) => !thread.type || ['direct', 'support'].includes(thread.type));
@@ -469,6 +643,148 @@ export default function ChatRoom() {
   }, []);
 
   useEffect(() => {
+    if (!activeStory) return;
+    const updatedStory = stories.find((story) => story.authorId === activeStory.authorId && story.id === activeStory.id);
+    if (updatedStory && updatedStory !== activeStory) setActiveStory(updatedStory);
+  }, [activeStory, stories]);
+
+  const playKissEffect = () => {
+    setKissEffectKey((current) => current + 1);
+  };
+
+  const registerStoryView = async (story: ChatStory) => {
+    if (!user || !story.authorId || !story.id) return;
+    const viewKey = `${story.authorId}:${story.id}:${user.uid}`;
+    if (viewedStoriesRef.current.has(viewKey)) return;
+    viewedStoriesRef.current.add(viewKey);
+
+    let alreadyViewed = false;
+    try {
+      await runTransaction(ref(realtimeDb, `chatStoryViews/${story.authorId}/${story.id}/${user.uid}`), (current) => {
+        alreadyViewed = Boolean(current);
+        return current || {
+          viewerId: user.uid,
+          viewerName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+          viewedAt: Date.now()
+        };
+      });
+
+      if (!alreadyViewed) {
+        await runTransaction(ref(realtimeDb, `chatStories/${story.authorId}/${story.id}/viewsCount`), (current) => Number(current || 0) + 1);
+      }
+    } catch (viewError) {
+      viewedStoriesRef.current.delete(viewKey);
+      console.error('Comptage vue story impossible:', viewError);
+    }
+  };
+
+  useEffect(() => {
+    if (!activeStory) return;
+    void registerStoryView(activeStory);
+  // registerStoryView reads current auth/profile values; it is intentionally invoked on active story changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStory?.authorId, activeStory?.id]);
+
+  useEffect(() => {
+    if (!activeStory) return undefined;
+
+    const duration = 15000;
+    const startedAt = Date.now();
+    setStoryProgress(0);
+
+    const progressTimer = window.setInterval(() => {
+      const nextProgress = Math.min(((Date.now() - startedAt) / duration) * 100, 100);
+      setStoryProgress(nextProgress);
+    }, 120);
+    const nextTimer = window.setTimeout(() => {
+      goToNextStory();
+    }, duration);
+
+    return () => {
+      window.clearInterval(progressTimer);
+      window.clearTimeout(nextTimer);
+    };
+  // Story progress restarts only when the active story identity changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeStory?.authorId, activeStory?.id]);
+
+  const sendStoryKiss = async (story: ChatStory) => {
+    if (!user) {
+      navigate('/login', { state: { next: '/chat' } });
+      return;
+    }
+
+    playKissEffect();
+
+    if (story.authorId === user.uid) return;
+
+    try {
+      const kissRef = push(ref(realtimeDb, `chatStoryKisses/${story.authorId}/${story.id}`));
+      const contact: AfriChatContact = {
+        id: story.authorId,
+        displayName: story.authorName || 'Utilisateur AfriSell',
+        avatarURL: story.authorAvatar,
+        status: 'Story AfriChat'
+      };
+      const thread = await openDirectThread(contact);
+
+      await update(ref(realtimeDb), {
+        [`chatStoryKisses/${story.authorId}/${story.id}/${kissRef.key}`]: {
+          id: kissRef.key,
+          senderId: user.uid,
+          senderName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+          createdAt: Date.now(),
+          updatedAt: serverTimestamp()
+        }
+      });
+      await runTransaction(ref(realtimeDb, `chatStories/${story.authorId}/${story.id}/kissesCount`), (current) => Number(current || 0) + 1);
+      if (thread) {
+        await sendMessage(thread, 'Bisous envoyé depuis ta story', { type: 'kiss' });
+      }
+    } catch (kissError) {
+      console.error('Envoi bisous story impossible:', kissError);
+    }
+  };
+
+  const submitStoryReply = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user || !activeStory || storyReplySending) return;
+
+    const replyText = storyReply.trim();
+    if (!replyText) return;
+
+    if (activeStory.authorId === user.uid) {
+      setStoryReplyStatus('Tu ne peux pas répondre à ta propre story.');
+      return;
+    }
+
+    setStoryReplySending(true);
+    setStoryReplyStatus('');
+    try {
+      const contact: AfriChatContact = {
+        id: activeStory.authorId,
+        displayName: activeStory.authorName || 'Utilisateur AfriSell',
+        avatarURL: activeStory.authorAvatar,
+        status: 'Story AfriChat'
+      };
+      const thread = await openDirectThread(contact);
+      if (!thread) throw new Error('Discussion introuvable.');
+
+      await sendMessage(thread, `Réponse à ta story: ${replyText}`, { type: 'text' });
+      setFallbackThread(thread);
+      setActiveThreadId(thread.id);
+      setActiveSpace('chat');
+      setStoryReply('');
+      closeStoryViewer();
+      showActionStatus('Réponse envoyée dans la conversation.', 'success', true);
+    } catch (replyError) {
+      setStoryReplyStatus(getChatActionErrorMessage(replyError, 'Réponse story impossible.'));
+    } finally {
+      setStoryReplySending(false);
+    }
+  };
+
+  useEffect(() => {
     if (!user) return undefined;
 
     const requestsRef = ref(realtimeDb, `chatContactRequests/${user.uid}`);
@@ -490,6 +806,12 @@ export default function ChatRoom() {
   useEffect(() => () => {
     if (storyPreview) URL.revokeObjectURL(storyPreview);
   }, [storyPreview]);
+
+  useEffect(() => () => {
+    if (actionStatusTimerRef.current) {
+      window.clearTimeout(actionStatusTimerRef.current);
+    }
+  }, []);
 
   useEffect(() => () => {
     stopQrScanner();
@@ -536,9 +858,9 @@ export default function ChatRoom() {
 
       setFallbackThread(thread);
       setActiveThreadId(thread.id);
-      setActionStatus('');
+      clearActionStatus();
     } catch (contactError) {
-      setActionStatus(getChatActionErrorMessage(contactError, 'Ouverture de la discussion impossible.'));
+      showActionStatus(getChatActionErrorMessage(contactError, 'Ouverture de la discussion impossible.'));
     }
   };
 
@@ -909,12 +1231,12 @@ export default function ChatRoom() {
     if (!activeThread || !draft.trim() || sending) return;
 
     setSending(true);
-    setActionStatus('');
+    clearActionStatus();
     try {
       await sendMessage(activeThread, draft);
       setDraft('');
     } catch (messageError) {
-      setActionStatus(getChatActionErrorMessage(messageError, 'Envoi du message impossible.'));
+      showActionStatus(getChatActionErrorMessage(messageError, 'Envoi du message impossible.'));
     } finally {
       setSending(false);
     }
@@ -924,11 +1246,11 @@ export default function ChatRoom() {
     if (!activeThread || sending) return;
 
     setSending(true);
-    setActionStatus('');
+    clearActionStatus();
     try {
       await sendMessage(activeThread, text, { type });
     } catch (messageError) {
-      setActionStatus(getChatActionErrorMessage(messageError, 'Action AfriChat impossible.'));
+      showActionStatus(getChatActionErrorMessage(messageError, 'Action AfriChat impossible.'));
     } finally {
       setSending(false);
     }
@@ -957,7 +1279,7 @@ export default function ChatRoom() {
     }[type];
 
     setCreatingThread(type);
-    setActionStatus('');
+    clearActionStatus();
     try {
       const thread = await createCommunityThread(type, config.title, config.status);
       if (thread) {
@@ -966,7 +1288,7 @@ export default function ChatRoom() {
         setActiveSpace(config.nextSpace || 'chat');
       }
     } catch (threadError) {
-      setActionStatus(getChatActionErrorMessage(threadError, 'Création de discussion impossible.'));
+      showActionStatus(getChatActionErrorMessage(threadError, 'Création de discussion impossible.'));
     } finally {
       setCreatingThread('');
     }
@@ -979,9 +1301,17 @@ export default function ChatRoom() {
     }
   };
 
+  const actionStatusClassName = cn(
+    'mb-3 rounded-2xl border p-3 text-xs font-medium',
+    actionStatusKind === 'success'
+      ? 'border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]'
+      : 'border-red-500/20 bg-red-500/10 text-red-200'
+  );
+
   if (activeThread) {
     return (
       <div className="relative flex h-full min-h-0 flex-col bg-black">
+        <KissEffectOverlay effectKey={kissEffectKey} />
         <div className="sticky top-0 z-30 flex h-[68px] shrink-0 items-center justify-between border-b border-gray-900 bg-black/95 px-3 backdrop-blur-md">
           <div className="flex min-w-0 items-center gap-3">
             <button
@@ -1055,14 +1385,19 @@ export default function ChatRoom() {
             </button>
           </div>
           {actionStatus && (
-            <div className="mb-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-xs font-medium text-red-200">
+            <div className={actionStatusClassName}>
               {actionStatus}
             </div>
           )}
           {messages.length ? (
             <div className="flex flex-col gap-3">
               {messages.map((message) => (
-                <MessageBubble key={message.id} message={message} isMine={message.senderId === user?.uid} />
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  isMine={message.senderId === user?.uid}
+                  onOpenKiss={playKissEffect}
+                />
               ))}
               <div ref={messagesEndRef} />
             </div>
@@ -1147,7 +1482,7 @@ export default function ChatRoom() {
                 )}
                 <button
                   type="button"
-                  onClick={() => setActionStatus('Gestion avancee de la conversation en preparation.')}
+                  onClick={() => showActionStatus('Gestion avancée de la conversation en préparation.', 'success', true)}
                   className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
                 >
                   <AfriSellIcon name="shield" size={17} className="text-[#15EA3E]" />
@@ -1225,7 +1560,7 @@ export default function ChatRoom() {
           </div>
         )}
         {actionStatus && (
-          <div className="mb-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-xs font-medium text-red-200">
+          <div className={actionStatusClassName}>
             {actionStatus}
           </div>
         )}
@@ -1488,7 +1823,12 @@ export default function ChatRoom() {
             {visibleStories.length ? (
               <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-1">
                 {visibleStories.map((story) => (
-                  <article key={story.id} className="relative h-48 w-32 shrink-0 overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#050505]">
+                  <button
+                    key={story.id}
+                    type="button"
+                    onClick={() => openStoryViewer(story)}
+                    className="relative h-48 w-32 shrink-0 overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#050505] text-left active:scale-[0.98]"
+                  >
                     {story.resourceType === 'video' ? (
                       <video src={story.mediaUrl} muted playsInline className="h-full w-full object-cover" />
                     ) : (
@@ -1506,7 +1846,7 @@ export default function ChatRoom() {
                       <p className="truncate text-[10px] font-black text-white">{story.authorName}</p>
                       {story.caption && <p className="mt-0.5 line-clamp-2 text-[9px] font-semibold leading-snug text-white/58">{story.caption}</p>}
                     </div>
-                  </article>
+                  </button>
                 ))}
               </div>
             ) : (
@@ -1632,6 +1972,95 @@ export default function ChatRoom() {
               {addingContact ? 'Envoi...' : 'Envoyer la demande'}
             </button>
           </section>
+        </div>
+      )}
+      {activeStory && (
+        <div className="absolute inset-0 z-[70] flex flex-col bg-black">
+          <div className="absolute inset-x-4 top-2 z-20 h-1 overflow-hidden rounded-full bg-white/18">
+            <div className="h-full rounded-full bg-[#15EA3E] shadow-[0_0_18px_rgba(21,234,62,0.7)]" style={{ width: `${storyProgress}%` }} />
+          </div>
+          <div className="absolute inset-0">
+            {activeStory.resourceType === 'video' ? (
+              <video src={activeStory.mediaUrl} controls autoPlay playsInline className="h-full w-full object-contain" />
+            ) : (
+              <img src={activeStory.mediaUrl} alt={activeStory.caption || activeStory.authorName} className="h-full w-full object-contain" />
+            )}
+          </div>
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.82),transparent_28%,transparent_62%,rgba(0,0,0,0.88))]" />
+          <KissEffectOverlay effectKey={kissEffectKey} />
+          <header className="relative z-10 flex items-center justify-between px-4 pt-5">
+            <button
+              type="button"
+              onClick={closeStoryViewer}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/50 text-white backdrop-blur"
+              aria-label="Fermer la story"
+            >
+              <AfriSellIcon name="close" size={16} />
+            </button>
+            <div className="min-w-0 flex flex-1 items-center gap-3 px-3">
+              <Avatar title={activeStory.authorName} src={activeStory.authorAvatar} size="sm" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black text-white">{activeStory.authorName}</p>
+                <p className="mt-0.5 text-[10px] font-semibold text-white/45">{formatChatTime(activeStory.createdAt)}</p>
+              </div>
+            </div>
+            <a
+              href={activeStory.mediaUrl}
+              download={`africhat-story-${activeStory.id}.${activeStory.resourceType === 'video' ? 'mp4' : 'jpg'}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#15EA3E]/30 bg-[#15EA3E]/15 text-[#15EA3E] backdrop-blur"
+              aria-label="Télécharger la story"
+            >
+              <AfriSellIcon name="clip" size={16} />
+            </a>
+          </header>
+          <div className="relative z-10 mt-auto px-4 pb-7">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/42 px-3 py-2 text-[10px] font-black text-white/70 backdrop-blur">
+                <AfriSellIcon name="eye" size={14} className="text-[#15EA3E]" />
+                <span>{activeStory.viewsCount || 0} vue{Number(activeStory.viewsCount || 0) > 1 ? 's' : ''}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => void sendStoryKiss(activeStory)}
+                className="flex items-center gap-2 rounded-2xl border border-[#15EA3E]/35 bg-[#15EA3E]/18 px-3 py-2 text-[10px] font-black text-[#15EA3E] backdrop-blur active:scale-[0.96]"
+              >
+                <AfriSellIcon name="kiss" size={16} />
+                <span>{activeStory.authorId === user?.uid ? 'Ouvrir bisous' : 'Bisous'} · {activeStory.kissesCount || 0}</span>
+              </button>
+            </div>
+            {activeStory.caption && (
+              <p className="rounded-2xl border border-white/10 bg-black/42 px-4 py-3 text-sm font-semibold leading-relaxed text-white backdrop-blur">
+                {activeStory.caption}
+              </p>
+            )}
+            <form onSubmit={submitStoryReply} className="mt-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/55 p-2 backdrop-blur">
+              <input
+                value={storyReply}
+                onChange={(event) => {
+                  setStoryReply(event.target.value);
+                  if (storyReplyStatus) setStoryReplyStatus('');
+                }}
+                disabled={activeStory.authorId === user?.uid || storyReplySending}
+                placeholder={activeStory.authorId === user?.uid ? 'Ta story' : 'Répondre à la story...'}
+                className="h-10 min-w-0 flex-1 bg-transparent px-2 text-xs font-semibold text-white outline-none placeholder:text-white/35 disabled:text-white/35"
+              />
+              <button
+                type="submit"
+                disabled={!storyReply.trim() || activeStory.authorId === user?.uid || storyReplySending}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black disabled:bg-gray-800 disabled:text-gray-500"
+                aria-label="Envoyer la réponse"
+              >
+                <AfriSellIcon name="send" size={15} />
+              </button>
+            </form>
+            {storyReplyStatus && (
+              <p className="mt-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[10px] font-semibold text-red-100">
+                {storyReplyStatus}
+              </p>
+            )}
+          </div>
         </div>
       )}
       {showQrScanner && (

@@ -29,8 +29,15 @@ export type AfriSellIconName =
   | 'search'
   | 'send'
   | 'clip'
+  | 'camera'
+  | 'gallery'
+  | 'file'
+  | 'contact'
+  | 'mic'
+  | 'location'
   | 'language'
   | 'heart'
+  | 'kiss'
   | 'star'
   | 'comment'
   | 'share'
@@ -271,6 +278,52 @@ const paths: Record<AfriSellIconName, React.ReactNode> = {
       <path d="m8 15 6.5-6.5" />
     </>
   ),
+  camera: (
+    <>
+      <path d="M5 8.5A2.5 2.5 0 0 1 7.5 6h1.7l1.2-1.8h3.2L14.8 6h1.7A2.5 2.5 0 0 1 19 8.5v7A2.5 2.5 0 0 1 16.5 18h-9A2.5 2.5 0 0 1 5 15.5v-7Z" />
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M16.5 8.8h.1" />
+    </>
+  ),
+  gallery: (
+    <>
+      <rect x="4" y="5" width="16" height="14" rx="3" />
+      <circle cx="9" cy="10" r="1.5" />
+      <path d="m6.8 16 3.2-3.5 2.6 2.7 2-2.1 2.7 2.9" />
+    </>
+  ),
+  file: (
+    <>
+      <path d="M7 3.8h6.2L18 8.6V19a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5.8a2 2 0 0 1 2-2Z" />
+      <path d="M13 4v5h5" />
+      <path d="M8 13h8" />
+      <path d="M8 16h5" />
+    </>
+  ),
+  contact: (
+    <>
+      <rect x="5" y="4" width="14" height="16" rx="3" />
+      <circle cx="12" cy="10" r="2.4" />
+      <path d="M8.5 16.5a4 4 0 0 1 7 0" />
+      <path d="M3.8 8h2" />
+      <path d="M3.8 12h2" />
+      <path d="M3.8 16h2" />
+    </>
+  ),
+  mic: (
+    <>
+      <rect x="9" y="4" width="6" height="10" rx="3" />
+      <path d="M6.5 11.5a5.5 5.5 0 0 0 11 0" />
+      <path d="M12 17v3" />
+      <path d="M9 20h6" />
+    </>
+  ),
+  location: (
+    <>
+      <path d="M12 21s6-5.2 6-11a6 6 0 0 0-12 0c0 5.8 6 11 6 11Z" />
+      <circle cx="12" cy="10" r="2.2" />
+    </>
+  ),
   language: (
     <>
       <path d="M4 5h9" />
@@ -283,6 +336,17 @@ const paths: Record<AfriSellIconName, React.ReactNode> = {
   heart: (
     <>
       <path d="M12 20s-7-4.1-7-9.4A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.6C19 15.9 12 20 12 20Z" />
+    </>
+  ),
+  kiss: (
+    <>
+      <path d="M7.2 8.2c1.5-2 3.3-2.2 4.8-.5 1.5-1.7 3.3-1.5 4.8.5" />
+      <path d="M4.5 13.2c2.5-1.9 5-2.1 7.5-.2 2.5-1.9 5-1.7 7.5.2" />
+      <path d="M5.2 14.1c3.8 5.2 9.8 5.2 13.6 0" />
+      <path d="M8.2 13.2c1.2.9 2.5 1.3 3.8 1.3s2.6-.4 3.8-1.3" />
+      <path d="M9.2 5.4 8.4 3.5" />
+      <path d="M14.8 5.4l.8-1.9" />
+      <path d="M12 4.8V2.8" />
     </>
   ),
   star: (

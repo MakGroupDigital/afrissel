@@ -385,3 +385,18 @@
     transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(-150px) scale(1);
   }
 }
+
+@keyframes story-kiss-float {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.55) rotate(-12deg);
+  }
+  16% {
+    opacity: 1;
+    transform: translateY(-34px) scale(1) rotate(7deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-118vh) scale(1.38) rotate(22deg);
+  }
+}

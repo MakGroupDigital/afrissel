@@ -22,11 +22,14 @@ export type AfriChatMessage = {
   id: string;
   senderId: string;
   text: string;
-  type?: 'text' | 'order' | 'village_share' | 'payment' | 'delivery' | 'kyaghanda' | 'system';
+  type?: 'text' | 'order' | 'village_share' | 'payment' | 'delivery' | 'kyaghanda' | 'system' | 'kiss' | 'image' | 'video' | 'file' | 'contact' | 'location';
   orderId?: string;
   productId?: string;
   amount?: number;
   currency?: string;
+  mediaUrl?: string;
+  fileName?: string;
+  mimeType?: string;
   createdAt?: number | string | { seconds?: number };
   status?: 'queued' | 'sent' | 'read' | string;
 };
@@ -37,6 +40,9 @@ export type AfriChatMessageOptions = {
   productId?: string;
   amount?: number;
   currency?: string;
+  mediaUrl?: string;
+  fileName?: string;
+  mimeType?: string;
 };
 
 export type AfriChatContact = {
@@ -104,6 +110,9 @@ const normalizeMessage = (id: string, message: RawMessage): AfriChatMessage => (
   productId: message.productId,
   amount: message.amount,
   currency: message.currency,
+  mediaUrl: message.mediaUrl,
+  fileName: message.fileName,
+  mimeType: message.mimeType,
   createdAt: message.createdAt,
   status: message.status
 });
@@ -308,6 +317,9 @@ export const useAfriChat = () => {
       productId: options.productId || '',
       amount: Number(options.amount || 0),
       currency: options.currency || '',
+      mediaUrl: options.mediaUrl || '',
+      fileName: options.fileName || '',
+      mimeType: options.mimeType || '',
       createdAt: now,
       status: 'sent'
     };
