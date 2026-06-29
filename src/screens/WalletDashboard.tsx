@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { get, ref, serverTimestamp, update } from 'firebase/database';
+import { get, onValue, ref, serverTimestamp, update } from 'firebase/database';
 import { cn } from '../lib/utils';
 import { InvertedAfricaLogo } from '../components/InvertedAfricaLogo';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
@@ -15,6 +15,8 @@ type WalletSecuritySettings = {
   biometricEnabled: boolean;
   biometricCredentialId?: string;
 };
+
+type KycStatus = 'none' | 'pending' | 'verified' | 'rejected';
 
 const formatMoney = (amount: number, currency: string) =>
   new Intl.NumberFormat('fr-FR', {
@@ -48,6 +50,21 @@ const base64UrlToArrayBuffer = (value: string) => {
   return bytes.buffer;
 };
 
+const normalizeKycStatus = (value?: unknown): KycStatus => {
+  const normalized = String(value || 'none').trim().toLowerCase();
+  if (normalized === 'verified' || normalized === 'pending' || normalized === 'rejected') return normalized;
+  return 'none';
+};
+
+const getLatestKycRequestStatus = (value: unknown): KycStatus => {
+  if (!value || typeof value !== 'object') return 'none';
+  const requests = Object.values(value as Record<string, { status?: unknown; updatedAt?: number; createdAt?: number }>);
+  const latestRequest = requests
+    .filter(Boolean)
+    .sort((first, second) => Number(second.updatedAt || second.createdAt || 0) - Number(first.updatedAt || first.createdAt || 0))[0];
+  return normalizeKycStatus(latestRequest?.status);
+};
+
 export default function WalletDashboard() {
   const { user, profile } = useFirebaseAuth();
   const { wallet, balance, currency, accountLabel, transactions, loading, error } = useAfriSpayWallet();
@@ -67,7 +84,23 @@ export default function WalletDashboard() {
     biometricEnabled: false
   });
   const [privacyShieldVisible, setPrivacyShieldVisible] = React.useState(false);
-  const isKycVerified = profile?.kycStatus === 'verified';
+  const [liveUserKycStatus, setLiveUserKycStatus] = React.useState<KycStatus>(normalizeKycStatus(profile?.kycStatus));
+  const [latestRequestKycStatus, setLatestRequestKycStatus] = React.useState<KycStatus>('none');
+  const profileKycStatus = normalizeKycStatus(profile?.kycStatus);
+  const userKycStatus = normalizeKycStatus(liveUserKycStatus || profileKycStatus);
+  const kycStatus: KycStatus = latestRequestKycStatus === 'verified'
+    ? 'verified'
+    : userKycStatus === 'verified'
+      ? 'verified'
+      : latestRequestKycStatus === 'rejected'
+        ? 'rejected'
+        : userKycStatus === 'rejected'
+          ? 'rejected'
+          : latestRequestKycStatus === 'pending' || userKycStatus === 'pending'
+            ? 'pending'
+            : 'none';
+  const isKycVérifiéd = kycStatus === 'verified';
+  const isKycPending = kycStatus === 'pending';
   const hasWalletPin = Boolean(securitySettings.pinEnabled && securitySettings.pinHash);
   const canUseBiometric = Boolean(securitySettings.biometricEnabled && securitySettings.biometricCredentialId);
 
@@ -80,12 +113,12 @@ export default function WalletDashboard() {
   const activeActionLabel = actions.find((action) => action.action === activeAction)?.label;
 
   const balanceLabel = showBalance ? formatMoney(balance, currency) : '••••••';
-  const recipientPlaceholder = activeAction === 'transfer' ? 'Numero ou uid:beneficiaire' : 'Numero Mobile Money';
+  const recipientPlaceholder = activeAction === 'transfer' ? 'Numéro ou uid:bénéficiaire' : 'Numéro Mobile Money';
   const operationHelp = activeAction === 'deposit'
-    ? 'Le depot credite ton wallet AfriSpay et cree une transaction confirmee.'
+    ? 'Le dépôt crédite ton wallet AfriSpay et crée une transaction confirmée.'
     : activeAction === 'withdraw'
-      ? 'Le retrait verifie ton solde puis prepare la sortie Mobile Money.'
-      : 'Le transfert envoie vers un wallet AfriSpay avec uid: ou vers un numero Mobile Money.';
+      ? 'Le retrait vérifie ton solde puis prépare la sortie Mobile Money.'
+      : 'Le transfert envoie vers un wallet AfriSpay avec uid: ou vers un numéro Mobile Money.';
 
   React.useEffect(() => {
     setAmount('');
@@ -93,6 +126,26 @@ export default function WalletDashboard() {
     setNote('');
     setOperationStatus('');
   }, [activeAction]);
+
+  React.useEffect(() => {
+    setLiveUserKycStatus(normalizeKycStatus(profile?.kycStatus));
+  }, [profile?.kycStatus]);
+
+  React.useEffect(() => {
+    if (!user) return undefined;
+
+    const unsubscribeUserKyc = onValue(ref(realtimeDb, `users/${user.uid}/kycStatus`), (snapshot) => {
+      setLiveUserKycStatus(normalizeKycStatus(snapshot.val()));
+    });
+    const unsubscribeRequests = onValue(ref(realtimeDb, `kycRequests/${user.uid}`), (snapshot) => {
+      setLatestRequestKycStatus(getLatestKycRequestStatus(snapshot.val()));
+    });
+
+    return () => {
+      unsubscribeUserKyc();
+      unsubscribeRequests();
+    };
+  }, [user]);
 
   React.useEffect(() => {
     if (!user) return;
@@ -186,7 +239,7 @@ export default function WalletDashboard() {
     await persistAccountSecurity(nextSettings);
     setNewPin('');
     setShowBalance(true);
-    setSecurityStatus('PIN AfriSpay defini. Solde deverrouille.');
+    setSecurityStatus('PIN AfriSpay defini. Solde déverrouillé.');
   };
 
   const unlockWithPin = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -199,16 +252,16 @@ export default function WalletDashboard() {
     }
     setPinInput('');
     setShowBalance(true);
-    setSecurityStatus('Solde deverrouille.');
+    setSecurityStatus('Solde déverrouillé.');
   };
 
   const enableBiometric = async () => {
     if (!user || !hasWalletPin) {
-      setSecurityStatus('Definis d abord ton PIN AfriSpay.');
+      setSecurityStatus("Définis d'abord ton PIN AfriSpay.");
       return;
     }
     if (!window.PublicKeyCredential || !navigator.credentials?.create) {
-      setSecurityStatus('Biometrie indisponible sur cet appareil.');
+      setSecurityStatus('Biométrie indisponible sur cet appareil.');
       return;
     }
 
@@ -232,7 +285,7 @@ export default function WalletDashboard() {
         }
       }) as PublicKeyCredential | null;
 
-      if (!credential?.rawId) throw new Error('Biometrie non activee.');
+      if (!credential?.rawId) throw new Error('Biométrie non activée.');
       const credentialId = arrayBufferToBase64Url(credential.rawId);
       window.localStorage.setItem(credentialKey(user.uid), credentialId);
       await persistAccountSecurity({
@@ -240,15 +293,15 @@ export default function WalletDashboard() {
         biometricEnabled: true,
         biometricCredentialId: credentialId
       });
-      setSecurityStatus('Biometrie activee pour AfriSpay.');
+      setSecurityStatus('Biométrie activée pour AfriSpay.');
     } catch {
-      setSecurityStatus('Activation biometrie annulee ou indisponible.');
+      setSecurityStatus('Activation biométrie annulée ou indisponible.');
     }
   };
 
   const unlockWithBiometric = async () => {
     if (!securitySettings.biometricCredentialId || !navigator.credentials?.get) {
-      setSecurityStatus('Biometrie non configuree.');
+      setSecurityStatus('Biométrie non configurée.');
       return;
     }
 
@@ -264,15 +317,71 @@ export default function WalletDashboard() {
           timeout: 60000
         }
       });
-      if (!credential) throw new Error('Biometrie refusee.');
+      if (!credential) throw new Error('Biométrie refusée.');
       setShowBalance(true);
-      setSecurityStatus('Solde deverrouille par biometrie.');
+      setSecurityStatus('Solde déverrouillé par biométrie.');
     } catch {
-      setSecurityStatus('Verification biometrie annulee ou refusee.');
+      setSecurityStatus('Vérification biométrie annulée ou refusée.');
     }
   };
 
-  if (!isKycVerified) {
+  if (isKycPending) {
+    return (
+      <main className="flex min-h-full flex-col bg-black px-4 pb-8 pt-4 text-white">
+        <header className="flex items-center justify-between">
+          <Link to="/ecosystem" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Retour">
+            <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+          </Link>
+          <div className="text-center">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriSpay</p>
+            <h1 className="text-sm font-black">Approbation en attente</h1>
+          </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-400/10 text-amber-200">
+            <AfriSellIcon name="shield" size={18} />
+          </div>
+        </header>
+
+        <section className="mt-8 overflow-hidden rounded-[2rem] border border-amber-400/20 bg-[#100d05] p-5">
+          <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] border border-amber-400/25 bg-black/35 text-amber-200">
+            <img src="/afrispay.jpeg" alt="" className="absolute inset-4 rounded-2xl object-cover opacity-35" />
+            <AfriSellIcon name="clock" size={34} className="relative z-10" />
+          </div>
+          <h2 className="mt-6 text-center text-2xl font-black leading-tight">Demande envoyée</h2>
+          <p className="mt-3 text-center text-sm font-semibold leading-relaxed text-white/55">
+            Ton dossier AfriSell ID est en cours d'analyse. Dès que la vérification est approuvée, AfriSpay ouvrira directement ton wallet.
+          </p>
+
+          <div className="mt-5 grid gap-2">
+            {[
+              'Documents reçus',
+              'Controle identité en cours',
+              'Activation AfriSpay après approbation'
+            ].map((item, index) => (
+              <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                <div className={cn(
+                  'flex h-7 w-7 items-center justify-center rounded-xl text-[10px] font-black',
+                  index === 0 ? 'bg-[#15EA3E]/15 text-[#15EA3E]' : 'bg-amber-400/10 text-amber-200'
+                )}>
+                  {index + 1}
+                </div>
+                <span className="text-xs font-bold text-white/62">{item}</span>
+              </div>
+            ))}
+          </div>
+
+          <Link to="/ecosystem" className="mt-6 flex h-12 w-full items-center justify-center rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black">
+            Retour accueil
+          </Link>
+          <p className="mt-3 text-center text-[10px] font-semibold leading-relaxed text-white/35">
+            Si une information est refusée, AfriSell te demandera de corriger le dossier.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (!isKycVérifiéd) {
+    const isRejected = kycStatus === 'rejected';
     return (
       <main className="flex min-h-full flex-col bg-black px-4 pb-8 pt-4 text-white">
         <header className="flex items-center justify-between">
@@ -293,15 +402,17 @@ export default function WalletDashboard() {
             <img src="/afrispay.jpeg" alt="" className="absolute inset-4 rounded-2xl object-cover opacity-45" />
             <AfriSellIcon name="shield" size={32} className="relative z-10" />
           </div>
-          <h2 className="mt-6 text-center text-2xl font-black leading-tight">Verification requise</h2>
+          <h2 className="mt-6 text-center text-2xl font-black leading-tight">{isRejected ? 'Vérification à reprendre' : 'Vérification requise'}</h2>
           <p className="mt-3 text-center text-sm font-semibold leading-relaxed text-white/52">
-            Pour acceder a notre solution de paiement AfriSpay, ton identite doit etre verifiee. Complete ton ID/KYC pour activer depot, retrait, transfert, QR et paiements.
+            {isRejected
+              ? 'Ton dernier dossier n’a pas été validé. Corrige les informations demandées puis renvoie la vérification.'
+              : 'Pour acceder à notre solution de paiement AfriSpay, ton identité doit être vérifiée. Complète ton ID/KYC pour activer dépôt, retrait, transfert, QR et paiements.'}
           </p>
 
           <div className="mt-5 grid gap-2">
             {[
               'Protection des transactions',
-              'Conformite paiement',
+              'Conformité paiement',
               'Acces wallet et carte AfriSpay'
             ].map((item) => (
               <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
@@ -311,8 +422,8 @@ export default function WalletDashboard() {
             ))}
           </div>
 
-          <Link to="/profile" className="mt-6 flex h-12 w-full items-center justify-center rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black">
-            Se faire verifier
+          <Link to="/kyc" className="mt-6 flex h-12 w-full items-center justify-center rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black">
+            {isRejected ? 'Reprendre vérification' : 'Se faire vérifier'}
           </Link>
           <Link to="/ecosystem" className="mt-3 flex h-11 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-xs font-black uppercase tracking-[0.14em] text-white/60">
             Retour accueil
@@ -349,7 +460,7 @@ export default function WalletDashboard() {
       setNote('');
       setOperationStatus(
         result.status === 'pending_operator'
-          ? 'Operation creee. Confirmation operateur en attente.'
+          ? 'Operation créée. Confirmation operateur en attente.'
           : 'Operation AfriSpay confirmee.'
       );
     } catch (operationError) {
@@ -376,7 +487,7 @@ export default function WalletDashboard() {
                   setShowBalance(false);
                   return;
                 }
-                setSecurityStatus(hasWalletPin ? 'Entre ton PIN ou utilise la biometrie pour afficher le solde.' : 'Definis un PIN AfriSpay pour afficher le solde.');
+                setSecurityStatus(hasWalletPin ? 'Entre ton PIN ou utilise la biométrie pour afficher le solde.' : 'Définis un PIN AfriSpay pour afficher le solde.');
               }}
               className="text-gray-500 hover:text-[#15EA3E] transition-colors"
             >
@@ -449,11 +560,11 @@ export default function WalletDashboard() {
               <AfriSellIcon name="lock" size={18} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-black text-white">Solde protege</p>
+              <p className="text-sm font-black text-white">Solde protégé</p>
               <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/45">
                 {hasWalletPin
-                  ? 'Entre ton PIN AfriSpay ou utilise la biometrie pour afficher ton solde.'
-                  : 'Definis un PIN AfriSpay. Il sera demande avant chaque affichage du solde.'}
+                  ? 'Entre ton PIN AfriSpay ou utilise la biométrie pour afficher ton solde.'
+                  : 'Définis un PIN AfriSpay. Il sera demande avant chaque affichage du solde.'}
               </p>
             </div>
           </div>
@@ -470,14 +581,14 @@ export default function WalletDashboard() {
               />
               <div className="grid grid-cols-2 gap-2">
                 <button type="submit" className="h-11 rounded-2xl bg-[#15EA3E] text-[10px] font-black uppercase tracking-wider text-black">
-                  Deverrouiller
+                  Deverrouillér
                 </button>
                 <button
                   type="button"
                   onClick={() => void (canUseBiometric ? unlockWithBiometric() : enableBiometric())}
                   className="h-11 rounded-2xl border border-white/10 bg-white/[0.05] text-[10px] font-black uppercase tracking-wider text-white/70"
                 >
-                  {canUseBiometric ? 'Biometrie' : 'Activer bio'}
+                  {canUseBiometric ? 'Biométrie' : 'Activer bio'}
                 </button>
               </div>
             </form>
@@ -492,7 +603,7 @@ export default function WalletDashboard() {
                 className="h-12 rounded-2xl border border-white/10 bg-black px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
               />
               <button type="submit" className="h-11 rounded-2xl bg-[#15EA3E] text-[10px] font-black uppercase tracking-wider text-black">
-                Definir le PIN
+                Définir le PIN
               </button>
             </form>
           )}
@@ -500,7 +611,7 @@ export default function WalletDashboard() {
           {securityStatus && (
             <p className={cn(
               'mt-3 rounded-xl border px-3 py-2 text-[10px] font-semibold leading-relaxed',
-              securityStatus.includes('incorrect') || securityStatus.includes('indisponible') || securityStatus.includes('refuse')
+              securityStatus.includes('incorrect') || securityStatus.includes('indisponible') || securityStatus.includes('refusé')
                 ? 'border-red-500/25 bg-red-500/10 text-red-100'
                 : 'border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]'
             )}>
@@ -619,7 +730,7 @@ export default function WalletDashboard() {
                 </div>
                 <p className="mt-3 text-xs font-black text-white">Aucune transaction</p>
                 <p className="mt-1 text-[11px] font-semibold leading-relaxed text-gray-500">
-                  Tes vraies operations AfriSpay apparaitront ici.
+                  Tes vraies opérations AfriSpay apparaîtront ici.
                 </p>
               </div>
             )}
@@ -658,9 +769,9 @@ export default function WalletDashboard() {
           <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]">
             <AfriSellIcon name="shield" size={28} />
           </div>
-          <h2 className="mt-5 text-xl font-black">Capture bloquee</h2>
+          <h2 className="mt-5 text-xl font-black">Capture bloquée</h2>
           <p className="mt-2 text-sm font-semibold leading-relaxed text-white/45">
-            Les donnees AfriSpay sont masquees pour proteger ton solde et tes transactions.
+            Les données AfriSpay sont masquées pour protégér ton solde et tes transactions.
           </p>
         </div>
       )}

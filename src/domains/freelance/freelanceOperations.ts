@@ -21,11 +21,11 @@ const cleanText = (value: string, label: string) => {
 export async function createFreelanceMissionRequest(input: FreelanceMissionInput) {
   const requestRef = push(ref(realtimeDb, 'freelanceMissionRequests'));
   const requestId = requestRef.key;
-  if (!requestId) throw new Error('Creation de mission impossible.');
+  if (!requestId) throw new Error('Création de mission impossible.');
 
   const budget = Math.round(Number(input.budget || 0) * 100) / 100;
   if (!Number.isFinite(budget) || budget <= 0) {
-    throw new Error('Budget mission invalide.');
+    throw new Error('Budget mission invalidé.');
   }
 
   const now = Date.now();

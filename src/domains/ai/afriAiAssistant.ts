@@ -20,10 +20,10 @@ const intentRoutes: Record<AfriAiIntent, string> = {
 };
 
 const detectIntent = (query: string): AfriAiIntent => {
-  if (/(payer|paiement|depot|dépôt|retrait|transfert|wallet|scan|qr)/i.test(query)) return 'payment_help';
+  if (/(payer|paiement|dépôt|dépôt|retrait|transfert|wallet|scan|qr)/i.test(query)) return 'payment_help';
   if (/(acheter|produit|prix|market|stand|vitrine|village|commerce)/i.test(query)) return 'commerce_help';
   if (/(tradu|langue|lingala|swahili|anglais|wolof)/i.test(query)) return 'translate';
-  if (/(sante|santé|medecin|médecin|pharmacie|consultation|soin)/i.test(query)) return 'health_help';
+  if (/(santé|santé|medecin|médecin|pharmacie|consultation|soin)/i.test(query)) return 'health_help';
   if (/(cours|apprendre|ecole|école|formation|certificat|tuteur)/i.test(query)) return 'education_help';
   return 'search';
 };
@@ -31,7 +31,7 @@ const detectIntent = (query: string): AfriAiIntent => {
 const buildAnswer = (intent: AfriAiIntent, query: string, match?: AfriMarketContent): AfriAiResponse => {
   if (match) {
     return {
-      answer: `J ai trouve ${match.title}. Tu peux ouvrir la fiche, comparer le prix et continuer vers achat ou Prix Village.`,
+      answer: `J'ai trouve ${match.title}. Tu peux ouvrir la fiche, comparer le prix et continuer vers achat ou Prix Village.`,
       suggestedRoute: match.isSellable ? `/market/${match.id}` : `/feed?post=${match.id}`,
       confidence: 0.86
     };
@@ -44,10 +44,10 @@ const buildAnswer = (intent: AfriAiIntent, query: string, match?: AfriMarketCont
     return { answer: 'Pour acheter ou vendre, commence par Market ou ABC selon que tu veux une fiche produit ou une Vitrine video.', suggestedRoute: '/market', confidence: 0.78 };
   }
   if (intent === 'translate') {
-    return { answer: 'Je peux preparer le contexte de traduction pour une conversation AfriChat.', suggestedRoute: '/chat', confidence: 0.7 };
+    return { answer: 'Je peux préparer le contexte de traduction pour une conversation AfriChat.', suggestedRoute: '/chat', confidence: 0.7 };
   }
   if (intent === 'health_help') {
-    return { answer: 'Pour un besoin sante, AfriMed est la bonne porte d entree.', suggestedRoute: '/med', confidence: 0.78 };
+    return { answer: 'Pour un besoin santé, AfriMed est la bonne porte d entree.', suggestedRoute: '/med', confidence: 0.78 };
   }
   if (intent === 'education_help') {
     return { answer: 'Pour apprendre ou te former, continue dans AfriSchool.', suggestedRoute: '/school', confidence: 0.78 };

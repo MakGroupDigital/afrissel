@@ -94,7 +94,7 @@ export default function BottomSheet() {
                 </div>
                 <h3 className="mb-2 text-sm font-bold uppercase tracking-widest text-white">Commande confirmee</h3>
                 <p className="text-xs font-semibold leading-relaxed text-gray-500">
-                  Paiement AfriSpay, commande, livraison Safari et chat vendeur/client sont crees.
+                  Paiement AfriSpay, commande, livraison Safari et chat vendeur/client sont créés.
                 </p>
                 {confirmedOrder && (
                   <div className="mt-4 grid w-full grid-cols-3 gap-2">

@@ -71,7 +71,7 @@ export default function MarketHome() {
           <Link
             to="/feed?publish=1"
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black"
-            aria-label="Creer un Stand"
+            aria-label="Créer un Stand"
           >
             <AfriSellIcon name="clip" size={19} />
           </Link>
@@ -198,7 +198,7 @@ export default function MarketHome() {
       {loading ? (
         <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
           <AfriSellIcon name="market" size={36} className="text-[#15EA3E]" />
-          <p className="mt-4 text-sm font-black uppercase tracking-wide text-white">Chargement du marche</p>
+          <p className="mt-4 text-sm font-black uppercase tracking-wide text-white">Chargement du marché</p>
         </div>
       ) : filteredProducts.length ? (
         <div className="grid grid-cols-2 gap-3 p-4 pb-24">
@@ -213,7 +213,7 @@ export default function MarketHome() {
           </div>
           <h3 className="mt-5 text-lg font-black text-white">Aucun article</h3>
           <p className="mt-2 text-sm leading-relaxed text-gray-500">
-            Publie un article depuis ABC pour le voir apparaitre ici avec le bouton Acheter.
+            Publie un article depuis ABC pour le voir apparaître ici avec le bouton Acheter.
           </p>
           <Link to="/feed" className="mt-5 rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-widest text-black">
             Publier sur ABC

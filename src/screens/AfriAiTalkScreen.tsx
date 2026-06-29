@@ -9,7 +9,7 @@ type ConversationMode = 'voice' | 'text' | 'task';
 const quickPrompts = [
   'Trouve une offre proche de moi',
   'Resume mes messages importants',
-  'Aide-moi a vendre un produit',
+  'Aide-moi à vendre un produit',
   'Compare les prix et la livraison'
 ];
 
@@ -38,7 +38,7 @@ export default function AfriAiTalkScreen() {
   const [conversation, setConversation] = useState([
     {
       role: 'assistant',
-      text: 'Je suis AfriAI. Je peux t aider a chercher, vendre, payer, organiser une livraison, resumer une conversation ou preparer une action dans l ecosysteme.'
+      text: "Je suis AfriAI. Je peux t'aider à chercher, vendre, payer, organiser une livraison, résumer une conversation ou préparer une action dans l'écosystème."
     }
   ]);
 
@@ -58,7 +58,7 @@ export default function AfriAiTalkScreen() {
       { role: 'user', text: cleanMessage },
       {
         role: 'assistant',
-        text: 'Je garde le contexte et je prepare la meilleure action AfriSell pour cette demande. Les connexions aux services seront activees progressivement.'
+        text: 'Je garde le contexte et je prépare la meilleure action AfriSell pour cette demande. Les connexions aux services seront activées progressivement.'
       }
     ]);
     setMessage('');
@@ -71,7 +71,7 @@ export default function AfriAiTalkScreen() {
       { role: 'user', text: prompt },
       {
         role: 'assistant',
-        text: 'Je peux transformer cette demande en action: recherche, comparaison, message, paiement, livraison ou publication selon le module concerne.'
+        text: 'Je peux transformer cette demande en action: recherche, comparaison, message, paiement, livraison ou publication selon le module concerné.'
       }
     ]);
   };
@@ -105,7 +105,7 @@ export default function AfriAiTalkScreen() {
               'relative flex h-24 w-24 items-center justify-center rounded-full border text-black shadow-[0_0_44px_rgba(21,234,62,0.36)] transition-transform active:scale-95',
               isListening ? 'border-[#15EA3E] bg-[#15EA3E]' : 'border-[#15EA3E]/45 bg-[#15EA3E]/88'
             )}
-            aria-label={isListening ? 'Arreter la voix' : 'Parler a AfriAI'}
+            aria-label={isListening ? 'Arreter la voix' : 'Parler à AfriAI'}
           >
             <span className="relative flex h-8 w-6 items-end justify-center rounded-full border-2 border-black">
               <span className={cn('mb-1 h-3 w-1.5 rounded-full bg-black transition-all', isListening && 'h-5 afriai-wave')} />
@@ -193,7 +193,7 @@ export default function AfriAiTalkScreen() {
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               rows={1}
-              placeholder="Ecris ou dicte une demande..."
+              placeholder="Écris ou dicte une demande..."
               className="max-h-24 w-full resize-none bg-transparent py-3 text-xs font-semibold text-white outline-none placeholder:text-white/32"
             />
           </div>

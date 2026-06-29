@@ -155,7 +155,7 @@ export const useAfriChat = () => {
 
     if (isOfflineNow()) {
       setLoading(false);
-      setError(cachedThreads.length || cachedContacts.length ? 'Mode hors ligne: discussions locales affichees.' : 'Mode hors ligne: aucune discussion locale disponible.');
+      setError(cachedThreads.length || cachedContacts.length ? 'Mode hors ligne: discussions locales affichées.' : 'Mode hors ligne: aucune discussion locale disponible.');
     }
 
     void Promise.all([
@@ -193,7 +193,7 @@ export const useAfriChat = () => {
         console.error('Chargement discussions AfriChat impossible:', threadError);
         const fallback = readOfflineCache<AfriChatThread[]>(threadsCacheKey, []);
         if (fallback.length) setThreads(fallback);
-        setError(fallback.length ? 'Mode hors ligne: discussions locales affichees.' : 'Discussions indisponibles pour le moment.');
+        setError(fallback.length ? 'Mode hors ligne: discussions locales affichées.' : 'Discussions indisponibles pour le moment.');
         setLoading(false);
       }
     );
@@ -218,7 +218,7 @@ export const useAfriChat = () => {
         console.error('Chargement contacts AfriChat impossible:', contactError);
         const fallback = readOfflineCache<AfriChatContact[]>(contactsCacheKey, []);
         if (fallback.length) setContacts(fallback);
-        setError(fallback.length ? 'Mode hors ligne: contacts locaux affiches.' : 'Contacts indisponibles pour le moment.');
+        setError(fallback.length ? 'Mode hors ligne: contacts locaux affichés.' : 'Contacts indisponibles pour le moment.');
       }
     );
 
@@ -281,7 +281,7 @@ export const useAfriChat = () => {
             [threadId]: fallback
           }));
         }
-        setError(fallback.length ? 'Mode hors ligne: derniers messages affiches.' : 'Messages indisponibles pour le moment.');
+        setError(fallback.length ? 'Mode hors ligne: derniers messages affichés.' : 'Messages indisponibles pour le moment.');
       }
     );
 
@@ -374,7 +374,7 @@ export const useAfriChat = () => {
 
     if (offline) {
       await enqueueFirebaseUpdate(updates);
-      setError('Mode hors ligne: message ajoute a la file AfriChat.');
+      setError('Mode hors ligne: message ajoute à la file AfriChat.');
       return;
     }
 
@@ -449,7 +449,7 @@ export const useAfriChat = () => {
 
     const threadRef = push(ref(realtimeDb, `userChats/${user.uid}`));
     const threadId = threadRef.key;
-    if (!threadId) throw new Error('Creation AfriChat impossible.');
+    if (!threadId) throw new Error('Création AfriChat impossible.');
 
     const now = Date.now();
     const displayName = profile?.displayName || user.displayName || 'Utilisateur AfriSell';
@@ -458,7 +458,7 @@ export const useAfriChat = () => {
       title,
       type,
       status,
-      lastMessage: 'Espace cree. Ajoute les echanges utiles ici.',
+      lastMessage: 'Espace créé. Ajoute les echanges utiles ici.',
       lastMessageAt: now,
       unreadCount: 0
     };

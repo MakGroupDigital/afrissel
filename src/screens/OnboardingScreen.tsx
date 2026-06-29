@@ -6,7 +6,7 @@ import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 
 const slides = [
   {
-    kicker: 'Un ecosysteme',
+    kicker: 'Un écosystème',
     title: 'La super app africaine.',
     body: 'Tout-en-un : vendre, acheter, payer, discuter et acceder aux services du quotidien.',
     icon: 'hub' as AfriSellIconName,
@@ -15,7 +15,7 @@ const slides = [
   {
     kicker: 'Offline-first',
     title: 'Pensée pour nos réalités.',
-    body: 'Fluide sur reseau faible, utile en ville comme dans les zones moins connectees.',
+    body: 'Fluide sur réseau faible, utile en ville comme dans les zones moins connectées.',
     icon: 'offline' as AfriSellIconName,
     image: '/afrispay.jpeg',
   },
@@ -103,7 +103,7 @@ export default function OnboardingScreen() {
                   'h-1.5 rounded-full transition-all',
                   itemIndex === index ? 'w-9 bg-[#15EA3E]' : 'w-2.5 bg-white/20',
                 )}
-                aria-label={`Aller a l etape ${itemIndex + 1}`}
+                aria-label={`Aller à l etape ${itemIndex + 1}`}
               />
             ))}
           </div>

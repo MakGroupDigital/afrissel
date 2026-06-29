@@ -78,7 +78,7 @@ export async function completeCommerceOrder({ user, profile, product, delivery }
 
   const orderRef = push(ref(realtimeDb, 'orders'));
   const orderId = orderRef.key;
-  if (!orderId) throw new Error('Creation de commande impossible.');
+  if (!orderId) throw new Error('Création de commande impossible.');
 
   const now = Date.now();
   const threadId = getDirectThreadId(user.uid, sellerId);
@@ -97,7 +97,7 @@ export async function completeCommerceOrder({ user, profile, product, delivery }
   } : {
     id: 'standard',
     title: 'Livraison Safari',
-    description: 'Livraison a coordonner avec le vendeur.',
+    description: 'Livraison à coordonner avec le vendeur.',
     price: 0,
     eta: 'A confirmer',
     status: 'pending_assignment'
@@ -253,7 +253,7 @@ export async function shareVillageDealToAfriChat({ user, profile, product }: Vil
   const customerName = buyerName(user, profile);
   const customerAvatar = buyerAvatar(user, profile);
   const price = formatMoney(product.villagePrice || product.price, product.currency);
-  const message = `Prix Village partage: ${product.name} a ${price}. Objectif ${product.buyersCount || 0}/${product.buyersNeeded || 1} acheteurs.`;
+  const message = `Prix Village partage: ${product.name} à ${price}. Objectif ${product.buyersCount || 0}/${product.buyersNeeded || 1} acheteurs.`;
 
   const updates: Record<string, unknown> = {
     [`villageDeals/${product.id}/productId`]: product.id,

@@ -24,6 +24,7 @@ import ProductDetailScreen from './screens/ProductDetailScreen';
 import MarketOrdersScreen from './screens/MarketOrdersScreen';
 import SellerStandScreen from './screens/SellerStandScreen';
 import WalletDashboard from './screens/WalletDashboard';
+import KycVerificationScreen from './screens/KycVerificationScreen';
 import ChatRoom from './screens/ChatRoom';
 import ScannerScreen from './screens/ScannerScreen';
 import ProfileScreen from './screens/ProfileScreen';
@@ -134,6 +135,7 @@ function AppRoutes() {
         <Route path="/market/stand/:sellerId" element={<SellerStandScreen />} />
         <Route path="/market/:productId" element={<ProductDetailScreen />} />
         <Route path="/wallet" element={<RequireAuth><WalletDashboard /></RequireAuth>} />
+        <Route path="/kyc" element={<RequireAuth><KycVerificationScreen /></RequireAuth>} />
         <Route path="/chat" element={<RequireAuth><ChatRoom /></RequireAuth>} />
         <Route path="/scan" element={<RequireAuth><ScannerScreen /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><ProfileScreen /></RequireAuth>} />

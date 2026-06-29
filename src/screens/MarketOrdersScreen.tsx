@@ -59,7 +59,7 @@ export default function MarketOrdersScreen() {
         <h1 className="mt-4 text-xl font-black">Connexion requise</h1>
         <p className="mt-2 text-sm font-semibold text-white/45">Connecte-toi pour voir tes commandes Market.</p>
         <Link to="/login" state={{ next: '/market/orders' }} className="mt-5 inline-flex rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">
-          Se connecter
+          Se connectér
         </Link>
       </main>
     );
@@ -121,7 +121,7 @@ export default function MarketOrdersScreen() {
         )) : (
           <div className="rounded-[1.3rem] border border-white/10 bg-white/[0.04] p-6 text-center">
             <p className="text-sm font-black">Aucune commande Market</p>
-            <p className="mt-2 text-xs font-semibold text-white/45">Tes achats et ventes apparaitront ici.</p>
+            <p className="mt-2 text-xs font-semibold text-white/45">Tes achats et ventes apparaîtront ici.</p>
           </div>
         )}
       </section>

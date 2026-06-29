@@ -7,7 +7,7 @@ import { cn } from '../lib/utils';
 const statusStyles = {
   Live: 'bg-[#15EA3E] text-black',
   MVP: 'bg-white text-black',
-  Bientot: 'bg-white/8 text-white/48 border border-white/10'
+  Bientôt: 'bg-white/8 text-white/48 border border-white/10'
 };
 
 export default function AppsDirectoryScreen() {

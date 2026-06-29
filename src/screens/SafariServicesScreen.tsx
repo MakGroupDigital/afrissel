@@ -30,7 +30,7 @@ const services: SafariService[] = [
     body: 'Livraison locale, retrait vendeur, preuve de remise et suivi.',
     icon: 'send',
     action: 'Demander',
-    titlePlaceholder: 'Ex: livraison telephone',
+    titlePlaceholder: 'Ex: livraison téléphone',
     originLabel: 'Adresse de retrait',
     destinationLabel: 'Adresse de livraison',
     detailsPlaceholder: 'Taille, poids, fragilite, consignes de remise...'
@@ -70,9 +70,9 @@ const services: SafariService[] = [
     icon: 'shield',
     action: 'Reserver',
     titlePlaceholder: 'Ex: stockage cartons boutique',
-    originLabel: 'Lieu de depot',
+    originLabel: 'Lieu de dépôt',
     destinationLabel: 'Lieu de retrait',
-    detailsPlaceholder: 'Volume, duree, conditions de securite...'
+    detailsPlaceholder: 'Volume, durée, conditions de sécurité...'
   }
 ];
 
@@ -204,7 +204,7 @@ export default function SafariServicesScreen() {
       setContactPhone('');
       setBudget('');
       setDetails('');
-      setStatus('Mission Safari creee. Un agent ou partenaire pourra la prendre en charge.');
+      setStatus('Mission Safari créée. Un agent ou partenaire pourra la prendre en charge.');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Mission Safari impossible.');
     } finally {
@@ -230,9 +230,9 @@ export default function SafariServicesScreen() {
           <img src="/safari.jpeg" alt="Safari" className="h-20 w-20 rounded-[1.5rem] object-cover" />
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Transport, livraison, immobilier</p>
-            <h2 className="mt-2 text-2xl font-black leading-tight">Le terrain connecte au commerce.</h2>
+            <h2 className="mt-2 text-2xl font-black leading-tight">Le terrain connecté au commerce.</h2>
             <p className="mt-2 text-[11px] font-semibold leading-relaxed text-white/48">
-              Expedition, mobilite, relais et visites sont relies aux commandes, au wallet et au chat.
+              Expedition, mobilite, relais et visites sont reliés aux commandes, au wallet et au chat.
             </p>
           </div>
         </div>
@@ -276,7 +276,7 @@ export default function SafariServicesScreen() {
           <input value={origin} onChange={(event) => setOrigin(event.target.value)} placeholder={activeService.originLabel} className="h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-sm font-bold text-white outline-none focus:border-[#15EA3E]/50" />
           <input value={destination} onChange={(event) => setDestination(event.target.value)} placeholder={activeService.destinationLabel} className="h-12 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-sm font-bold text-white outline-none focus:border-[#15EA3E]/50" />
           <div className="grid grid-cols-2 gap-2">
-            <input value={contactPhone} onChange={(event) => setContactPhone(event.target.value)} placeholder="Telephone" inputMode="tel" className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 text-sm font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+            <input value={contactPhone} onChange={(event) => setContactPhone(event.target.value)} placeholder="Téléphone" inputMode="tel" className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 text-sm font-bold text-white outline-none focus:border-[#15EA3E]/50" />
             <input value={budget} onChange={(event) => setBudget(event.target.value)} placeholder="Budget USD" inputMode="decimal" className="h-12 rounded-2xl border border-white/10 bg-black/30 px-4 text-sm font-bold text-white outline-none focus:border-[#15EA3E]/50" />
           </div>
           <textarea value={details} onChange={(event) => setDetails(event.target.value)} placeholder={activeService.detailsPlaceholder} rows={3} className="w-full resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#15EA3E]/50" />
@@ -293,7 +293,7 @@ export default function SafariServicesScreen() {
         )}
 
         <button disabled={busy} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black disabled:opacity-60">
-          {busy ? 'Creation...' : activeService.action}
+          {busy ? 'Création...' : activeService.action}
           <AfriSellIcon name="arrow" size={16} />
         </button>
       </form>
@@ -301,7 +301,7 @@ export default function SafariServicesScreen() {
       {activeRequests.length > 0 && (
         <section className="mt-6">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Missions demandees</h2>
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Missions demandées</h2>
             <span className="text-[10px] font-black text-[#15EA3E]">{activeRequests.length}</span>
           </div>
           <div className="space-y-3">

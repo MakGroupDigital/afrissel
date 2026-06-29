@@ -45,6 +45,7 @@ export type AfriSellIconName =
   | 'signal'
   | 'play'
   | 'home'
+  | 'clock'
   | 'plus';
 
 interface AfriSellIconProps {
@@ -65,6 +66,12 @@ const paths: Record<AfriSellIconName, React.ReactNode> = {
     <>
       <path d="M12 5v14" />
       <path d="M5 12h14" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 7.5V12l3 2" />
     </>
   ),
   hub: (

@@ -20,7 +20,7 @@ const cleanText = (value: string, label: string) => {
 export async function createBiasharaOpportunity(input: BiasharaOpportunityInput) {
   const opportunityRef = push(ref(realtimeDb, 'biasharaOpportunities'));
   const opportunityId = opportunityRef.key;
-  if (!opportunityId) throw new Error('Creation opportunite impossible.');
+  if (!opportunityId) throw new Error('Création opportunite impossible.');
 
   const now = Date.now();
   const payload = {

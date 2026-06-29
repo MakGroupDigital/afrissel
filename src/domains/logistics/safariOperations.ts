@@ -38,7 +38,7 @@ const normalizeBudget = (value?: number) => {
 export async function createSafariRequest(input: SafariRequestInput) {
   const requestRef = push(ref(realtimeDb, 'safariRequests'));
   const requestId = requestRef.key;
-  if (!requestId) throw new Error('Creation de mission Safari impossible.');
+  if (!requestId) throw new Error('Création de mission Safari impossible.');
 
   const now = Date.now();
   const request = {
@@ -51,7 +51,7 @@ export async function createSafariRequest(input: SafariRequestInput) {
     title: normalizeText(input.title, 'Titre'),
     origin: normalizeText(input.origin, 'Depart'),
     destination: normalizeText(input.destination, 'Destination'),
-    contactPhone: normalizeText(input.contactPhone, 'Telephone'),
+    contactPhone: normalizeText(input.contactPhone, 'Téléphone'),
     details: normalizeText(input.details, 'Details'),
     budget: normalizeBudget(input.budget),
     currency: 'USD',

@@ -43,22 +43,22 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
     id: 'buyer',
     label: 'Utilisateur / Client',
     shortLabel: 'Personnel',
-    description: 'Acheter, publier, discuter, regarder des videos et utiliser les services AfriSell.',
+    description: 'Acheter, publier, discuter, regarder des vidéos et utiliser les services AfriSell.',
     icon: 'market',
     subtypes: [
       { id: 'personal_account', label: 'Compte personnel', description: 'Je veux acheter, publier, discuter et utiliser les services AfriSell.' }
     ],
     dashboard: {
       title: 'Espace personnel',
-      subtitle: 'Market, videos, messages, wallet et services AfriSell.',
+      subtitle: 'Market, vidéos, messages, wallet et services AfriSell.',
       metrics: [
         { label: 'Achats', value: '0' },
-        { label: 'Videos', value: '0' },
+        { label: 'Vidéos', value: '0' },
         { label: 'Favoris', value: '0' }
       ],
       actions: [
-        { label: 'Explorer le Market', description: 'Acheter et decouvrir des offres.', icon: 'market', route: '/market' },
-        { label: 'Ouvrir ABC', description: 'Regarder ou publier des videos.', icon: 'video', route: '/feed' },
+        { label: 'Explorer le Market', description: 'Acheter et découvrir des offres.', icon: 'market', route: '/market' },
+        { label: 'Ouvrir ABC', description: 'Regarder ou publier des vidéos.', icon: 'video', route: '/feed' },
         { label: 'Ouvrir Wallet', description: 'Paiements et solde AfriSpay.', icon: 'pay', route: '/wallet' }
       ]
     }
@@ -67,15 +67,15 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
     id: 'seller',
     label: 'Vendeur / Boutique',
     shortLabel: 'Vendeur',
-    description: 'Vendre, gerer produits, commandes, stock, prix village et clients.',
+    description: 'Vendre, gérer produits, commandes, stock, prix village et clients.',
     icon: 'market',
     subtypes: [
       { id: 'individual_seller', label: 'Vendeur individuel', description: 'Je vends en mon nom propre.' },
-      { id: 'shop', label: 'Boutique', description: 'Je gere une boutique physique ou en ligne.' },
+      { id: 'shop', label: 'Boutique', description: 'Je gère une boutique physique ou en ligne.' },
       { id: 'producer', label: 'Producteur local', description: 'Je produis et vends directement.' },
       { id: 'wholesaler', label: 'Grossiste', description: 'Je fournis en volume.' },
-      { id: 'market_vendor', label: 'Vendeur de marche', description: 'Je vends sur un marche local.' },
-      { id: 'cooperative', label: 'Cooperative', description: 'Nous vendons comme groupe organise.' }
+      { id: 'market_vendor', label: 'Vendeur de marché', description: 'Je vends sur un marché local.' },
+      { id: 'cooperative', label: 'Coopérative', description: 'Nous vendons comme groupe organisé.' }
     ],
     dashboard: {
       title: 'Dashboard vendeur',
@@ -86,37 +86,37 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
         { label: 'Revenus', value: '$0' }
       ],
       actions: [
-        { label: 'Ajouter produit', description: 'Preparer le catalogue Market.', icon: 'market', route: '/market' },
-        { label: 'Vendre en video', description: 'Creer une fiche ABC.', icon: 'video', route: '/feed' },
-        { label: 'Messages clients', description: 'Negocier et assister les acheteurs.', icon: 'chat', route: '/chat' }
+        { label: 'Ajouter produit', description: 'Préparer le catalogue Market.', icon: 'market', route: '/market' },
+        { label: 'Vendre en vidéo', description: 'Créer une fiche ABC.', icon: 'video', route: '/feed' },
+        { label: 'Messages clients', description: 'Négocier et assister les acheteurs.', icon: 'chat', route: '/chat' }
       ]
     }
   },
   {
     id: 'creator',
-    label: 'Createur ABC',
-    shortLabel: 'Createur',
-    description: 'Publier des videos, recommander des produits et gagner des commissions.',
+    label: 'Créateur ABC',
+    shortLabel: 'Créateur',
+    description: 'Publier des vidéos, recommander des produits et gagner des commissions.',
     icon: 'video',
     subtypes: [
-      { id: 'video_seller', label: 'Video seller', description: 'Je presente et vends des produits en video.' },
-      { id: 'affiliate', label: 'Affilie', description: 'Je recommande les produits de vendeurs.' },
-      { id: 'influencer', label: 'Influenceur', description: 'J ai une audience et je veux la monétiser.' },
-      { id: 'live_host', label: 'Animateur live', description: 'Je veux vendre ou presenter en direct.' },
-      { id: 'reviewer', label: 'Testeur produit', description: 'Je fais des avis et demonstrations.' }
+      { id: 'video_seller', label: 'Video seller', description: 'Je présente et vends des produits en vidéo.' },
+      { id: 'affiliate', label: 'Affilié', description: 'Je recommande les produits de vendeurs.' },
+      { id: 'influencer', label: 'Influenceur', description: "J'ai une audience et je veux la monétiser." },
+      { id: 'live_host', label: 'Animateur live', description: 'Je veux vendre ou présenter en direct.' },
+      { id: 'reviewer', label: 'Testeur produit', description: 'Je fais des avis et démonstrations.' }
     ],
     dashboard: {
       title: 'Studio ABC',
-      subtitle: 'Videos, produits affilies, vues, commissions et performances.',
+      subtitle: 'Vidéos, produits affiliés, vues, commissions et performances.',
       metrics: [
-        { label: 'Videos', value: '0' },
+        { label: 'Vidéos', value: '0' },
         { label: 'Vues', value: '0' },
         { label: 'Commissions', value: '$0' }
       ],
       actions: [
         { label: 'Ouvrir le feed', description: 'Voir les contenus ABC.', icon: 'video', route: '/feed' },
-        { label: 'Choisir produit', description: 'Associer un produit a promouvoir.', icon: 'market', route: '/market' },
-        { label: 'Wallet createur', description: 'Suivre les paiements.', icon: 'pay', route: '/wallet' }
+        { label: 'Choisir produit', description: 'Associer un produit à promouvoir.', icon: 'market', route: '/market' },
+        { label: 'Wallet créateur', description: 'Suivre les paiements.', icon: 'pay', route: '/wallet' }
       ]
     }
   },
@@ -124,26 +124,26 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
     id: 'agent',
     label: 'Agent AfriSell',
     shortLabel: 'Agent',
-    description: 'Aider les utilisateurs, valider terrain, depot/retrait, livraison et support local.',
+    description: 'Aider les utilisateurs, valider le terrain, dépôt/retrait, livraison et support local.',
     icon: 'shield',
     subtypes: [
-      { id: 'cash_agent', label: 'Agent cash', description: 'Je gere depot, retrait et assistance paiement.' },
+      { id: 'cash_agent', label: 'Agent cash', description: 'Je gère dépôt, retrait et assistance paiement.' },
       { id: 'delivery_agent', label: 'Agent livraison', description: 'Je livre ou coordonne les livraisons.' },
-      { id: 'support_agent', label: 'Support local', description: 'J aide les utilisateurs sur le terrain.' },
-      { id: 'field_validator', label: 'Validateur terrain', description: 'Je verifie vendeurs, boutiques et services.' },
-      { id: 'community_manager', label: 'Community manager', description: 'J anime une communaute AfriSell.' }
+      { id: 'support_agent', label: 'Support local', description: "J'aide les utilisateurs sur le terrain." },
+      { id: 'field_validator', label: 'Validateur terrain', description: 'Je vérifie vendeurs, boutiques et services.' },
+      { id: 'community_manager', label: 'Community manager', description: 'J’anime une communauté AfriSell.' }
     ],
     dashboard: {
       title: 'Console agent',
-      subtitle: 'Operations terrain, validation, support et commissions.',
+      subtitle: 'Opérations terrain, validation, support et commissions.',
       metrics: [
         { label: 'Validations', value: '0' },
-        { label: 'Operations', value: '0' },
+        { label: 'Opérations', value: '0' },
         { label: 'Commissions', value: '$0' }
       ],
       actions: [
         { label: 'Scanner', description: 'Valider paiement ou commande.', icon: 'scan', route: '/scan' },
-        { label: 'Wallet agent', description: 'Voir commissions et operations.', icon: 'pay', route: '/wallet' },
+        { label: 'Wallet agent', description: 'Voir commissions et opérations.', icon: 'pay', route: '/wallet' },
         { label: 'Support chat', description: 'Assister les clients.', icon: 'chat', route: '/chat' }
       ]
     }
@@ -152,13 +152,13 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
     id: 'provider',
     label: 'Prestataire',
     shortLabel: 'Service',
-    description: 'Proposer des services dans sante, education, freelance, transport ou immobilier.',
+    description: 'Proposer des services dans santé, education, freelance, transport ou immobilier.',
     icon: 'work',
     subtypes: [
-      { id: 'freelancer', label: 'Freelancer', description: 'Je vends mes competences ou prestations.' },
-      { id: 'health_provider', label: 'Sante', description: 'Je propose un service lie a AfriMed.' },
-      { id: 'school_provider', label: 'Education', description: 'Je propose cours, formations ou ecole.' },
-      { id: 'transport_provider', label: 'Transport', description: 'Je propose mobilite ou livraison.' },
+      { id: 'freelancer', label: 'Freelancer', description: 'Je vends mes compétences ou prestations.' },
+      { id: 'health_provider', label: 'Santé', description: 'Je propose un service lié à AfriMed.' },
+      { id: 'school_provider', label: 'Éducation', description: 'Je propose cours, formations ou école.' },
+      { id: 'transport_provider', label: 'Transport', description: 'Je propose mobilité ou livraison.' },
       { id: 'real_estate_provider', label: 'Immobilier', description: 'Je propose terrains, maisons ou locations.' },
       { id: 'service_provider', label: 'Service local', description: 'Je propose un service du quotidien.' }
     ],
@@ -171,8 +171,8 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
         { label: 'Avis', value: '0' }
       ],
       actions: [
-        { label: 'Publier service', description: 'Preparer une offre de service.', icon: 'work', route: '/ecosystem' },
-        { label: 'Discuter', description: 'Repondre aux demandes.', icon: 'chat', route: '/chat' },
+        { label: 'Publier service', description: 'Préparer une offre de service.', icon: 'work', route: '/ecosystem' },
+        { label: 'Discuter', description: 'Répondre aux demandes.', icon: 'chat', route: '/chat' },
         { label: 'Encaisser', description: 'Paiements et devis.', icon: 'pay', route: '/wallet' }
       ]
     }
@@ -181,28 +181,28 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
     id: 'business',
     label: 'Entreprise / Organisation',
     shortLabel: 'Business',
-    description: 'Gerer une structure avec equipe, catalogue, services, facturation et analytics.',
+    description: 'Gérer une structure avec equipe, catalogue, services, facturation et analytics.',
     icon: 'account',
     subtypes: [
-      { id: 'company', label: 'Entreprise', description: 'Societe ou marque structuree.' },
-      { id: 'clinic', label: 'Clinique', description: 'Organisation de sante.' },
-      { id: 'school', label: 'Ecole', description: 'Ecole, centre ou formation.' },
+      { id: 'company', label: 'Entreprise', description: 'Société ou marque structurée.' },
+      { id: 'clinic', label: 'Clinique', description: 'Organisation de santé.' },
+      { id: 'school', label: 'École', description: 'École, centre ou formation.' },
       { id: 'logistics', label: 'Logistique', description: 'Transport, livraison ou stockage.' },
       { id: 'agency', label: 'Agence', description: 'Agence commerciale ou service.' },
       { id: 'ngo', label: 'ONG', description: 'Organisation communautaire ou sociale.' },
-      { id: 'institution', label: 'Institution', description: 'Institution publique ou privee.' }
+      { id: 'institution', label: 'Institution', description: 'Institution publique ou privée.' }
     ],
     dashboard: {
       title: 'Espace business',
-      subtitle: 'Equipe, activites, produits, services et donnees de performance.',
+      subtitle: 'Équipe, activités, produits, services et données de performance.',
       metrics: [
         { label: 'Membres', value: '1' },
         { label: 'Modules', value: '0' },
         { label: 'Revenus', value: '$0' }
       ],
       actions: [
-        { label: 'Gerer activites', description: 'Produits, services et modules.', icon: 'app', route: '/ecosystem' },
-        { label: 'Equipe', description: 'Inviter et gerer les roles internes.', icon: 'account', route: '/profile' },
+        { label: 'Gérer activités', description: 'Produits, services et modules.', icon: 'app', route: '/ecosystem' },
+        { label: 'Équipe', description: 'Inviter et gérer les rôles internes.', icon: 'account', route: '/profile' },
         { label: 'Finance', description: 'Wallet, factures et transactions.', icon: 'pay', route: '/wallet' }
       ]
     }
@@ -211,14 +211,14 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
     id: 'admin',
     label: 'Administrateur AfriSell',
     shortLabel: 'Admin',
-    description: 'Role interne pour moderation, support, finance, KYC et operations.',
+    description: 'Role interne pour modération, support, finance, KYC et opérations.',
     icon: 'shield',
     systemOnly: true,
     subtypes: [
-      { id: 'super_admin', label: 'Super admin', description: 'Controle global de la plateforme.' },
-      { id: 'support_admin', label: 'Support', description: 'Support utilisateurs et operations.' },
+      { id: 'super_admin', label: 'Super admin', description: 'Contrôle global de la plateforme.' },
+      { id: 'support_admin', label: 'Support', description: 'Support utilisateurs et opérations.' },
       { id: 'finance_admin', label: 'Finance', description: 'Transactions, soldes et rapprochements.' },
-      { id: 'moderator', label: 'Moderation', description: 'Contenus, produits et signalements.' }
+      { id: 'moderator', label: 'Modération', description: 'Contenus, produits et signalements.' }
     ],
     dashboard: {
       title: 'Console admin',
@@ -229,9 +229,9 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
         { label: 'KYC', value: '0' }
       ],
       actions: [
-        { label: 'Utilisateurs', description: 'Voir et gerer les comptes.', icon: 'account', route: '/profile' },
+        { label: 'Utilisateurs', description: 'Voir et gérer les comptes.', icon: 'account', route: '/profile' },
         { label: 'Transactions', description: 'Surveiller les flux financiers.', icon: 'pay', route: '/wallet' },
-        { label: 'Moderation', description: 'Verifier contenus et produits.', icon: 'shield', route: '/ecosystem' }
+        { label: 'Modération', description: 'Vérifier contenus et produits.', icon: 'shield', route: '/ecosystem' }
       ]
     }
   }

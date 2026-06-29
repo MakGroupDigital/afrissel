@@ -34,7 +34,7 @@ export const isCloudinaryReady = () => Boolean(configuredCloudName);
 const getResourceType = (file: File): CloudinaryResourceType => {
   if (file.type.startsWith('image/')) return 'image';
   if (file.type.startsWith('video/')) return 'video';
-  throw new Error('Le fichier doit être une image ou une vidéo.');
+  throw new Error('Le fichier doit être une image ou une video.');
 };
 
 export async function uploadMediaToCloudinary(file: File, ownerId: string): Promise<CloudinaryUploadResult> {

@@ -12,7 +12,7 @@ export default function ScannerScreen() {
   useEffect(() => {
     let isMounted = true;
 
-    async function startCamera() {
+    async function startCaméra() {
       if (!navigator.mediaDevices?.getUserMedia) {
         setStatus('blocked');
         return;
@@ -40,7 +40,7 @@ export default function ScannerScreen() {
       }
     }
 
-    startCamera();
+    startCaméra();
 
     return () => {
       isMounted = false;
@@ -51,7 +51,7 @@ export default function ScannerScreen() {
   const handleManualScan = () => {
     const code = manualCode.trim();
     if (!code) return;
-    setResult(`Code detecte: ${code}`);
+    setResult(`Code détecté: ${code}`);
   };
 
   return (
@@ -90,7 +90,7 @@ export default function ScannerScreen() {
           </div>
           <div>
             <p className="text-sm font-black">
-              {status === 'ready' ? 'Camera active' : status === 'starting' ? 'Ouverture camera...' : 'Camera indisponible'}
+              {status === 'ready' ? 'Caméra active' : status === 'starting' ? 'Ouverture caméra...' : 'Caméra indisponible'}
             </p>
             <p className="text-[11px] font-semibold text-white/45">Scanne un QR paiement ou entre le code.</p>
           </div>

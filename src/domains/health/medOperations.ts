@@ -2,7 +2,7 @@ import { User } from 'firebase/auth';
 import { push, ref, serverTimestamp, update } from 'firebase/database';
 import { realtimeDb } from '../../lib/firebase';
 
-export type TeleconsultationInput = {
+export type TéléconsultationInput = {
   user: User;
   need: string;
   city: string;
@@ -24,10 +24,10 @@ const cleanText = (value: string, label: string) => {
   return nextValue;
 };
 
-export async function createTeleconsultationRequest(input: TeleconsultationInput) {
+export async function createTéléconsultationRequest(input: TéléconsultationInput) {
   const requestRef = push(ref(realtimeDb, 'medConsultations'));
   const requestId = requestRef.key;
-  if (!requestId) throw new Error('Creation de demande AfriMed impossible.');
+  if (!requestId) throw new Error('Création de demande AfriMed impossible.');
 
   const now = Date.now();
   const payload = {

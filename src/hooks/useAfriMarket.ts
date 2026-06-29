@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { off, onValue, push, ref, runTransaction, serverTimestamp, update } from 'firebase/database';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { get, off, onValue, push, ref, runTransaction, serverTimestamp, update } from 'firebase/database';
 import { Product } from '../store/useAppStore';
 import { CloudinaryUploadResult, uploadMediaToCloudinary } from '../lib/cloudinary';
 import { realtimeDb } from '../lib/firebase';
@@ -84,7 +84,7 @@ export const MARKET_CATEGORIES = [
   'Alimentaire',
   'Boissons',
   'Tech',
-  'Telephones',
+  'Téléphones',
   'Informatique',
   'Electronique',
   'Maison',
@@ -93,13 +93,13 @@ export const MARKET_CATEGORIES = [
   'Immobilier',
   'Auto',
   'Moto',
-  'Pieces auto',
+  'Pièces auto',
   'Services',
   'Livraison',
   'Reparations',
   'Formation',
   'Emploi',
-  'Sante',
+  'Santé',
   'Bien-etre',
   'Sport',
   'Fitness',
@@ -286,6 +286,7 @@ export const useAfriMarket = () => {
   const [commentsByContent, setCommentsByContent] = useState<Record<string, AfriMarketComment[]>>({});
   const [loading, setLoading] = useState(() => !readOfflineCache<AfriMarketContent[]>(ABC_CACHE_KEY, []).length);
   const [error, setError] = useState('');
+  const likeOperationsRef = useRef(new Set<string>());
 
   useEffect(() => {
     let mounted = true;
@@ -303,7 +304,7 @@ export const useAfriMarket = () => {
 
     if (isOfflineNow()) {
       setLoading(false);
-      setError(cachedAbc.length || cachedMarket.length ? 'Mode hors ligne: dernieres donnees disponibles.' : 'Mode hors ligne: aucune donnee locale disponible.');
+      setError(cachedAbc.length || cachedMarket.length ? 'Mode hors ligne: dernières données disponibles.' : 'Mode hors ligne: aucune donnée locale disponible.');
     }
 
     void Promise.all([
@@ -349,7 +350,7 @@ export const useAfriMarket = () => {
         console.error('Chargement ABC impossible:', abcError);
         const fallback = readOfflineCache<AfriMarketContent[]>(ABC_CACHE_KEY, []);
         if (fallback.length) setAbcContents(fallback);
-        setError(fallback.length ? 'Mode hors ligne: dernieres publications ABC affichees.' : 'ABC est indisponible pour le moment.');
+        setError(fallback.length ? 'Mode hors ligne: dernières publications ABC affichées.' : "ABC est indisponible pour le moment.");
         setLoading(false);
       }
     );
@@ -379,7 +380,7 @@ export const useAfriMarket = () => {
         console.error('Chargement Market impossible:', marketError);
         const fallback = readOfflineCache<AfriMarketContent[]>(MARKET_CACHE_KEY, []);
         if (fallback.length) setMarketProducts(fallback);
-        setError(fallback.length ? 'Mode hors ligne: derniers articles Market affiches.' : 'Le marche est indisponible pour le moment.');
+        setError(fallback.length ? 'Mode hors ligne: derniers articles Market affichés.' : 'Le marché est indisponible pour le moment.');
       }
     );
 
@@ -564,27 +565,69 @@ export const useAfriMarket = () => {
   const toggleLike = async (content: AfriMarketContent) => {
     if (!user) return;
 
-    const wasLiked = Boolean(likedContents[content.id]);
-    const nextValue = wasLiked ? null : {
+    const operationKey = `${user.uid}:${content.id}`;
+    if (likeOperationsRef.current.has(operationKey)) return;
+    likeOperationsRef.current.add(operationKey);
+
+    const optimisticWasLiked = Boolean(likedContents[content.id]);
+    const likedRecord = {
       postId: content.id,
       authorId: content.authorId,
-      likedAt: serverTimestamp()
+      likedAt: Date.now()
     };
-    const delta = wasLiked ? -1 : 1;
 
     setLikedContents((current) => ({
       ...current,
-      [content.id]: !wasLiked
+      [content.id]: !optimisticWasLiked
     }));
 
-    await update(ref(realtimeDb), {
-      [`contentLikes/${content.id}/${user.uid}`]: nextValue,
-      [`contentLikesByUser/${user.uid}/${content.id}`]: nextValue
-    });
+    try {
+      let databaseWasLiked = false;
+      const transactionResult = await runTransaction(
+        ref(realtimeDb, `contentLikesByUser/${user.uid}/${content.id}`),
+        (current) => {
+          databaseWasLiked = Boolean(current);
+          return databaseWasLiked ? null : likedRecord;
+        }
+      );
 
-    await runTransaction(ref(realtimeDb, `abcPosts/${content.id}/likesCount`), (current) => Math.max(toNumber(current) + delta, 0));
-    if (shouldSyncWithMarket(content)) {
-      await runTransaction(ref(realtimeDb, `marketProducts/${content.id}/likesCount`), (current) => Math.max(toNumber(current) + delta, 0));
+      const isNowLiked = Boolean(transactionResult.snapshot.val());
+      setLikedContents((current) => {
+        const nextLikedContents = {
+          ...current,
+          [content.id]: isNowLiked
+        };
+        if (!isNowLiked) delete nextLikedContents[content.id];
+        writeOfflineCache(scopedCacheKey('contentLikesByUser', user.uid), nextLikedContents);
+        return nextLikedContents;
+      });
+
+      await update(ref(realtimeDb), {
+        [`contentLikes/${content.id}/${user.uid}`]: isNowLiked ? likedRecord : null
+      });
+
+      if (databaseWasLiked !== isNowLiked) {
+        const likesSnapshot = await get(ref(realtimeDb, `contentLikes/${content.id}`));
+        const exactLikesCount = Object.values((likesSnapshot.val() as Record<string, unknown> | null) || {})
+          .filter(Boolean)
+          .length;
+        await update(ref(realtimeDb), {
+          [`abcPosts/${content.id}/likesCount`]: exactLikesCount,
+          ...(shouldSyncWithMarket(content) ? { [`marketProducts/${content.id}/likesCount`]: exactLikesCount } : {})
+        });
+      }
+    } catch (likeError) {
+      setLikedContents((current) => {
+        const nextLikedContents = {
+          ...current,
+          [content.id]: optimisticWasLiked
+        };
+        if (!optimisticWasLiked) delete nextLikedContents[content.id];
+        return nextLikedContents;
+      });
+      throw likeError;
+    } finally {
+      likeOperationsRef.current.delete(operationKey);
     }
   };
 
@@ -639,7 +682,7 @@ export const useAfriMarket = () => {
             [contentId]: fallback
           }));
         }
-        setError(fallback.length ? 'Mode hors ligne: derniers commentaires affiches.' : 'Commentaires indisponibles pour le moment.');
+        setError(fallback.length ? 'Mode hors ligne: derniers commentaires affichés.' : 'Commentaires indisponibles pour le moment.');
       }
     );
 

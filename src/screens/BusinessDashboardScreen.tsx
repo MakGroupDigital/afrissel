@@ -29,19 +29,19 @@ type BusinessAccountProfile = {
 const defaultActions: BusinessAction[] = [
   { label: 'Publier', description: 'Mettre une offre en avant dans ABC.', icon: 'video', route: '/feed?publish=1', highlight: true },
   { label: 'Messages', description: 'Repondre aux clients et partenaires.', icon: 'chat', route: '/chat' },
-  { label: 'Encaisser', description: 'Suivre paiements et operations AfriSpay.', icon: 'pay', route: '/wallet' }
+  { label: 'Encaisser', description: 'Suivre paiements et opérations AfriSpay.', icon: 'pay', route: '/wallet' }
 ];
 
 const actionCatalog: Record<string, BusinessAction[]> = {
   commerce: [
-    { label: 'Ajouter produit', description: 'Creer une fiche produit Market.', icon: 'market', route: '/feed?publish=1', highlight: true },
+    { label: 'Ajouter produit', description: 'Créer une fiche produit Market.', icon: 'market', route: '/feed?publish=1', highlight: true },
     { label: 'Voir catalogue', description: 'Controler les produits visibles.', icon: 'cart', route: '/market' },
     { label: 'Commandes', description: 'Suivre les demandes clients.', icon: 'order', route: '/chat' },
-    { label: 'Encaissements', description: 'Retraits, depot et ventes.', icon: 'pay', route: '/wallet' }
+    { label: 'Encaissements', description: 'Retraits, dépôt et ventes.', icon: 'pay', route: '/wallet' }
   ],
   payment: [
     { label: 'Scanner', description: 'Valider un paiement QR.', icon: 'scan', route: '/scan', highlight: true },
-    { label: 'Depot', description: 'Lancer une operation de depot.', icon: 'deposit', route: '/wallet?action=deposit' },
+    { label: 'Dépôt', description: 'Lancer une operation de dépôt.', icon: 'deposit', route: '/wallet?action=deposit' },
     { label: 'Retrait', description: 'Servir un retrait client.', icon: 'withdraw', route: '/wallet?action=withdraw' },
     { label: 'Support', description: 'Assister les utilisateurs AfriSpay.', icon: 'chat', route: '/chat' }
   ],
@@ -51,15 +51,15 @@ const actionCatalog: Record<string, BusinessAction[]> = {
     { label: 'Paiements', description: 'Encaisser une livraison ou un service.', icon: 'pay', route: '/wallet' }
   ],
   services: [
-    { label: 'Publier service', description: 'Presenter une competence ou offre.', icon: 'work', route: '/feed?publish=1', highlight: true },
+    { label: 'Publier service', description: 'Présenter une compétence ou offre.', icon: 'work', route: '/feed?publish=1', highlight: true },
     { label: 'Demandes', description: 'Repondre aux prospects.', icon: 'chat', route: '/chat' },
     { label: 'Recevoir paiement', description: 'Facturer avec AfriSpay.', icon: 'pay', route: '/wallet' }
   ],
   abc_media: [
-    { label: 'Nouvelle video', description: 'Publier une video ABC marchande.', icon: 'video', route: '/feed?publish=1', highlight: true },
+    { label: 'Nouvelle vidéo', description: 'Publier une vidéo ABC marchande.', icon: 'video', route: '/feed?publish=1', highlight: true },
     { label: 'Associer produit', description: 'Choisir une offre Market.', icon: 'market', route: '/market' },
     { label: 'Audience', description: 'Discuter avec prospects et marques.', icon: 'chat', route: '/chat' },
-    { label: 'Revenus', description: 'Suivre les paiements createur.', icon: 'pay', route: '/wallet' }
+    { label: 'Revenus', description: 'Suivre les paiements créateur.', icon: 'pay', route: '/wallet' }
   ]
 };
 
@@ -101,7 +101,7 @@ export default function BusinessDashboardScreen() {
           </div>
           <h1 className="mt-4 text-xl font-black">Aucun business account</h1>
           <p className="mt-2 text-xs font-semibold leading-relaxed text-white/50">
-            Configure ton type de compte dans le profil pour ouvrir le dashboard adapte.
+            Configure ton type de compte dans le profil pour ouvrir le dashboard adapté.
           </p>
           <Link to="/profile" className="mt-5 inline-flex h-11 items-center justify-center rounded-2xl bg-[#15EA3E] px-5 text-xs font-black uppercase tracking-widest text-black">
             Configurer
@@ -149,13 +149,13 @@ export default function BusinessDashboardScreen() {
               <AfriSellIcon name="shield" size={18} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-black text-amber-100">Verification KYC requise</p>
+              <p className="text-xs font-black text-amber-100">Vérification KYC requise</p>
               <p className="mt-1 text-[11px] font-semibold leading-relaxed text-amber-100/72">
-                Complete la verification avant {daysLeft} jour{daysLeft > 1 ? 's' : ''}, sinon les services business seront bloques.
+                Complète la vérification avant {daysLeft} jour{daysLeft > 1 ? 's' : ''}, sinon les services business seront bloqués.
               </p>
             </div>
             <Link to="/profile" className="rounded-xl bg-amber-300 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black">
-              Verifier
+              Vérifier
             </Link>
           </div>
         </section>

@@ -44,7 +44,7 @@ const quickActions: QuickAction[] = [
 
 const fallbackPromos = [
   { title: 'Mode locale', label: 'Market', image: '/afrimarket.jpeg', route: '/market' },
-  { title: 'Videos marchandes', label: 'ABC', image: '/biashara.jpeg', route: '/feed' },
+  { title: 'Vidéos marchandes', label: 'ABC', image: '/biashara.jpeg', route: '/feed' },
   { title: 'Paiement rapide', label: 'AfriSpay', image: '/afrispay.jpeg', route: '/wallet' },
   { title: 'Mobilite et immobilier', label: 'Safari', image: '/safari.jpeg', route: '/ecosystem' },
   { title: 'Conversation vendeur', label: 'AfriChat', image: '/africhat.jpeg', route: '/chat' }
@@ -54,7 +54,7 @@ const fallbackAbc = [
   {
     id: 'abc-video',
     title: 'Live commerce',
-    description: 'Videos, offres et produits en direct.',
+    description: 'Vidéos, offres et produits en direct.',
     coverURL: '/biashara.jpeg',
     format: 'video' as const,
     route: '/feed'
@@ -70,7 +70,7 @@ const fallbackAbc = [
   {
     id: 'wallet-pay',
     title: 'Payer avec AfriSpay',
-    description: 'Depot, retrait, transfert et QR.',
+    description: 'Dépôt, retrait, transfert et QR.',
     coverURL: '/afrispay.jpeg',
     format: 'article' as const,
     route: '/wallet'
@@ -339,7 +339,7 @@ export default function EcosystemHome() {
       }
 
       await navigator.clipboard?.writeText(text);
-      setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Lien copie' }));
+      setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Lien copié' }));
     } catch (shareError) {
       setFreelanceFeedback((current) => ({
         ...current,
@@ -359,12 +359,12 @@ export default function EcosystemHome() {
     try {
       if (isLiked) {
         await remove(likeRef);
-        setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Like retire' }));
+        setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Like retiré' }));
         return;
       }
 
       await set(likeRef, true);
-      setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Like ajoute' }));
+      setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Like ajouté' }));
     } catch (likeError) {
       setFreelanceFeedback((current) => ({
         ...current,
@@ -492,7 +492,7 @@ export default function EcosystemHome() {
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Chercher produit, medecin, emploi, cours..."
+              placeholder="Chercher produit, médecin, emploi, cours..."
               className="h-full min-w-0 flex-1 bg-transparent text-xs font-bold text-white outline-none placeholder:text-white/38"
             />
             <button
@@ -560,7 +560,7 @@ export default function EcosystemHome() {
           <div className="relative z-10">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Aujourd hui</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Aujourd’hui</p>
                 <h2 className="mt-1 text-xl font-black leading-tight">Vitrines, Stands et Villages en mouvement</h2>
               </div>
               <Link to="/market" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
@@ -610,10 +610,10 @@ export default function EcosystemHome() {
               La super app africaine.
             </h2>
             <p className="mt-2 text-xs font-semibold leading-relaxed text-white/50">
-              Commerce, paiement et services relies.
+              Commerce, paiement et services reliés.
             </p>
             <Link to="/apps" className="mt-4 flex w-max items-center gap-2 rounded-full bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white/70 active:scale-[0.98]">
-              Decouvrir
+              Découvrir
               <AfriSellIcon name="arrow" size={13} className="text-[#15EA3E]" />
             </Link>
           </div>
@@ -644,7 +644,7 @@ export default function EcosystemHome() {
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_35%,rgba(0,0,0,0.86))]" />
                 <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 backdrop-blur">
                   <AfriSellIcon name={isVideo ? 'video' : 'market'} size={12} className="text-[#15EA3E]" />
-                  <span className="text-[8px] font-black uppercase tracking-[0.12em] text-white/72">{isVideo ? 'Video' : 'Photo'}</span>
+                  <span className="text-[8px] font-black uppercase tracking-[0.12em] text-white/72">{isVideo ? 'Vidéo' : 'Photo'}</span>
                 </div>
                 <div className="absolute inset-x-0 bottom-0 p-3">
                   <h3 className="line-clamp-2 text-xs font-black leading-tight">{item.title}</h3>
@@ -679,7 +679,7 @@ export default function EcosystemHome() {
                 <img src={image || '/afrimarket.jpeg'} alt="" className="h-24 w-full object-cover" />
                 <div className="p-3">
                   <h3 className="truncate text-xs font-black">{title}</h3>
-                  <p className="mt-1 text-[10px] font-bold text-[#15EA3E]">{price || 'Decouvrir'}</p>
+                  <p className="mt-1 text-[10px] font-bold text-[#15EA3E]">{price || 'Découvrir'}</p>
                 </div>
               </Link>
             );
@@ -691,7 +691,7 @@ export default function EcosystemHome() {
       <section className="mt-6 px-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Top freelances</h2>
-          <span className="text-[10px] font-black text-[#15EA3E]">{topFreelancers.length} reel{topFreelancers.length > 1 ? 's' : ''}</span>
+          <span className="text-[10px] font-black text-[#15EA3E]">{topFreelancers.length} réel{topFreelancers.length > 1 ? 's' : ''}</span>
         </div>
 
         <div className="relative overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-2.5">
@@ -773,12 +773,12 @@ export default function EcosystemHome() {
                 <button
                   type="button"
                   onClick={() => {
-                    setFreelanceFeedback((current) => ({ ...current, [activeFreelance.id]: 'Recommande' }));
+                    setFreelanceFeedback((current) => ({ ...current, [activeFreelance.id]: 'Recommandé' }));
                     moveFreelanceStack();
                   }}
                   className="flex h-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-white/70"
-                  aria-label="Recommander"
-                  title="Recommander"
+                  aria-label="Recommandér"
+                  title="Recommandér"
                 >
                   <AfriSellIcon name="follow" size={13} />
                 </button>
@@ -798,8 +798,8 @@ export default function EcosystemHome() {
       {suppliers.length > 0 && (
         <section className="mt-6 px-4">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Decouvrez nos fournisseurs</h2>
-            <span className="text-[10px] font-black text-[#15EA3E]">{suppliers.length} reel{suppliers.length > 1 ? 's' : ''}</span>
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Découvrez nos fournisseurs</h2>
+            <span className="text-[10px] font-black text-[#15EA3E]">{suppliers.length} réel{suppliers.length > 1 ? 's' : ''}</span>
           </div>
 
           <div className="scrollbar-hide flex gap-3 overflow-x-auto pb-1">

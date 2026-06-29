@@ -149,7 +149,7 @@ function FeedMedia({
             onPointerMove={stopProgressControl}
             onTouchStart={stopProgressControl}
             className="abc-video-progress w-full"
-            aria-label="Progression video"
+            aria-label="Progression vidéo"
             style={{ '--abc-video-progress': `${progressPercent}%` } as React.CSSProperties}
           />
         </div>
@@ -503,9 +503,9 @@ function PublishPanel({
   const hasLinkedProduct = Boolean(linkedProductId);
 
   const fileLabel = useMemo(() => {
-    if (!files.length) return 'Video ou photos';
+    if (!files.length) return 'Vidéo ou photos';
     const hasVideo = files.some((file) => file.type.startsWith('video/'));
-    if (hasVideo) return files[0]?.name || '1 video';
+    if (hasVideo) return files[0]?.name || '1 vidéo';
     return `${files.length} photo${files.length > 1 ? 's' : ''}`;
   }, [files]);
 
@@ -569,7 +569,7 @@ function PublishPanel({
             <span className="text-xs font-black uppercase tracking-wider">Contenu ABC</span>
           </div>
           <p className="mt-2 text-[11px] font-semibold leading-relaxed text-white/60">
-            Publie comme sur un feed video. Le bouton Acheter apparait seulement si tu associes un produit Market existant.
+            Publie comme sur un feed vidéo. Le bouton Acheter apparaît seulement si tu associes un produit Market existant.
           </p>
         </div>
 
@@ -606,7 +606,7 @@ function PublishPanel({
 
           {canAssociateProduct ? (
             <div className="rounded-2xl border border-gray-800 bg-[#050505] p-3">
-              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Associer a un produit Market</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Associer à un produit Market</label>
               <select
                 value={linkedProductId}
                 onChange={(event) => setLinkedProductId(event.target.value)}
@@ -621,13 +621,13 @@ function PublishPanel({
               </select>
               {!availableProducts.length && (
                 <p className="mt-2 text-[10px] font-semibold leading-relaxed text-gray-500">
-                  Aucun produit Market disponible pour l instant. Cree d abord un produit dans Market, puis associe-le a ta video ABC.
+                  Aucun produit Market disponible pour l'instant. Crée d'abord un produit dans Market, puis associe-le à ta vidéo ABC.
                 </p>
               )}
             </div>
           ) : (
             <div className="rounded-2xl border border-gray-800 bg-[#050505] p-3 text-[11px] font-semibold leading-relaxed text-gray-500">
-              L association a un produit est reservee aux comptes business Market. Active un compte E-commerce dans Profil &gt; Business account.
+              L’association à un produit est réservée aux comptes business Market. Active un compte E-commerce dans Profil &gt; Business account.
             </div>
           )}
         </div>
@@ -712,7 +712,7 @@ function CommentPanel({
             <div className="flex min-h-[190px] flex-col items-center justify-center text-center">
               <AfriSellIcon name="comment" size={30} className="text-gray-700" />
               <p className="mt-3 text-sm font-black text-white">Aucun commentaire</p>
-              <p className="mt-1 text-xs text-gray-500">Sois le premier a reagir.</p>
+              <p className="mt-1 text-xs text-gray-500">Sois le premier à reagir.</p>
             </div>
           )}
         </div>
@@ -721,7 +721,7 @@ function CommentPanel({
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Ecrire un commentaire..."
+            placeholder="Écrire un commentaire..."
             rows={1}
             className="max-h-[92px] min-h-11 flex-1 resize-none rounded-xl border border-gray-800 bg-[#050505] px-4 py-3 text-xs font-semibold text-white outline-none focus:border-[#15EA3E]/50"
           />
@@ -760,7 +760,7 @@ function QuickPanelSheet({
   const subtitle = panel === 'cart'
     ? `${cart.length} article${cart.length > 1 ? 's' : ''} ajoute${cart.length > 1 ? 's' : ''}`
     : panel === 'orders'
-      ? 'Tes commandes apparaitront ici.'
+      ? 'Tes commandes apparaîtront ici.'
       : `${followedCount} profil${followedCount > 1 ? 's' : ''} suivi${followedCount > 1 ? 's' : ''}`;
 
   return (
@@ -809,7 +809,7 @@ function QuickPanelSheet({
             <div className="flex min-h-[170px] flex-col items-center justify-center text-center">
               <AfriSellIcon name="market" size={30} className="text-gray-700" />
               <p className="mt-3 text-sm font-black text-white">Panier vide</p>
-              <p className="mt-1 text-xs leading-relaxed text-gray-500">Like une video ou publication vendable pour l ajouter automatiquement.</p>
+              <p className="mt-1 text-xs leading-relaxed text-gray-500">Like une vidéo ou publication vendable pour l'ajouter automatiquement.</p>
             </div>
           )
         )}
@@ -827,7 +827,7 @@ function QuickPanelSheet({
             <AfriSellIcon name="profile" size={30} className="text-gray-700" />
             <p className="mt-3 text-sm font-black text-white">{followedCount ? 'Profils suivis' : 'Aucun suivi'}</p>
             <p className="mt-1 text-xs leading-relaxed text-gray-500">
-              {followedCount ? 'Tes medias suivis sont bien gardes.' : 'Appuie sur Suivre dans ABC pour garder un createur ou vendeur.'}
+              {followedCount ? 'Tes médias suivis sont bien gardés.' : 'Appuie sur Suivre dans ABC pour garder un créateur ou vendeur.'}
             </p>
           </div>
         )}
@@ -1112,13 +1112,13 @@ export default function VideoFeed() {
           <p className="mt-2 text-sm leading-relaxed text-gray-500">
             {feedFilter === 'live'
               ? 'Les directs ABC seront disponibles dans une prochaine version.'
-              : abcContents.length ? 'Aucune publication dans ce filtre.' : 'Ajoute une video ou plusieurs photos.'}
+              : abcContents.length ? 'Aucune publication dans ce filtre.' : 'Ajoute une vidéo ou plusieurs photos.'}
           </p>
           <button
             type="button"
             onClick={() => {
               if (feedFilter === 'live') {
-                setFeedStatus('La fonctionnalite Live ABC n est pas encore disponible.');
+                setFeedStatus("La fonctionnalité Live ABC n'est pas encore disponible.");
                 return;
               }
               if (!user) {

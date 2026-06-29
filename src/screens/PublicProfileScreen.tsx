@@ -82,7 +82,7 @@ export default function PublicProfileScreen() {
   const avatar = publicProfile?.logoURL || publicProfile?.photoURL || '';
   const coverImage = publicProfile?.mediaURL || authorContents[0]?.coverURL || authorProducts[0]?.coverURL || avatar || '/biashara.jpeg';
   const profileRole = mainBusiness?.moduleName || mainBusiness?.categoryLabel || publicProfile?.primaryRole || 'AfriSell';
-  const profileHeadline = publicProfile?.bio || mainBusiness?.serviceLabel || 'Membre de l ecosysteme AfriSell.';
+  const profileHeadline = publicProfile?.bio || mainBusiness?.serviceLabel || 'Membre de l’écosystème AfriSell.';
   const profileLocation = [publicProfile?.city, publicProfile?.country].filter(Boolean).join(', ');
   const isFollowed = Boolean(followedAuthors[userId]);
   const followSample = authorContents[0] || authorProducts[0];
@@ -153,7 +153,7 @@ export default function PublicProfileScreen() {
         <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
           <AfriSellIcon name="profile" size={34} className="text-white/20" />
           <h1 className="mt-4 text-xl font-black">Profil introuvable</h1>
-          <p className="mt-2 text-sm font-semibold leading-relaxed text-white/45">Cet utilisateur n est pas encore visible publiquement.</p>
+          <p className="mt-2 text-sm font-semibold leading-relaxed text-white/45">Cet utilisateur n'est pas encore visible publiquement.</p>
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto pb-8 scrollbar-hide">
@@ -275,7 +275,7 @@ export default function PublicProfileScreen() {
               <div>
                 <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Notes et avis</h2>
                 <p className="mt-1 text-[11px] font-semibold text-white/45">
-                  {userReview ? 'Tu as deja laisse un avis sur ce profil.' : 'Note ce freelance, fournisseur ou partenaire.'}
+                  {userReview ? 'Tu as déjà laisse un avis sur ce profil.' : 'Note ce freelance, fournisseur ou partenaire.'}
                 </p>
               </div>
               <div className="rounded-2xl bg-[#FFD84D]/12 px-3 py-2 text-right">

@@ -10,7 +10,7 @@ import { createFreelanceMissionRequest } from '../domains/freelance';
 import { createBiasharaOpportunity } from '../domains/business';
 import { AfriAiIntent, AfriAiResponse, resolveAfriAiRequest } from '../domains/ai';
 import { enrollSchoolTrack, joinSchoolClass, updateSchoolProgress } from '../domains/education';
-import { createTeleconsultationRequest, saveHealthProfile } from '../domains/health';
+import { createTéléconsultationRequest, saveHealthProfile } from '../domains/health';
 
 type ModuleId = 'school' | 'med' | 'freelance' | 'biashara' | 'afriai' | 'fpp';
 
@@ -52,18 +52,18 @@ const moduleMeta: Record<ModuleId, {
 }> = {
   school: {
     title: 'AfriSchool',
-    eyebrow: 'Education utile',
+    eyebrow: 'Éducation utile',
     logo: '/afrischool.jpeg',
     hero: 'Apprendre, certifier et gagner depuis AfriSell.',
-    body: 'Cours video, bibliotheque, tuteur IA et communautes de classe pour former vendeurs, createurs et jeunes talents.',
+    body: 'Cours vidéo, bibliothèque, tuteur IA et communautés de classe pour former vendeurs, créateurs et jeunes talents.',
     icon: 'school'
   },
   med: {
     title: 'AfriMed',
-    eyebrow: 'Sante connectee',
+    eyebrow: 'Santé connectée',
     logo: '/afrimed.jpeg',
-    hero: 'Orientation medicale, teleconsultation et dossier sante.',
-    body: 'Une porte d entree simple vers medecins, centres de proximite, assurances, conseils et suivi personnel.',
+    hero: 'Orientation medicale, teleconsultation et dossier santé.',
+    body: 'Une porte d entree simple vers médecins, centres de proximité, assurances, conseils et suivi personnel.',
     icon: 'health'
   },
   freelance: {
@@ -71,7 +71,7 @@ const moduleMeta: Record<ModuleId, {
     eyebrow: 'Talents & missions',
     logo: '/a-freelance.jpeg',
     hero: 'Trouver un talent, proposer un service, signer une mission.',
-    body: 'Profils professionnels, missions, reputation, contrats et paiements relies a AfriChat et AfriSpay.',
+    body: 'Profils professionnels, missions, réputation, contrats et paiements reliés à AfriChat et AfriSpay.',
     icon: 'work'
   },
   biashara: {
@@ -86,7 +86,7 @@ const moduleMeta: Record<ModuleId, {
     title: 'AfriAI',
     eyebrow: 'Assistant vocal',
     logo: '/afrissel-icon.jpeg',
-    hero: 'Comprendre, traduire et agir dans tout l ecosysteme.',
+    hero: 'Comprendre, traduire et agir dans tout l’écosystème.',
     body: 'Assistant multilingue pour chercher, expliquer, traduire, guider les achats, paiements, cours et services.',
     icon: 'language'
   },
@@ -94,7 +94,7 @@ const moduleMeta: Record<ModuleId, {
     title: 'FPP',
     eyebrow: 'Impact transparent',
     logo: '/afrissel-icon.jpeg',
-    hero: 'Financer education, sante et paix par le commerce.',
+    hero: 'Financer education, santé et paix par le commerce.',
     body: 'Contribution volontaire depuis les Stands, projets publics, suivi transparent, AfriCoin et mobilisation communautaire.',
     icon: 'heart'
   }
@@ -102,19 +102,19 @@ const moduleMeta: Record<ModuleId, {
 
 const actionCatalog: Record<ModuleId, ActionCard[]> = {
   school: [
-    { id: 'cours', title: 'Commencer un cours', body: 'Parcours video court pour vendre, gerer et creer.', icon: 'video' },
+    { id: 'cours', title: 'Commencer un cours', body: 'Parcours vidéo court pour vendre, gérer et créer.', icon: 'video' },
     { id: 'tuteur', title: 'Tuteur AfriAI', body: 'Poser une question et recevoir une orientation.', icon: 'language' },
     { id: 'classe', title: 'Classe communautaire', body: 'Rejoindre une cohorte ou un formateur.', icon: 'chat', requiresAuth: true }
   ],
   med: [
-    { id: 'teleconsultation', title: 'Teleconsultation', body: 'Ouvrir une demande de soin a distance.', icon: 'health', requiresAuth: true, highlight: true },
-    { id: 'dossier', title: 'Dossier sante', body: 'Preparer les informations de suivi.', icon: 'shield', requiresAuth: true },
-    { id: 'pharmacie', title: 'Pharmacie & soins', body: 'Chercher produits et services sante.', icon: 'market' }
+    { id: 'teleconsultation', title: 'Téléconsultation', body: 'Ouvrir une demande de soin à distance.', icon: 'health', requiresAuth: true, highlight: true },
+    { id: 'dossier', title: 'Dossier santé', body: 'Préparer les informations de suivi.', icon: 'shield', requiresAuth: true },
+    { id: 'pharmacie', title: 'Pharmacie & soins', body: 'Chercher produits et services santé.', icon: 'market' }
   ],
   freelance: [
-    { id: 'publier-service', title: 'Publier un service', body: 'Presenter ton offre freelance.', icon: 'video', requiresAuth: true, highlight: true },
+    { id: 'publier-service', title: 'Publier un service', body: 'Présenter ton offre freelance.', icon: 'video', requiresAuth: true, highlight: true },
     { id: 'paiement-mission', title: 'Recevoir paiement', body: 'Encaisser une mission avec AfriSpay.', icon: 'pay', requiresAuth: true },
-    { id: 'demandes-clients', title: 'Demandes clients', body: 'Gerer les demandes entrantes.', icon: 'chat', requiresAuth: true }
+    { id: 'demandes-clients', title: 'Demandes clients', body: 'Gérer les demandes entrantes.', icon: 'chat', requiresAuth: true }
   ],
   biashara: [
     { id: 'stand-business', title: 'Stand business', body: 'Configurer ton compte professionnel.', icon: 'work', requiresAuth: true, highlight: true },
@@ -123,33 +123,33 @@ const actionCatalog: Record<ModuleId, ActionCard[]> = {
   ],
   afriai: [
     { id: 'chercher-app', title: 'Chercher une app', body: 'Trouver le bon module pour ton besoin.', icon: 'search' },
-    { id: 'traduction', title: 'Traduction', body: 'Preparer la conversation multilingue.', icon: 'chat', requiresAuth: true },
+    { id: 'traduction', title: 'Traduction', body: 'Préparer la conversation multilingue.', icon: 'chat', requiresAuth: true },
     { id: 'guide-achat', title: 'Guide achat', body: 'Explorer produits et services.', icon: 'market' }
   ],
   fpp: [
     { id: 'contribuer', title: 'Contribuer', body: 'Soutenir un projet avec AfriSpay.', icon: 'pay', requiresAuth: true, highlight: true },
     { id: 'vente-fpp', title: 'Vendre avec FPP', body: 'Affecter une part sociale.', icon: 'market', requiresAuth: true },
-    { id: 'mobiliser', title: 'Partager', body: 'Mobiliser ta communaute.', icon: 'share', requiresAuth: true }
+    { id: 'mobiliser', title: 'Partager', body: 'Mobiliser ta communauté.', icon: 'share', requiresAuth: true }
   ]
 };
 
 const getModuleActionRoute = (moduleId: ModuleId, actionId: string) => `/${moduleId}/${actionId}`;
 
 const schoolTracks = [
-  { id: 'video-selling', title: 'Vendre avec video', level: 'Debutant', progress: 28, image: '/biashara.jpeg' },
+  { id: 'video-selling', title: 'Vendre avec vidéo', level: 'Débutant', progress: 28, image: '/biashara.jpeg' },
   { id: 'shop-management', title: 'Gestion boutique', level: 'Business', progress: 44, image: '/afrimarket.jpeg' },
-  { id: 'payment-security', title: 'Paiement & securite', level: 'Essentiel', progress: 18, image: '/afrispay.jpeg' }
+  { id: 'payment-security', title: 'Paiement & sécurité', level: 'Essentiel', progress: 18, image: '/afrispay.jpeg' }
 ];
 
 const medServices = [
-  { title: 'Medecin generaliste', tag: 'Orientation', delay: '15 min' },
+  { title: 'Médecin généraliste', tag: 'Orientation', delay: '15 min' },
   { title: 'Pharmacie partenaire', tag: 'Produits', delay: 'Ouvert' },
-  { title: 'Assurance & carte sante', tag: 'Couverture', delay: 'Bientot' }
+  { title: 'Assurance & carte santé', tag: 'Couverture', delay: 'Bientôt' }
 ];
 
 const fppProjects = [
-  { title: 'Kits scolaires locaux', area: 'Education', percent: 62 },
-  { title: 'Consultations communautaires', area: 'Sante', percent: 38 },
+  { title: 'Kits scolaires locaux', area: 'Éducation', percent: 62 },
+  { title: 'Consultations communautaires', area: 'Santé', percent: 38 },
   { title: 'Autonomie des jeunes', area: 'Paix & emploi', percent: 51 }
 ];
 
@@ -316,7 +316,7 @@ function SchoolModule() {
     if (!requireUser() || !user) return;
     try {
       await enrollSchoolTrack({ user, trackId: track.id, title: track.title, level: track.level });
-      setStatus(`${track.title} ajoute a tes parcours.`);
+      setStatus(`${track.title} ajoute à tes parcours.`);
     } catch (error) {
       setStatus(getActionErrorMessage(error, 'Inscription au parcours impossible.'));
     }
@@ -327,7 +327,7 @@ function SchoolModule() {
     try {
       const currentProgress = Number(enrollments[track.id]?.progress || track.progress || 0);
       await updateSchoolProgress(user, track.id, currentProgress + 12);
-      setStatus('Progression mise a jour.');
+      setStatus('Progression mise à jour.');
     } catch (error) {
       setStatus(getActionErrorMessage(error, 'Progression impossible.'));
     }
@@ -396,7 +396,7 @@ function MedModule() {
   const [need, setNeed] = useState('');
   const [city, setCity] = useState('');
   const [urgency, setUrgency] = useState('Normal');
-  const [language, setLanguage] = useState('Francais');
+  const [language, setLanguage] = useState('Français');
   const [age, setAge] = useState('');
   const [allergies, setAllergies] = useState('');
   const [treatments, setTreatments] = useState('');
@@ -417,9 +417,9 @@ function MedModule() {
     setBusy(true);
     setStatus('');
     try {
-      await createTeleconsultationRequest({ user, need, city, urgency, language });
+      await createTéléconsultationRequest({ user, need, city, urgency, language });
       setNeed('');
-      setStatus('Demande de teleconsultation envoyee pour orientation.');
+      setStatus('Demande de teleconsultation envoyée pour orientation.');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Demande AfriMed impossible.');
     } finally {
@@ -434,9 +434,9 @@ function MedModule() {
     setStatus('');
     try {
       await saveHealthProfile({ user, age, allergies, treatments, notes });
-      setStatus('Dossier sante enregistre.');
+      setStatus('Dossier santé enregistre.');
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Dossier sante impossible.');
+      setStatus(error instanceof Error ? error.message : 'Dossier santé impossible.');
     } finally {
       setBusy(false);
     }
@@ -446,9 +446,9 @@ function MedModule() {
     <ModuleShell moduleId="med">
       <ModuleActions moduleId="med" />
       <section className="mt-6 rounded-[1.4rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-4">
-        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-[#15EA3E]">Teleconsultation</h2>
+        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-[#15EA3E]">Téléconsultation</h2>
         <form onSubmit={submitConsultation} className="mt-4 space-y-2">
-          <textarea value={need} onChange={(event) => setNeed(event.target.value)} rows={3} placeholder="Symptomes, besoin ou question de sante..." className="w-full resize-none rounded-2xl border border-white/10 bg-black/24 px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+          <textarea value={need} onChange={(event) => setNeed(event.target.value)} rows={3} placeholder="Symptomes, besoin ou question de santé..." className="w-full resize-none rounded-2xl border border-white/10 bg-black/24 px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
           <div className="grid grid-cols-2 gap-2">
             <input value={city} onChange={(event) => setCity(event.target.value)} placeholder="Ville" className="h-12 rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
             <select value={urgency} onChange={(event) => setUrgency(event.target.value)} className="h-12 rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50">
@@ -457,7 +457,7 @@ function MedModule() {
               <option>Suivi</option>
             </select>
           </div>
-          <input value={language} onChange={(event) => setLanguage(event.target.value)} placeholder="Langue preferee" className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+          <input value={language} onChange={(event) => setLanguage(event.target.value)} placeholder="Langue préférée" className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
           {status && (
             <p className={cn(
               'rounded-xl border px-3 py-2 text-[11px] font-bold leading-relaxed',
@@ -475,7 +475,7 @@ function MedModule() {
       </section>
 
       <section className="mt-5 rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4">
-        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Dossier sante leger</h2>
+        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Dossier santé léger</h2>
         <div className="mt-4 space-y-2">
           <input value={age} onChange={(event) => setAge(event.target.value)} inputMode="numeric" placeholder="Age" className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
           <input value={allergies} onChange={(event) => setAllergies(event.target.value)} placeholder="Allergies connues" className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
@@ -488,7 +488,7 @@ function MedModule() {
       </section>
 
       <section className="mt-6">
-        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Services sante</h2>
+        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Services santé</h2>
         <div className="mt-3 space-y-3">
           {medServices.map((service, index) => (
             <Link key={service.title} to={index === 0 ? '/med/teleconsultation' : index === 1 ? '/med/pharmacie' : '/med/dossier'} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 active:scale-[0.98]">
@@ -582,12 +582,12 @@ function FreelanceModule() {
     try {
       if (engagements[talent.id]?.likes?.[user.uid]) {
         await remove(likeRef);
-        setStatus('Like retire.');
+        setStatus('Like retiré.');
         return;
       }
 
       await set(likeRef, true);
-      setStatus('Talent ajoute a tes favoris.');
+      setStatus('Talent ajoute à tes favoris.');
     } catch (error) {
       setStatus(getActionErrorMessage(error, 'Action like impossible.'));
     }
@@ -633,7 +633,7 @@ function FreelanceModule() {
       setBudget('');
       setTimeline('');
       setDetails('');
-      setStatus('Demande de mission envoyee au freelance.');
+      setStatus('Demande de mission envoyée au freelance.');
     } catch (missionError) {
       setStatus(missionError instanceof Error ? missionError.message : 'Demande de mission impossible.');
     } finally {
@@ -688,7 +688,7 @@ function FreelanceModule() {
 
       <section className="mt-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Talents reels</h2>
+          <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Talents réels</h2>
           <span className="text-[10px] font-black text-[#15EA3E]">{talents.length} actif(s)</span>
         </div>
         {talents.length ? (
@@ -739,8 +739,8 @@ function FreelanceModule() {
           </div>
         ) : (
           <div className="rounded-[1.3rem] border border-white/10 bg-white/[0.04] p-5 text-center">
-            <p className="text-sm font-black">Aucun freelance reel pour le moment</p>
-            <p className="mt-2 text-xs font-semibold leading-relaxed text-white/45">Les profils business freelance apparaitront ici automatiquement.</p>
+            <p className="text-sm font-black">Aucun freelance réel pour le moment</p>
+            <p className="mt-2 text-xs font-semibold leading-relaxed text-white/45">Les profils business freelance apparaîtront ici automatiquement.</p>
           </div>
         )}
       </section>
@@ -770,7 +770,7 @@ function BiasharaModule() {
 
   const generatePlan = (event: FormEvent) => {
     event.preventDefault();
-    const cleanIdea = idea.trim() || 'une activite locale';
+    const cleanIdea = idea.trim() || 'une activité locale';
     const cleanMarket = market.trim() || 'clients AfriSell';
     const cleanNeed = need.trim() || 'un partenaire terrain';
     setPlan(`Plan rapide: valider ${cleanIdea} avec 10 clients ${cleanMarket}, publier une Vitrine ABC, mesurer les demandes via AfriChat, encaisser via AfriSpay, puis chercher ${cleanNeed} dans Biashara et animer le suivi dans Kyaghanda.`);
@@ -840,7 +840,7 @@ function BiasharaModule() {
         <form onSubmit={generatePlan} className="mt-4 space-y-3">
           <input value={idea} onChange={(event) => setIdea(event.target.value)} placeholder="Idee ou service" className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
           <input value={market} onChange={(event) => setMarket(event.target.value)} placeholder="Client cible" className="h-12 w-full rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
-          <button type="submit" className="h-12 w-full rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-widest text-black">Creer le plan</button>
+          <button type="submit" className="h-12 w-full rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-widest text-black">Créer le plan</button>
         </form>
         {plan && <p className="mt-4 rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-3 text-xs font-semibold leading-relaxed text-white/72">{plan}</p>}
       </section>
@@ -925,9 +925,9 @@ function AfriAiModule() {
   const [busy, setBusy] = useState(false);
   const suggestions = useMemo(() => [
     { label: 'Acheter', prompt: 'Je veux acheter un produit avec bon prix', icon: 'market' as AfriSellIconName },
-    { label: 'Vendre', prompt: 'Je veux vendre avec une vitrine video', icon: 'video' as AfriSellIconName },
+    { label: 'Vendre', prompt: 'Je veux vendre avec une vitrine vidéo', icon: 'video' as AfriSellIconName },
     { label: 'Payer', prompt: 'Je veux faire un transfert ou payer', icon: 'pay' as AfriSellIconName },
-    { label: 'Apprendre', prompt: 'Je veux apprendre a vendre en ligne', icon: 'school' as AfriSellIconName },
+    { label: 'Apprendre', prompt: 'Je veux apprendre à vendre en ligne', icon: 'school' as AfriSellIconName },
     { label: 'Talent', prompt: 'Je cherche un freelance pour une mission', icon: 'work' as AfriSellIconName },
   ], []);
 
@@ -963,7 +963,7 @@ function AfriAiModule() {
           event.preventDefault();
           void runAssistant();
         }} className="flex gap-2">
-          <input value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Parle ou ecris ton besoin..." className="h-12 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+          <input value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Parle ou écris ton besoin..." className="h-12 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
           <button type="submit" disabled={busy} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#15EA3E] text-black disabled:opacity-60">
             <AfriSellIcon name={busy ? 'flash' : 'language'} size={18} />
           </button>
@@ -1029,60 +1029,60 @@ function FppModule() {
 const actionSteps: Record<ModuleId, Record<string, Array<{ title: string; body: string; icon: AfriSellIconName }>>> = {
   school: {
     cours: [
-      { title: 'Choisir un parcours', body: 'Selectionne vente video, gestion boutique ou paiement securise.', icon: 'school' },
-      { title: 'Apprendre par capsules', body: 'Avance avec des lecons courtes adaptees au reseau mobile.', icon: 'video' },
+      { title: 'Choisir un parcours', body: 'Sélectionne vente vidéo, gestion boutique ou paiement sécurisé.', icon: 'school' },
+      { title: 'Apprendre par capsules', body: 'Avance avec des leçons courtes adaptées au réseau mobile.', icon: 'video' },
       { title: 'Valider la competence', body: 'Termine par une certification interne AfriSchool.', icon: 'check' }
     ],
     tuteur: [
-      { title: 'Poser la question', body: 'Ecris le probleme ou dicte-le dans la prochaine version vocale.', icon: 'language' },
-      { title: 'Recevoir une explication', body: 'AfriAI oriente vers une lecon, un module ou une action.', icon: 'flash' },
+      { title: 'Poser la question', body: 'Écris le problème ou dicte-le dans la prochaine version vocale.', icon: 'language' },
+      { title: 'Recevoir une explication', body: 'AfriAI oriente vers une leçon, un module ou une action.', icon: 'flash' },
       { title: 'Continuer le cours', body: 'La reponse reste liee au parcours AfriSchool.', icon: 'school' }
     ],
     classe: [
       { title: 'Choisir une cohorte', body: 'Rejoins une classe par theme, ville ou objectif.', icon: 'profile' },
-      { title: 'Suivre les annonces', body: 'Les activites de classe restent dans AfriSchool.', icon: 'notifications' },
-      { title: 'Projet final', body: 'Publie un Stand ou une Vitrine apres validation.', icon: 'market' }
+      { title: 'Suivre les annonces', body: 'Les activités de classe restent dans AfriSchool.', icon: 'notifications' },
+      { title: 'Projet final', body: 'Publie un Stand ou une Vitrine après validation.', icon: 'market' }
     ]
   },
   med: {
     teleconsultation: [
-      { title: 'Decrire le besoin', body: 'Indique symptomes, ville, urgence et langue preferee.', icon: 'health' },
-      { title: 'Orientation AfriMed', body: 'AfriMed prepare le type de praticien ou centre adapte.', icon: 'shield' },
+      { title: 'Décrire le besoin', body: 'Indique symptomes, ville, urgence et langue préférée.', icon: 'health' },
+      { title: 'Orientation AfriMed', body: 'AfriMed prépare le type de praticien ou centre adapté.', icon: 'shield' },
       { title: 'Demande medicale', body: 'La demande reste dans le dossier AfriMed avant contact.', icon: 'check' }
     ],
     dossier: [
-      { title: 'Identite sante', body: 'Renseigne les informations utiles au suivi.', icon: 'profile' },
+      { title: 'Identité santé', body: 'Renseigne les informations utiles au suivi.', icon: 'profile' },
       { title: 'Historique', body: 'Ajoute consultations, allergies et traitements.', icon: 'order' },
-      { title: 'Confidentialite', body: 'Controle ce qui peut etre partage avec un praticien.', icon: 'shield' }
+      { title: 'Confidentialité', body: 'Controle ce qui peut être partage avec un praticien.', icon: 'shield' }
     ],
     pharmacie: [
       { title: 'Chercher un soin', body: 'Filtre par besoin: pharmacie, laboratoire ou centre.', icon: 'search' },
-      { title: 'Verifier disponibilite', body: 'AfriMed prepare les offres sante proches.', icon: 'market' },
-      { title: 'Commander ou reserver', body: 'La suite reste reliee au parcours sante.', icon: 'cart' }
+      { title: 'Vérifier disponibilité', body: 'AfriMed prépare les offres santé proches.', icon: 'market' },
+      { title: 'Commander ou reserver', body: 'La suite reste reliee au parcours santé.', icon: 'cart' }
     ]
   },
   freelance: {
     'publier-service': [
-      { title: 'Definir le service', body: 'Titre, prix, delai, ville, competence et portfolio.', icon: 'work' },
-      { title: 'Creer la fiche mission', body: 'A-Freelance cree une offre de service, pas un produit Market.', icon: 'app' },
+      { title: 'Définir le service', body: 'Titre, prix, délai, ville, competence et portfolio.', icon: 'work' },
+      { title: 'Créer la fiche mission', body: 'A-Freelance créé une offre de service, pas un produit Market.', icon: 'app' },
       { title: 'Recevoir demandes', body: 'Les clients peuvent demander un devis dans A-Freelance.', icon: 'chat' }
     ],
     'paiement-mission': [
-      { title: 'Choisir une mission', body: 'Selectionne la mission ou le client a facturer.', icon: 'order' },
-      { title: 'Creer facture', body: 'AfriSpay prepare une facture mission avec escrow.', icon: 'pay' },
-      { title: 'Liberation', body: 'Le paiement est libere apres validation du travail.', icon: 'shield' }
+      { title: 'Choisir une mission', body: 'Sélectionne la mission ou le client à facturer.', icon: 'order' },
+      { title: 'Créer facture', body: 'AfriSpay prépare une facture mission avec escrow.', icon: 'pay' },
+      { title: 'Liberation', body: 'Le paiement est libere après validation du travail.', icon: 'shield' }
     ],
     'demandes-clients': [
-      { title: 'Boite de demandes', body: 'Consulte les demandes de mission recues.', icon: 'notifications' },
-      { title: 'Qualifier', body: 'Accepte, refuse ou demande plus d informations.', icon: 'check' },
-      { title: 'Transformer en mission', body: 'Une demande acceptee devient mission A-Freelance.', icon: 'work' }
+      { title: 'Boîte de demandes', body: 'Consulte les demandes de mission reçues.', icon: 'notifications' },
+      { title: 'Qualifier', body: 'Accepte, refusé ou demande plus d informations.', icon: 'check' },
+      { title: 'Transformer en mission', body: 'Une demande acceptée devient mission A-Freelance.', icon: 'work' }
     ]
   },
   biashara: {
     'stand-business': [
       { title: 'Choisir le type', body: 'Commerce, paiement, logistique, service ou media ABC.', icon: 'hub' },
       { title: 'Configurer le Stand', body: 'Ajoute nom, categorie, role et zone de service.', icon: 'work' },
-      { title: 'Activer le dashboard', body: 'Le Stand ouvre un tableau de bord adapte.', icon: 'app' }
+      { title: 'Activer le dashboard', body: 'Le Stand ouvre un tableau de bord adapté.', icon: 'app' }
     ],
     'vitrine-business': [
       { title: 'Construire la Vitrine', body: 'Presente offre, histoire, prix et preuves.', icon: 'market' },
@@ -1090,42 +1090,42 @@ const actionSteps: Record<ModuleId, Record<string, Array<{ title: string; body: 
       { title: 'Publier dans Biashara', body: 'La Vitrine devient visible aux partenaires business.', icon: 'check' }
     ],
     kyaghanda: [
-      { title: 'Creer le cercle', body: 'Regroupe partenaires, investisseurs ou entrepreneurs.', icon: 'profile' },
-      { title: 'Fixer l objectif', body: 'Partenariat, achat groupe, financement ou evenement.', icon: 'shield' },
+      { title: 'Créer le cercle', body: 'Regroupé partenaires, investisseurs ou entrepreneurs.', icon: 'profile' },
+      { title: 'Fixer l objectif', body: 'Partenariat, achat groupé, financement ou evenement.', icon: 'shield' },
       { title: 'Animer le Kyaghanda', body: 'Suivi des decisions, opportunites et engagements.', icon: 'chat' }
     ]
   },
   afriai: {
     'chercher-app': [
-      { title: 'Comprendre le besoin', body: 'AfriAI identifie l intention de l utilisateur.', icon: 'language' },
+      { title: 'Comprendre le besoin', body: "AfriAI identifie l'intention de l'utilisateur.", icon: 'language' },
       { title: 'Choisir le module', body: 'Il propose ABC, Market, AfriMed, School ou autre.', icon: 'hub' },
       { title: 'Guider l action', body: 'Il ouvre la suite exacte dans le bon module.', icon: 'arrow' }
     ],
     traduction: [
-      { title: 'Choisir les langues', body: 'Francais, Lingala, Swahili, Wolof ou anglais.', icon: 'language' },
-      { title: 'Preparer le contexte', body: 'Commerce, sante, ecole ou service client.', icon: 'chat' },
+      { title: 'Choisir les langues', body: 'Français, Lingala, Swahili, Wolof ou anglais.', icon: 'language' },
+      { title: 'Préparer le contexte', body: 'Commerce, santé, école ou service client.', icon: 'chat' },
       { title: 'Traduire dans le module', body: 'La traduction accompagne la conversation cible.', icon: 'check' }
     ],
     'guide-achat': [
       { title: 'Analyser le besoin', body: 'Budget, lieu, categorie et urgence.', icon: 'search' },
       { title: 'Comparer les Stands', body: 'AfriAI classe Prix Village, confiance et livraison.', icon: 'market' },
-      { title: 'Continuer vers achat', body: 'Le guide peut ouvrir le produit recommande.', icon: 'cart' }
+      { title: 'Continuer vers achat', body: 'Le guide peut ouvrir le produit recommandé.', icon: 'cart' }
     ]
   },
   fpp: {
     contribuer: [
-      { title: 'Choisir un projet', body: 'Education, sante, paix, emploi ou communaute.', icon: 'heart' },
-      { title: 'Definir contribution', body: 'Montant direct, AfriCoin ou part de vente.', icon: 'pay' },
+      { title: 'Choisir un projet', body: 'Éducation, santé, paix, emploi ou communauté.', icon: 'heart' },
+      { title: 'Définir contribution', body: 'Montant direct, AfriCoin ou part de vente.', icon: 'pay' },
       { title: 'Suivre impact', body: 'Chaque contribution alimente le tableau FPP.', icon: 'shield' }
     ],
     'vente-fpp': [
-      { title: 'Selectionner le Stand', body: 'Choisis l offre qui contribue au FPP.', icon: 'market' },
+      { title: 'Sélectionner le Stand', body: 'Choisis l offre qui contribue au FPP.', icon: 'market' },
       { title: 'Fixer le pourcentage', body: 'Ajoute la contribution sociale sur la vente.', icon: 'heart' },
       { title: 'Afficher transparence', body: 'Le client voit le projet soutenu avant achat.', icon: 'check' }
     ],
     mobiliser: [
-      { title: 'Choisir la campagne', body: 'Selectionne le projet a mobiliser.', icon: 'heart' },
-      { title: 'Creer message', body: 'Prepare un message clair pour la communaute.', icon: 'share' },
+      { title: 'Choisir la campagne', body: 'Sélectionne le projet à mobiliser.', icon: 'heart' },
+      { title: 'Créer message', body: 'Prépare un message clair pour la communauté.', icon: 'share' },
       { title: 'Suivre recommandations', body: 'Mesure partages, soutiens et conversions.', icon: 'star' }
     ]
   }
@@ -1161,7 +1161,7 @@ function ModuleActionDetail({ moduleId, actionId }: { moduleId: ModuleId; action
           <h2 className="mt-4 text-lg font-black">Connexion requise</h2>
           <p className="mt-2 text-xs font-semibold leading-relaxed text-white/55">Connecte-toi pour continuer cette action dans {meta.title}.</p>
           <Link to="/login" state={{ next: getModuleActionRoute(moduleId, action.id) }} className="mt-5 inline-flex rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">
-            Se connecter
+            Se connectér
           </Link>
         </section>
       </ModuleShell>

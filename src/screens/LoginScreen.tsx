@@ -122,7 +122,7 @@ export default function LoginScreen() {
           </div>
           <div className="min-w-0">
             <h1 className="text-2xl font-black tracking-normal">Bienvenue sur AfriSell</h1>
-            <p className="mt-1 text-xs font-semibold text-white/48">Un compte pour tout l ecosysteme.</p>
+            <p className="mt-1 text-xs font-semibold text-white/48">Un compte pour tout l’écosystème.</p>
           </div>
         </div>
 
@@ -152,12 +152,12 @@ export default function LoginScreen() {
         <section className="mt-5 min-w-0">
           <div>
             <h2 className="text-lg font-black">
-              {flow === 'login' ? 'Acceder a mon compte' : 'Creer mon compte'}
+              {flow === 'login' ? 'Accéder à mon compte' : 'Créer mon compte'}
             </h2>
             <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/45">
               {flow === 'login'
-                ? 'Choisis la methode avec laquelle tu veux te connecter.'
-                : 'Choisis une methode simple pour rejoindre AfriSell.'}
+                ? 'Choisis la méthode avec laquelle tu veux te connectér.'
+                : 'Choisis une méthode simple pour rejoindre AfriSell.'}
             </p>
           </div>
 
@@ -172,7 +172,7 @@ export default function LoginScreen() {
               : <img src="/google-logo.svg" alt="" className="h-5 w-5" />}
             {socialProviderOpening === 'google'
               ? 'Ouverture de Google'
-              : `${flow === 'login' ? 'Continuer' : 'S inscrire'} avec Google`}
+              : `${flow === 'login' ? 'Continuer' : "S'inscrire"} avec Google`}
           </button>
 
           <div className="my-4 flex items-center gap-3">
@@ -204,7 +204,7 @@ export default function LoginScreen() {
               }`}
             >
               <AfriSellIcon name="phone" size={15} />
-              Telephone
+              Téléphone
             </button>
           </div>
 
@@ -283,7 +283,7 @@ export default function LoginScreen() {
                     setPhoneCodeSent(false);
                   }}
                   required
-                  placeholder="Numero"
+                  placeholder="Numéro"
                   className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-white outline-none placeholder:text-white/28"
                 />
               </div>
@@ -318,8 +318,8 @@ export default function LoginScreen() {
           >
             {busy || loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {method === 'phone'
-              ? (phoneCodeSent ? 'Verifier le code' : 'Recevoir le code')
-              : flow === 'login' ? 'Se connecter' : 'Creer le compte'}
+              ? (phoneCodeSent ? 'Vérifier le code' : 'Recevoir le code')
+              : flow === 'login' ? 'Se connecter' : 'Créer le compte'}
             <AfriSellIcon name="arrow" size={18} />
           </button>
           </form>
@@ -331,8 +331,8 @@ export default function LoginScreen() {
           onClick={() => selectFlow(flow === 'login' ? 'register' : 'login')}
           className="mt-6 w-full text-center text-[11px] font-semibold text-white/42"
         >
-          {flow === 'login' ? 'Pas encore de compte ? ' : 'Tu as deja un compte ? '}
-          <span className="text-[#15EA3E]">{flow === 'login' ? 'S inscrire' : 'Se connecter'}</span>
+          {flow === 'login' ? 'Pas encore de compte ? ' : 'Tu as déjà un compte ? '}
+          <span className="text-[#15EA3E]">{flow === 'login' ? "S'inscrire" : 'Se connecter'}</span>
         </button>
       </div>
     </main>

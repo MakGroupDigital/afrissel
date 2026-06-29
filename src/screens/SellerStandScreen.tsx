@@ -33,7 +33,7 @@ export default function SellerStandScreen() {
             )}
           </div>
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Stand verifie</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Stand vérifie</p>
             <h2 className="mt-1 truncate text-2xl font-black">{seller?.authorName || 'Stand AfriSell'}</h2>
             <p className="mt-1 text-xs font-semibold text-white/48">{products.length} Vitrine{products.length > 1 ? 's' : ''} active{products.length > 1 ? 's' : ''}</p>
           </div>

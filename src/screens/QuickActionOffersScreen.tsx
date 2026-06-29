@@ -53,25 +53,25 @@ const sections: Record<OfferSectionId, {
     eyebrow: 'Offres alimentaires',
     body: 'Restaurants, traiteurs, snacks et services food publies par des entreprises AfriSell.',
     emptyTitle: 'Aucune offre restauration',
-    emptyBody: 'Les entreprises de restauration apparaitront ici des qu elles publient une offre.',
+    emptyBody: "Les entreprises de restauration apparaîtront ici dès qu'elles publient une offre.",
     icon: 'market',
     keywords: ['restaurant', 'restauration', 'traiteur', 'food', 'repas', 'snack', 'cuisine', 'boisson']
   },
   event: {
     title: 'Event',
     eyebrow: 'Evenements',
-    body: 'Billets, services evenementiels, salles, animation et organisation proposes par des entreprises.',
+    body: 'Billets, services evenementiels, salles, animation et organisation proposés par des entreprises.',
     emptyTitle: 'Aucune offre event',
-    emptyBody: 'Les offres event apparaitront ici quand une entreprise publie un service ou un article lie.',
+    emptyBody: "Les offres événement apparaîtront ici quand une entreprise publie un service ou un article lié.",
     icon: 'notifications',
     keywords: ['event', 'evenement', 'billet', 'concert', 'salle', 'ceremonie', 'animation', 'festival']
   },
   immo: {
     title: 'Immobilier',
     eyebrow: 'Biens et services immo',
-    body: 'Locations, ventes, visites, terrains, maisons et services immobiliers proposes par les comptes concernes.',
+    body: 'Locations, ventes, visites, terrains, maisons et services immobiliers proposés par les comptes concernés.',
     emptyTitle: 'Aucune offre immo',
-    emptyBody: 'Les offres immo seront visibles ici uniquement quand un compte immobilier publie une offre.',
+    emptyBody: "Les offres immo seront visibles ici uniquement quand un compte immobilier publie une offre.",
     icon: 'home',
     keywords: ['immo', 'immobilier', 'maison', 'terrain', 'location', 'appartement', 'parcelle', 'villa']
   }

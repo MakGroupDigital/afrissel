@@ -215,7 +215,7 @@ export default function AccountSetupScreen() {
     event.preventDefault();
 
     if (!primaryRole || !primarySubtype) {
-      setError('Choisis d abord ce que tu veux faire sur AfriSell.');
+      setError("Choisis d'abord ce que tu veux faire sur AfriSell.");
       setStepIndex(primaryRole ? 1 : 0);
       return;
     }
@@ -276,7 +276,7 @@ export default function AccountSetupScreen() {
       await refreshProfile();
     } catch (uploadError) {
       console.error('Upload media profil AfriSell impossible:', uploadError);
-      setError('Ajout impossible. Reessaie avec une image ou une video plus legere.');
+      setError('Ajout impossible. Réessaie avec une image ou une vidéo plus légère.');
     } finally {
       setBusy(false);
     }
@@ -284,7 +284,7 @@ export default function AccountSetupScreen() {
 
   const completeSetup = async () => {
     if (!primaryRole || !primarySubtype) {
-      setError('Choisis d abord ton activite.');
+      setError("Choisis d'abord ton activité.");
       setStepIndex(primaryRole ? 1 : 0);
       return;
     }
@@ -341,11 +341,11 @@ export default function AccountSetupScreen() {
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Avant de commencer</p>
-            <h1 className="mt-1 text-xl font-black tracking-normal">Complete ton profil</h1>
+            <h1 className="mt-1 text-xl font-black tracking-normal">Complète ton profil</h1>
           </div>
         </div>
         <p className="mt-3 text-[11px] font-semibold leading-relaxed text-white/50">
-          Dis-nous comment tu veux utiliser AfriSell pour preparer ton espace.
+          Dis-nous comment tu veux utiliser AfriSell pour préparer ton espace.
         </p>
       </header>
 
@@ -415,7 +415,7 @@ export default function AccountSetupScreen() {
           </button>
           <h2 className="text-sm font-black">{roleDefinition.label}</h2>
           <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/45">
-            Choisis ce qui correspond le mieux a ton activite.
+            Choisis ce qui correspond le mieux à ton activité.
           </p>
           <div className="mt-4 flex flex-col gap-2.5">
             {roleDefinition.subtypes.map((subtype) => (
@@ -455,7 +455,7 @@ export default function AccountSetupScreen() {
           </button>
           <h2 className="text-sm font-black">Quelques infos</h2>
           <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/45">
-            Elles nous aident a afficher le bon nom et la bonne ville.
+            Elles nous aident à afficher le bon nom et la bonne ville.
           </p>
 
           <form onSubmit={submitDetails} className="mt-4 flex flex-col gap-3">
@@ -506,7 +506,7 @@ export default function AccountSetupScreen() {
                 <div className="mt-2 text-sm font-black text-[#15EA3E]">{selectedCountry.dialCode}</div>
               </label>
               <label className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/38">Numero</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/38">Numéro</span>
                 <input
                   value={phoneLocal}
                   onChange={(event) => setPhoneLocal(event.target.value)}
@@ -535,13 +535,13 @@ export default function AccountSetupScreen() {
                 {citiesLoading
                   ? 'Recherche des villes...'
                   : citiesSource === 'online'
-                    ? 'Villes proposees selon le pays choisi.'
-                    : 'Choisis dans la liste ou ecris ta ville.'}
+                    ? 'Villes proposées selon le pays choisi.'
+                    : 'Choisis dans la liste ou écris ta ville.'}
               </p>
             </label>
 
             <label className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/38">Petite presentation</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/38">Petite présentation</span>
               <textarea
                 value={bio}
                 onChange={(event) => setBio(event.target.value)}
@@ -598,7 +598,7 @@ export default function AccountSetupScreen() {
 
             {!isCloudinaryReady() && (
               <p className="mt-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-[10px] font-bold leading-relaxed text-yellow-100">
-                L ajout de photo n est pas disponible pour le moment.
+                L'ajout de photo n'est pas disponible pour le moment.
               </p>
             )}
 
@@ -608,7 +608,7 @@ export default function AccountSetupScreen() {
                 : 'bg-white text-black'
             }`}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <AfriSellIcon name="clip" size={16} />}
-              Ajouter une image/video
+              Ajouter une image/vidéo
               <input
                 type="file"
                 accept="image/*,video/*"

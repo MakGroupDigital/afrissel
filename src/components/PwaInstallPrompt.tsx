@@ -132,8 +132,8 @@ export default function PwaInstallPrompt() {
               <p className="text-sm font-black">{isIOS ? 'Installer AfriSell' : 'Telecharger AfriSell'}</p>
               <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/56">
                 {isIOS
-                  ? 'Ajoute l app a ton ecran et active les alertes en temps reel.'
-                  : 'Installe l app sur cet appareil et active les alertes en temps reel.'}
+                  ? "Ajoute l'app à ton écran et active les alertes en temps réel."
+                  : "Installe l'app sur cet appareil et active les alertes en temps réel."}
               </p>
             </div>
           </div>
@@ -174,9 +174,9 @@ export default function PwaInstallPrompt() {
                 <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#15EA3E]">iPhone</p>
                 <div className="mt-3 grid gap-2 text-[11px] font-semibold leading-relaxed text-white/64">
                   {[
-                    'Ouvre le menu du navigateur, les 3 points en bas ou en haut selon ton telephone.',
-                    'Appuie sur Partager, puis Plus si l option n apparait pas.',
-                    'Choisis Ajouter a l ecran d accueil, puis confirme.'
+                    'Ouvre le menu du navigateur, les 3 points en bas ou en haut selon ton téléphone.',
+                    'Appuie sur Partager, puis Plus si l’option n’apparaît pas.',
+                    "Choisis Ajouter à l'écran d'accueil, puis confirme."
                   ].map((step, index) => (
                     <div key={step} className="flex items-start gap-2">
                       <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#15EA3E] text-[10px] font-black text-black">
@@ -203,9 +203,9 @@ export default function PwaInstallPrompt() {
             <p className="text-[11px] font-black">Notifications</p>
             <p className="mt-0.5 text-[10px] font-semibold text-white/44">
               {notificationsEnabled
-                ? 'Alertes activees sur cet appareil.'
+                ? 'Alertes activées sur cet appareil.'
                 : notificationsUnsupported
-                  ? 'Ce navigateur ne gere pas les notifications.'
+                  ? 'Ce navigateur ne gère pas les notifications.'
                   : 'Active les alertes pour messages, commandes et paiements.'}
             </p>
           </div>

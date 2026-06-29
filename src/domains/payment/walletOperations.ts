@@ -25,7 +25,7 @@ const normalizeAmount = (amount: number) => {
 const getAccountNumber = (uid: string) => `SPAY${uid.slice(0, 4).toUpperCase()}${Date.now().toString().slice(-4)}`;
 
 const getOperationTitle = (type: WalletOperationType, recipient: string) => {
-  if (type === 'deposit') return `Depot Mobile Money ${recipient}`;
+  if (type === 'deposit') return `Dépôt Mobile Money ${recipient}`;
   if (type === 'withdraw') return `Retrait Mobile Money ${recipient}`;
   return `Transfert AfriSpay ${recipient}`;
 };
@@ -52,7 +52,7 @@ const creditWallet = async (uid: string, amount: number) => {
 export async function executeWalletOperation(input: WalletOperationInput) {
   const amount = normalizeAmount(input.amount);
   const recipient = input.phoneOrRecipient.trim();
-  if (!recipient) throw new Error('Numero ou beneficiaire requis.');
+  if (!recipient) throw new Error('Numéro ou bénéficiaire requis.');
 
   const operationRef = push(ref(realtimeDb, `walletTransactions/${input.user.uid}`));
   const operationId = operationRef.key;

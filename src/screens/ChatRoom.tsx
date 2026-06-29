@@ -74,6 +74,18 @@ type WindowWithBarcodeDetector = Window & {
   BarcodeDetector?: BarcodeDetectorConstructor;
 };
 
+const getThreadParticipantId = (thread: AfriChatThread, currentUserId?: string | null) => {
+  if (!currentUserId) return '';
+  if (thread.participantId && thread.participantId !== currentUserId && !thread.participantId.startsWith('device_')) {
+    return thread.participantId;
+  }
+  if (thread.type && !['direct', 'support'].includes(thread.type)) return '';
+
+  return thread.id
+    .split('_')
+    .find((part) => part && part !== currentUserId && !part.startsWith('device_')) || '';
+};
+
 const chatSpaces: Array<{ id: ChatSpace; label: string; icon: AfriSellIconName }> = [
   { id: 'chat', label: 'Chat', icon: 'chat' },
   { id: 'kialanda', label: 'Kialanda', icon: 'profile' },
@@ -283,9 +295,9 @@ function MessageBubble({ message, isMine }: { key?: React.Key; message: AfriChat
 
 function ChatSettingsSheet({ onClose }: { onClose: () => void }) {
   const settings = [
-    { icon: 'notifications' as AfriSellIconName, title: 'Notifications', body: 'Gerer les alertes des chats, Kialanda, vitrines, villages et stories.' },
-    { icon: 'shield' as AfriSellIconName, title: 'Confidentialite', body: 'Controle qui peut te contacter, voir tes stories et t inviter dans un Village.' },
-    { icon: 'language' as AfriSellIconName, title: 'Traduction', body: 'Preparer la traduction instantanee des conversations AfriChat.' },
+    { icon: 'notifications' as AfriSellIconName, title: 'Notifications', body: 'Gérer les alertes des chats, Kialanda, vitrines, villages et stories.' },
+    { icon: 'shield' as AfriSellIconName, title: 'Confidentialité', body: "Contrôle qui peut te contacter, voir tes stories et t'inviter dans un Village." },
+    { icon: 'language' as AfriSellIconName, title: 'Traduction', body: 'Préparer la traduction instantanée des conversations AfriChat.' },
     { icon: 'offline' as AfriSellIconName, title: 'Mode offline', body: 'Les messages en attente restent visibles avec un seul trait.' }
   ];
 
@@ -379,11 +391,16 @@ export default function ChatRoom() {
   const activeParticipantId = activeThread?.participantId && !activeThread.participantId.startsWith('device_')
     ? activeThread.participantId
     : '';
-  const acceptedContactIds = useMemo(() => new Set(
-    contacts
+  const acceptedContactIds = useMemo(() => {
+    const contactIds = contacts
       .filter((contact) => !contact.id.startsWith('device_') && !String(contact.status || '').toLowerCase().includes('demande'))
-      .map((contact) => contact.id)
-  ), [contacts]);
+      .map((contact) => contact.id);
+    const threadContactIds = threads
+      .map((thread) => getThreadParticipantId(thread, user?.uid))
+      .filter(Boolean);
+
+    return new Set([...contactIds, ...threadContactIds]);
+  }, [contacts, threads, user?.uid]);
   const visibleStories = useMemo(() => (
     stories.filter((story) => story.authorId === user?.uid || acceptedContactIds.has(story.authorId))
   ), [acceptedContactIds, stories, user?.uid]);
@@ -501,7 +518,7 @@ export default function ChatRoom() {
   const openContact = async (contact: AfriChatContact) => {
     if (!user) return;
     if (String(contact.status || '').toLowerCase().includes('demande')) {
-      setContactsStatus('Cette discussion sera disponible quand la demande sera acceptee.');
+      setContactsStatus('Cette discussion sera disponible quand la demande sera acceptée.');
       return;
     }
 
@@ -583,10 +600,10 @@ export default function ChatRoom() {
         });
         return merged.sort((first, second) => first.displayName.localeCompare(second.displayName));
       });
-      setContactsStatus(nextContacts.length ? `${nextContacts.length} contact(s) importe(s).` : 'Aucun contact selectionne.');
+      setContactsStatus(nextContacts.length ? `${nextContacts.length} contact(s) importe(s).` : 'Aucun contact sélectionné.');
     } catch (contactError) {
       console.error('Import contacts appareil impossible:', contactError);
-      setContactsStatus('Acces aux contacts annule ou refuse par l appareil.');
+      setContactsStatus("Accès aux contacts annulé ou refusé par l'appareil.");
     } finally {
       setImportingContacts(false);
     }
@@ -682,11 +699,11 @@ export default function ChatRoom() {
     try {
       const match = knownMatch || await findUserByIdentifier(cleanIdentifier);
       if (!match) {
-        setContactsStatus('Aucun utilisateur AfriSell trouve avec cet identifiant.');
+        setContactsStatus('Aucun utilisateur AfriSell trouvé avec cet identifiant.');
         return;
       }
       if (match.id === user.uid) {
-        setContactsStatus('Tu ne peux pas t ajouter toi-meme.');
+        setContactsStatus("Tu ne peux pas t'ajouter toi-même.");
         return;
       }
 
@@ -710,7 +727,7 @@ export default function ChatRoom() {
           id: match.id,
           displayName,
           avatarURL,
-          status: 'Demande envoyee',
+          status: 'Demande envoyée',
           requestStatus: 'pending',
           updatedAt: serverTimestamp()
         }
@@ -721,7 +738,7 @@ export default function ChatRoom() {
       setManualLookupResult(null);
       setShowAddContactPanel(false);
       setShowQrScanner(false);
-      setContactsStatus('Demande envoyee. La discussion et les stories seront disponibles apres acceptation.');
+      setContactsStatus('Demande envoyée. La discussion et les stories seront disponibles après acceptation.');
     } catch (addError) {
       setContactsStatus(getChatActionErrorMessage(addError, 'Ajout du contact impossible.'));
     } finally {
@@ -757,7 +774,7 @@ export default function ChatRoom() {
 
     try {
       await update(ref(realtimeDb), updates);
-      setContactsStatus('Demande acceptee. Tu peux lancer la discussion.');
+      setContactsStatus('Demande acceptée. Tu peux lancer la discussion.');
     } catch (acceptError) {
       setContactsStatus(getChatActionErrorMessage(acceptError, 'Acceptation impossible.'));
     }
@@ -786,9 +803,9 @@ export default function ChatRoom() {
 
   const startQrScanner = async () => {
     setShowQrScanner(true);
-    setQrStatus('Ouverture camera...');
+    setQrStatus('Ouverture caméra...');
     if (!navigator.mediaDevices?.getUserMedia) {
-      setQrStatus('Camera indisponible sur ce navigateur.');
+      setQrStatus('Caméra indisponible sur ce navigateur.');
       return;
     }
 
@@ -805,7 +822,7 @@ export default function ChatRoom() {
 
       const BarcodeDetector = (window as WindowWithBarcodeDetector).BarcodeDetector;
       if (!BarcodeDetector) {
-        setQrStatus('Camera active. Si le QR n est pas detecte, colle le code manuellement.');
+        setQrStatus("Caméra active. Si le QR n'est pas détecté, colle le code manuellement.");
         return;
       }
 
@@ -819,12 +836,12 @@ export default function ChatRoom() {
           const rawValue = codes[0]?.rawValue;
           if (!rawValue) return;
           stopQrScanner();
-          setQrStatus('QR detecte.');
+          setQrStatus('QR détecté.');
           void requestChatContact(rawValue);
         }).catch(() => undefined);
       }, 700);
     } catch {
-      setQrStatus('Autorise la camera pour scanner un QR utilisateur.');
+      setQrStatus('Autorise la caméra pour scanner un QR utilisateur.');
     }
   };
 
@@ -834,7 +851,7 @@ export default function ChatRoom() {
     if (!file) return;
 
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-      setStoryStatus('Choisis une image ou une video.');
+      setStoryStatus('Choisis une image ou une vidéo.');
       return;
     }
 
@@ -854,7 +871,7 @@ export default function ChatRoom() {
       return;
     }
     if (!isCloudinaryReady()) {
-      setStoryStatus('Cloudinary doit etre configure pour publier une story.');
+      setStoryStatus('Cloudinary doit être configuré pour publier une story.');
       return;
     }
 
@@ -929,7 +946,7 @@ export default function ChatRoom() {
       },
       kyaghanda: {
         title: 'Kialanda Business',
-        status: 'Groupe prive',
+        status: 'Groupe privé',
         nextSpace: 'kialanda' as ChatSpace
       },
       support: {
@@ -949,7 +966,7 @@ export default function ChatRoom() {
         setActiveSpace(config.nextSpace || 'chat');
       }
     } catch (threadError) {
-      setActionStatus(getChatActionErrorMessage(threadError, 'Creation de discussion impossible.'));
+      setActionStatus(getChatActionErrorMessage(threadError, 'Création de discussion impossible.'));
     } finally {
       setCreatingThread('');
     }
@@ -1134,7 +1151,7 @@ export default function ChatRoom() {
                   className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
                 >
                   <AfriSellIcon name="shield" size={17} className="text-[#15EA3E]" />
-                  <span className="text-xs font-black text-white">Gerer la conversation</span>
+                  <span className="text-xs font-black text-white">Gérer la conversation</span>
                 </button>
                 <button
                   type="button"
@@ -1222,7 +1239,7 @@ export default function ChatRoom() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-black text-white">Ajouter un utilisateur</p>
-                  <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-gray-500">Scanne un QR ou ajoute un email/numero AfriSell.</p>
+                  <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-gray-500">Scanne un QR ou ajoute un email/numéro AfriSell.</p>
                 </div>
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1245,7 +1262,7 @@ export default function ChatRoom() {
 
             {incomingRequests.length > 0 && (
               <div className="space-y-2 rounded-[1.35rem] border border-[#15EA3E]/18 bg-[#071007] p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Demandes recues</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Demandes reçues</p>
                 {incomingRequests.map((request) => (
                   <div key={request.id} className="rounded-2xl border border-white/10 bg-black/24 p-3">
                     <div className="flex items-center gap-3">
@@ -1274,7 +1291,7 @@ export default function ChatRoom() {
                   <AfriSellIcon name="profile" size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black text-white">Contacts de l appareil</p>
+                  <p className="text-xs font-black text-white">Contacts de l'appareil</p>
                   <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-gray-500">Invite ou retrouve rapidement une personne.</p>
                 </div>
                 <button
@@ -1304,7 +1321,7 @@ export default function ChatRoom() {
                 />
               ))
             ) : (
-              <EmptyState icon="chat" title="Aucune discussion" body="Tes conversations apparaitront ici des qu elles seront creees." />
+              <EmptyState icon="chat" title="Aucune discussion" body="Tes conversations apparaîtront ici dès qu'elles seront créées." />
             )}
             {filteredContacts.length > 0 && (
               <div className="space-y-2">
@@ -1331,7 +1348,7 @@ export default function ChatRoom() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-black text-white">Kialanda</p>
-                  <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-white/55">Groupes prives pour echanger comme une vraie table de discussion.</p>
+                  <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-white/55">Groupes privés pour echanger comme une vraie table de discussion.</p>
                 </div>
                 <button
                   type="button"
@@ -1339,7 +1356,7 @@ export default function ChatRoom() {
                   disabled={Boolean(creatingThread)}
                   className="rounded-xl bg-[#15EA3E] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-black disabled:bg-gray-800 disabled:text-gray-500"
                 >
-                  {creatingThread === 'kyaghanda' ? '...' : 'Creer'}
+                  {creatingThread === 'kyaghanda' ? '...' : 'Créer'}
                 </button>
               </div>
             </div>
@@ -1348,7 +1365,7 @@ export default function ChatRoom() {
                 <ThreadRow key={thread.id} thread={thread} active={thread.id === activeThreadId} onOpen={() => openThread(thread)} />
               ))
             ) : (
-              <EmptyState icon="profile" title="Aucun Kialanda" body="Cree un groupe pour tes proches, partenaires ou equipes." />
+              <EmptyState icon="profile" title="Aucun Kialanda" body="Cree un groupé pour tes proches, partenaires ou equipes." />
             )}
           </div>
         )}
@@ -1363,7 +1380,7 @@ export default function ChatRoom() {
               </div>
               <div className="p-4">
                 <p className="text-sm font-black text-white">Vitrine AfriChat</p>
-                <p className="mt-1 text-xs font-semibold leading-relaxed text-gray-500">Les chaines officielles, boutiques, createurs et services apparaitront ici.</p>
+                <p className="mt-1 text-xs font-semibold leading-relaxed text-gray-500">Les chaînes officielles, boutiques, créateurs et services apparaîtront ici.</p>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button type="button" onClick={() => navigate('/market')} className="rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black">
                     Voir Market
@@ -1382,8 +1399,8 @@ export default function ChatRoom() {
           <div className="space-y-3">
             <div className="grid grid-cols-1 gap-2">
               {[
-                { label: 'Village prive', status: 'Acces restreint', body: 'Communauté fermee sur invitation.' },
-                { label: 'Village d achat', status: 'Acheteurs groupes', body: 'Cree par les acheteurs pour negocier ensemble.' },
+                { label: 'Village privé', status: 'Acces restreint', body: 'Communauté fermee sur invitation.' },
+                { label: 'Village d achat', status: 'Acheteurs groupés', body: 'Cree par les acheteurs pour negocier ensemble.' },
                 { label: 'Village business', status: 'Business restreint', body: 'Entrepreneurs, entreprises, freelances et formateurs.' }
               ].map((item) => (
                 <button
@@ -1417,7 +1434,7 @@ export default function ChatRoom() {
                 ))}
               </div>
             ) : (
-              <EmptyState icon="hub" title="Aucun Village" body="Tes communautes privees, achats groupes et villages business apparaitront ici." />
+              <EmptyState icon="hub" title="Aucun Village" body="Tes communautés privées, achats groupés et villages business apparaîtront ici." />
             )}
           </div>
         )}
@@ -1493,7 +1510,7 @@ export default function ChatRoom() {
                 ))}
               </div>
             ) : (
-              <EmptyState icon="video" title="Aucune story" body="Les stories de tes contacts acceptes seront affichees ici." />
+              <EmptyState icon="video" title="Aucune story" body="Les stories de tes contacts acceptés seront affichées ici." />
             )}
           </div>
         )}
@@ -1540,12 +1557,12 @@ export default function ChatRoom() {
               <input
                 value={manualContactValue}
                 onChange={(event) => setManualContactValue(event.target.value)}
-                placeholder="Email, numero ou code QR AfriSell"
+                placeholder="Email, numéro ou code QR AfriSell"
                 className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-white outline-none placeholder:text-white/28"
               />
             </label>
             <p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/42">
-              Une demande sera envoyee. La discussion et les stories seront accessibles apres acceptation.
+              Une demande sera envoyée. La discussion et les stories seront accessibles après acceptation.
             </p>
             {manualLookupLoading && (
               <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white/45">
@@ -1554,7 +1571,7 @@ export default function ChatRoom() {
             )}
             {!manualLookupLoading && manualContactValue.trim().length >= 3 && !manualLookupResult && (
               <p className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[10px] font-semibold leading-relaxed text-red-100">
-                Aucun utilisateur trouve pour cette saisie.
+                Aucun utilisateur trouvé pour cette saisie.
               </p>
             )}
             {manualLookupResult && (
@@ -1573,7 +1590,7 @@ export default function ChatRoom() {
                       {[manualLookupResult.profile.city, manualLookupResult.profile.country].filter(Boolean).join(', ') || manualLookupResult.profile.email || manualLookupResult.profile.phone || 'Profil AfriSell'}
                     </p>
                     {manualLookupResult.id === user?.uid && (
-                      <p className="mt-1 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">C est ton compte</p>
+                      <p className="mt-1 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">C&apos;est ton compte</p>
                     )}
                   </div>
                 </div>

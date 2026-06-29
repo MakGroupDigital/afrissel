@@ -29,7 +29,7 @@ export const domainRegistry: DomainDefinition[] = [
   {
     id: 'payment',
     label: 'Payment',
-    responsibility: 'AfriSpay, wallet, transactions, escrow, depot, retrait et transfert.',
+    responsibility: 'AfriSpay, wallet, transactions, escrow, dépôt, retrait et transfert.',
     frontendScope: ['wallet', 'transactions', 'checkout'],
     apiPrefix: '/api/payment',
     plannedService: 'payment-service'
@@ -37,7 +37,7 @@ export const domainRegistry: DomainDefinition[] = [
   {
     id: 'chat',
     label: 'Chat',
-    responsibility: 'AfriChat, conversations, messages, groupes Village/Kyaghanda et partage produit.',
+    responsibility: 'AfriChat, conversations, messages, groupés Village/Kyaghanda et partage produit.',
     frontendScope: ['threads', 'messages', 'contacts'],
     apiPrefix: '/api/chat',
     plannedService: 'chat-service'
@@ -53,7 +53,7 @@ export const domainRegistry: DomainDefinition[] = [
   {
     id: 'media',
     label: 'Media',
-    responsibility: 'Cloudinary, images, videos, optimisation reseau et moderation media.',
+    responsibility: 'Cloudinary, images, videos, optimisation réseau et modération media.',
     frontendScope: ['uploads', 'video-streams', 'media-library'],
     apiPrefix: '/api/media',
     plannedService: 'media-service'

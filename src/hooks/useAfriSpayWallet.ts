@@ -126,7 +126,7 @@ export const useAfriSpayWallet = () => {
 
     if (isOfflineNow()) {
       setLoading(false);
-      setError(cachedWallet || cachedTransactions.length ? 'Mode hors ligne: donnees AfriSpay locales affichees.' : 'Mode hors ligne: aucune donnee AfriSpay locale disponible.');
+      setError(cachedWallet || cachedTransactions.length ? 'Mode hors ligne: données AfriSpay locales affichées.' : 'Mode hors ligne: aucune donnée AfriSpay locale disponible.');
     }
 
     void Promise.all([
@@ -191,7 +191,7 @@ export const useAfriSpayWallet = () => {
         console.error('Chargement transactions AfriSpay impossible:', transactionsError);
         const fallback = readOfflineCache<AfriSpayTransaction[]>(transactionsCacheKey, []);
         if (fallback.length) setTransactions(fallback);
-        setError(fallback.length ? 'Mode hors ligne: transactions locales affichees.' : 'Transactions indisponibles pour le moment.');
+        setError(fallback.length ? 'Mode hors ligne: transactions locales affichées.' : 'Transactions indisponibles pour le moment.');
       }
     );
 

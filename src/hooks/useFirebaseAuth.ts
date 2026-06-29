@@ -17,6 +17,7 @@ import {
 } from 'firebase/auth';
 import {
   get,
+  onValue,
   push,
   ref,
   serverTimestamp,
@@ -110,6 +111,7 @@ let authStore: AuthStoreState = {
   authError: ''
 };
 let unsubscribeAuthState: (() => void) | null = null;
+let unsubscribeProfileState: (() => void) | null = null;
 let authSyncVersion = 0;
 let redirectResultHandled = false;
 let phoneRecaptchaVerifier: RecaptchaVerifier | null = null;
@@ -147,7 +149,7 @@ const profileCacheKey = (uid: string) => offlineCacheKey('profile', uid);
 const withDatabaseTimeout = <T,>(operation: Promise<T>, label: string): Promise<T> =>
   new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => {
-      reject(new Error(`${label} a pris trop de temps.`));
+      reject(new Error(`${label} à pris trop de temps.`));
     }, DATABASE_TIMEOUT_MS);
 
     operation
@@ -169,7 +171,7 @@ export const getAfriSellDataErrorMessage = (error: unknown) => {
     message.includes('PERMISSION_DENIED') ||
     message.includes('Missing or insufficient permissions')
   ) {
-    return 'La base refuse cette action. Verifie les regles Realtime Database.';
+    return 'La base refuse cette action. Vérifie les règles Realtime Database.';
   }
 
   if (
@@ -180,10 +182,10 @@ export const getAfriSellDataErrorMessage = (error: unknown) => {
     message.includes('Client is offline') ||
     message.includes('a pris trop de temps')
   ) {
-    return 'La base de donnees AfriSell n est pas disponible. Verifie Realtime Database puis recharge l app.';
+    return "La base de données AfriSell n'est pas disponible. Vérifie Realtime Database puis recharge l'app.";
   }
 
-  return 'Impossible d enregistrer pour le moment. Reessaie dans quelques instants.';
+  return "Impossible d'enregistrer pour le moment. Réessaie dans quelques instants.";
 };
 
 export const getAfriSellAuthErrorMessage = (error: unknown) => {
@@ -206,7 +208,7 @@ export const getAfriSellAuthErrorMessage = (error: unknown) => {
   }
 
   if (message.includes('auth/email-already-in-use')) {
-    return 'Un compte existe deja avec cet email.';
+    return 'Un compte existe déjà avec cet email.';
   }
 
   if (message.includes('auth/weak-password')) {
@@ -214,19 +216,19 @@ export const getAfriSellAuthErrorMessage = (error: unknown) => {
   }
 
   if (message.includes('auth/popup-closed-by-user')) {
-    return 'Connexion Google annulee.';
+    return 'Connexion Google annulée.';
   }
 
   if (message.includes('auth/popup-blocked')) {
-    return 'La fenetre Google a ete bloquee par le navigateur.';
+    return 'La fenêtre Google a été bloquée par le navigateur.';
   }
 
   if (message.includes('auth/invalid-phone-number')) {
-    return 'Numero de telephone invalide. Utilise le format international.';
+    return 'Numéro de téléphone invalide. Utilise le format international.';
   }
 
   if (message.includes('auth/missing-phone-number')) {
-    return 'Entre ton numero de telephone.';
+    return 'Entre ton numéro de téléphone.';
   }
 
   if (message.includes('auth/invalid-verification-code')) {
@@ -234,23 +236,23 @@ export const getAfriSellAuthErrorMessage = (error: unknown) => {
   }
 
   if (message.includes('auth/missing-verification-code')) {
-    return 'Entre le code recu par SMS.';
+    return 'Entre le code reçu par SMS.';
   }
 
   if (message.includes('auth/code-expired')) {
-    return 'Le code SMS a expire. Demande un nouveau code.';
+    return 'Le code SMS à expire. Demande un nouveau code.';
   }
 
   if (message.includes('auth/captcha-check-failed')) {
-    return 'Verification securite impossible. Recharge la page puis reessaie.';
+    return 'Vérification sécurité impossible. Recharge la page puis réessaie.';
   }
 
   if (message.includes('auth/too-many-requests')) {
-    return 'Trop de tentatives. Reessaie plus tard.';
+    return 'Trop de tentatives. Réessaie plus tard.';
   }
 
   if (message.includes('auth/billing-not-enabled')) {
-    return 'La connexion par telephone exige l activation de la facturation Firebase pour envoyer les SMS.';
+    return "La connexion par téléphone exige l'activation de la facturation Firebase pour envoyer les SMS.";
   }
 
   if (
@@ -260,18 +262,18 @@ export const getAfriSellAuthErrorMessage = (error: unknown) => {
     message.includes('auth/unauthorized-domain') ||
     message.includes('Firebase: Error')
   ) {
-    return 'Configuration de connexion invalide. Verifie Firebase Auth puis reessaie.';
+    return 'Configuration de connexion invalide. Vérifie Firebase Auth puis réessaie.';
   }
 
   if (message.includes('auth/operation-not-allowed')) {
-    return 'Cette methode de connexion n est pas encore activee dans Firebase Auth.';
+    return "Cette méthode de connexion n'est pas encore activée dans Firebase Auth.";
   }
 
   if (message.includes('auth/network-request-failed')) {
-    return 'Connexion internet instable. Reessaie.';
+    return 'Connexion internet instable. Réessaie.';
   }
 
-  return 'Connexion impossible pour le moment. Reessaie dans quelques instants.';
+  return 'Connexion impossible pour le moment. Réessaie dans quelques instants.';
 };
 
 const isSilentRedirectError = (error: unknown) => {
@@ -320,6 +322,29 @@ const syncUserProfile = async (user: User): Promise<AfriSellUserProfile> => {
 
   writeOfflineCache(profileCacheKey(user.uid), profile);
   return profile;
+};
+
+const stopProfileListener = () => {
+  if (!unsubscribeProfileState) return;
+  unsubscribeProfileState();
+  unsubscribeProfileState = null;
+};
+
+const startProfileListener = (user: User) => {
+  stopProfileListener();
+  unsubscribeProfileState = onValue(ref(realtimeDb, `users/${user.uid}`), (snapshot) => {
+    if (!snapshot.exists() || firebaseAuth.currentUser?.uid !== user.uid) return;
+    const liveProfile = buildProfile(user, snapshot.val() as Partial<AfriSellUserProfile>);
+    writeOfflineCache(profileCacheKey(user.uid), liveProfile);
+    updateAuthStore({
+      user,
+      profile: liveProfile,
+      loading: false,
+      authError: ''
+    });
+  }, (error) => {
+    console.error('Ecoute profil AfriSell impossible:', error);
+  });
 };
 
 const cleanText = (value?: string) => value?.trim() || '';
@@ -387,7 +412,7 @@ export const updateAfriSellUserPhoto = async (user: User, photoURL: string) => {
   await withDatabaseTimeout(update(ref(realtimeDb, `users/${user.uid}`), {
     photoURL,
     updatedAt: serverTimestamp()
-  }), 'Mise a jour de la photo');
+  }), 'Mise à jour de la photo');
   const cachedProfile = readOfflineCache<AfriSellUserProfile | null>(profileCacheKey(user.uid), null);
   if (cachedProfile) {
     writeOfflineCache(profileCacheKey(user.uid), {
@@ -440,6 +465,7 @@ const syncCurrentUser = async (currentUser: User | null) => {
   });
 
   if (!currentUser) {
+    stopProfileListener();
     if (hasPendingGoogleRedirect()) {
       updateAuthStore({
         user: null,
@@ -468,6 +494,7 @@ const syncCurrentUser = async (currentUser: User | null) => {
       loading: false,
       authError: ''
     });
+    startProfileListener(currentUser);
   } catch (error) {
     console.error('Erreur profil Realtime Database:', error);
     if (syncVersion !== authSyncVersion) return;
@@ -481,6 +508,7 @@ const syncCurrentUser = async (currentUser: User | null) => {
       loading: false,
       authError: cachedProfile && isOfflineNow() ? '' : getAfriSellDataErrorMessage(error)
     });
+    startProfileListener(currentUser);
   }
 };
 
@@ -585,7 +613,7 @@ const consumeGoogleRedirectResult = async () => {
 
         updateAuthStore({
           loading: false,
-          authError: 'Connexion terminee, mais le compte n a pas ete restaure sur cet appareil. Reessaie une fois.'
+          authError: 'Connexion terminée, mais le compte n’a pas été restauré sur cet appareil. Reessaie une fois.'
         });
       }, 3200);
     }
@@ -680,6 +708,7 @@ export const useFirebaseAuth = () => {
     },
     logout: async () => {
       updateAuthStore({ authError: '' });
+      stopProfileListener();
       await signOut(firebaseAuth);
       updateAuthStore({
         user: null,

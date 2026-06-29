@@ -47,7 +47,7 @@ type UserSettings = {
     alerts: boolean;
   };
   privacy: {
-    camera: boolean;
+    caméra: boolean;
     contacts: boolean;
     location: boolean;
     publicProfile: boolean;
@@ -91,19 +91,19 @@ const businessCategories: BusinessCategory[] = [
     id: 'commerce',
     label: 'E-commerce',
     moduleName: 'ABC + Market',
-    description: 'Vendre, distribuer, produire ou gerer une boutique dans AfriSell.',
+    description: 'Vendre, distribuer, produire ou gèrer une boutique dans AfriSell.',
     icon: 'market',
     role: 'seller',
     services: [
       {
         id: 'store',
-        label: 'Creer ou gerer une boutique',
+        label: 'Créer ou gèrer une boutique',
         description: 'Catalogue, stock, commandes, clients et vente sociale.',
         segments: [
           { id: 'retailer', label: 'Detaillant', description: 'Je vends directement aux clients.' },
-          { id: 'wholesaler', label: 'Grossiste', description: 'Je vends en volume a des revendeurs.' },
+          { id: 'wholesaler', label: 'Grossiste', description: 'Je vends en volume à des revendeurs.' },
           { id: 'individual_seller', label: 'Vendeur individuel', description: 'Je vends en mon nom propre.' },
-          { id: 'brand_store', label: 'Marque / boutique officielle', description: 'Je gere une marque ou une enseigne.' }
+          { id: 'brand_store', label: 'Marque / boutique officielle', description: 'Je gère une marque ou une enseigne.' }
         ]
       },
       {
@@ -124,8 +124,8 @@ const businessCategories: BusinessCategory[] = [
         segments: [
           { id: 'agri_producer', label: 'Producteur agricole', description: 'Agriculture, elevage, agroalimentaire.' },
           { id: 'manufacturer', label: 'Manufacturing', description: 'Transformation, fabrication ou atelier.' },
-          { id: 'factory', label: 'Usine', description: 'Production structuree et volumes importants.' },
-          { id: 'cooperative', label: 'Cooperative', description: 'Production collective ou communautaire.' }
+          { id: 'factory', label: 'Usine', description: 'Production structurée et volumes importants.' },
+          { id: 'cooperative', label: 'Coopérative', description: 'Production collective ou communautaire.' }
         ]
       }
     ]
@@ -145,17 +145,17 @@ const businessCategories: BusinessCategory[] = [
         segments: [
           { id: 'merchant', label: 'Marchand', description: 'J encaisse mes clients avec AfriSpay.' },
           { id: 'enterprise_payment', label: 'Entreprise', description: 'Je veux proposer AfriSpay dans mes services.' },
-          { id: 'cashier', label: 'Point caisse', description: 'Je gere un point d encaissement.' }
+          { id: 'cashier', label: 'Point caisse', description: 'Je gère un point d encaissement.' }
         ]
       },
       {
         id: 'payment_agent',
-        label: 'Je veux etre agent',
-        description: 'Depot, retrait, assistance paiement et relais terrain.',
+        label: 'Je veux être agent',
+        description: 'Dépôt, retrait, assistance paiement et relais terrain.',
         segments: [
           { id: 'relay_agent', label: 'Agent relais AfriSpay', description: 'Point de service local.' },
-          { id: 'approved_agent', label: 'Agent agree', description: 'Agent valide pour operations sensibles.' },
-          { id: 'cash_agent', label: 'Agent cash', description: 'Depot, retrait et support cash.' }
+          { id: 'approved_agent', label: 'Agent agréé', description: 'Agent validé pour opérations sensibles.' },
+          { id: 'cash_agent', label: 'Agent cash', description: 'Dépôt, retrait et support cash.' }
         ]
       },
       {
@@ -172,7 +172,7 @@ const businessCategories: BusinessCategory[] = [
   },
   {
     id: 'logistics',
-    label: 'Logistique & mobilite',
+    label: 'Logistique & mobilité',
     moduleName: 'Safari',
     description: 'Livraison, transport, relais, stockage, immobilier et services terrain.',
     icon: 'send',
@@ -184,17 +184,17 @@ const businessCategories: BusinessCategory[] = [
         description: 'Transporter colis, commandes Market ou documents.',
         segments: [
           { id: 'independent_courier', label: 'Livreur independant', description: 'Je livre avec mon moyen de transport.' },
-          { id: 'delivery_agency', label: 'Agence de livraison', description: 'Je gere une equipe de livreurs.' },
+          { id: 'delivery_agency', label: 'Agence de livraison', description: 'Je gère une equipe de livreurs.' },
           { id: 'fleet_owner', label: 'Gestionnaire flotte', description: 'Motos, voitures ou camions.' }
         ]
       },
       {
         id: 'relay',
         label: 'Point relais',
-        description: 'Servir de point depot, retrait ou stockage.',
+        description: 'Servir de point dépôt, retrait ou stockage.',
         segments: [
-          { id: 'relay_point', label: 'Agence relais', description: 'Point de retrait/depot.' },
-          { id: 'approved_relay', label: 'Relais agree', description: 'Relais verifie pour operations sensibles.' },
+          { id: 'relay_point', label: 'Agence relais', description: 'Point de retrait/dépôt.' },
+          { id: 'approved_relay', label: 'Relais agréé', description: 'Relais vérifie pour opérations sensibles.' },
           { id: 'warehouse', label: 'Stockage', description: 'Entrepot, mini-hub ou reserve.' }
         ]
       },
@@ -214,26 +214,26 @@ const businessCategories: BusinessCategory[] = [
     id: 'services',
     label: 'Services professionnels',
     moduleName: 'AfriMed, School, Freelance',
-    description: 'Sante, education, freelance et services locaux.',
+    description: 'Santé, education, freelance et services locaux.',
     icon: 'work',
     role: 'provider',
     services: [
       {
         id: 'health',
-        label: 'Sante',
+        label: 'Santé',
         description: 'Soins, conseils, orientation ou services medicaux.',
         segments: [
-          { id: 'clinic', label: 'Clinique / centre', description: 'Structure de sante.' },
-          { id: 'health_worker', label: 'Professionnel sante', description: 'Medecin, infirmier, pharmacien.' },
-          { id: 'home_care', label: 'Soins a domicile', description: 'Services de proximite.' }
+          { id: 'clinic', label: 'Clinique / centre', description: 'Structure de santé.' },
+          { id: 'health_worker', label: 'Professionnel santé', description: 'Médecin, infirmier, pharmacien.' },
+          { id: 'home_care', label: 'Soins à domicile', description: 'Services de proximité.' }
         ]
       },
       {
         id: 'education',
-        label: 'Education',
-        description: 'Cours, formations, ecole ou accompagnement.',
+        label: 'Éducation',
+        description: 'Cours, formations, école ou accompagnement.',
         segments: [
-          { id: 'school', label: 'Ecole / centre', description: 'Structure educative.' },
+          { id: 'school', label: 'École / centre', description: 'Structure educative.' },
           { id: 'trainer', label: 'Formateur', description: 'Cours, formation ou coaching.' },
           { id: 'online_course', label: 'Cours en ligne', description: 'Contenu educatif numerique.' }
         ]
@@ -241,9 +241,9 @@ const businessCategories: BusinessCategory[] = [
       {
         id: 'freelance',
         label: 'Freelance',
-        description: 'Vendre ses competences et services.',
+        description: 'Vendre ses compétences et services.',
         segments: [
-          { id: 'creative', label: 'Creatif', description: 'Design, photo, video, contenu.' },
+          { id: 'creative', label: 'Créatif', description: 'Design, photo, vidéo, contenu.' },
           { id: 'tech_service', label: 'Tech', description: 'Developpement, support, maintenance.' },
           { id: 'local_service', label: 'Service local', description: 'Reparation, beaute, menage, assistance.' }
         ]
@@ -252,19 +252,19 @@ const businessCategories: BusinessCategory[] = [
   },
   {
     id: 'abc_media',
-    label: 'Creation & influence',
+    label: 'Création & influence',
     moduleName: 'ABC Discovery',
-    description: 'Creer du contenu, vendre en video ou promouvoir des produits.',
+    description: 'Créer du contenu, vendre en vidéo ou promouvoir des produits.',
     icon: 'video',
     role: 'creator',
     services: [
       {
         id: 'creator',
-        label: 'Createur ABC',
-        description: 'Publier videos, tests, lives et recommandations.',
+        label: 'Créateur ABC',
+        description: 'Publier vidéos, tests, lives et recommandations.',
         segments: [
-          { id: 'video_seller', label: 'Video seller', description: 'Je vends en video.' },
-          { id: 'affiliate', label: 'Affilie', description: 'Je recommande des produits.' },
+          { id: 'video_seller', label: 'Video seller', description: 'Je vends en vidéo.' },
+          { id: 'affiliate', label: 'Affilié', description: 'Je recommande des produits.' },
           { id: 'influencer', label: 'Influenceur', description: 'Je monétise mon audience.' },
           { id: 'live_host', label: 'Animateur live', description: 'Je presente en direct.' }
         ]
@@ -276,7 +276,7 @@ const businessCategories: BusinessCategory[] = [
         segments: [
           { id: 'brand_campaign', label: 'Campagne produit', description: 'Promouvoir un produit.' },
           { id: 'service_campaign', label: 'Campagne service', description: 'Promouvoir un service.' },
-          { id: 'creator_network', label: 'Reseau createurs', description: 'Travailler avec plusieurs createurs.' }
+          { id: 'creator_network', label: 'Reseau créateurs', description: 'Travailler avec plusieurs créateurs.' }
         ]
       }
     ]
@@ -302,7 +302,7 @@ const defaultSettings: UserSettings = {
     alerts: true
   },
   privacy: {
-    camera: false,
+    caméra: false,
     contacts: false,
     location: false,
     publicProfile: true
@@ -313,25 +313,25 @@ const actions: ProfileAction[] = [
   {
     id: 'profile',
     title: 'Profil',
-    description: 'Identite, photo, telephone et adresse.',
+    description: 'Identité, photo, téléphone et adresse.',
     icon: 'profile'
   },
   {
     id: 'business',
     title: 'Business account',
-    description: 'Type de compte, activite, boutique et verification.',
+    description: 'Type de compte, activité, boutique et vérification.',
     icon: 'market'
   },
   {
     id: 'account',
-    title: 'Gerer le compte',
-    description: 'Securite, code PIN, appareils et preferences.',
+    title: 'Gérer le compte',
+    description: 'Sécurité, code PIN, appareils et preferences.',
     icon: 'account'
   },
   {
     id: 'app',
-    title: 'Gerer l app',
-    description: 'Langue, cache, mode leger et donnees hors ligne.',
+    title: "Gérer l'app",
+    description: 'Langue, cache, mode léger et données hors ligne.',
     icon: 'app'
   },
   {
@@ -342,8 +342,8 @@ const actions: ProfileAction[] = [
   },
   {
     id: 'privacy',
-    title: 'Confidentialite',
-    description: 'Autorisations, camera, contacts et donnees.',
+    title: 'Confidentialité',
+    description: 'Autorisations, caméra, contacts et données.',
     icon: 'shield'
   },
   {
@@ -546,7 +546,7 @@ export default function ProfileScreen() {
         });
       })
       .catch((error) => {
-        console.error('Chargement reglages profil impossible:', error);
+        console.error('Chargement réglages profil impossible:', error);
       });
   }, [user]);
 
@@ -564,8 +564,8 @@ export default function ProfileScreen() {
       setSettings(nextSettings);
       setStatus(message);
     } catch (error) {
-      console.error('Enregistrement reglages profil impossible:', error);
-      setStatus('Impossible d enregistrer pour le moment.');
+      console.error('Enregistrement réglages profil impossible:', error);
+      setStatus("Impossible d'enregistrer pour le moment.");
     } finally {
       setBusy(false);
     }
@@ -598,16 +598,16 @@ export default function ProfileScreen() {
     }
 
     setBusy(true);
-    setStatus('Mise a jour de la photo...');
+    setStatus('Mise à jour de la photo...');
 
     try {
       const upload = await uploadMediaToCloudinary(file, user.uid);
       await updateAfriSellUserPhoto(user, upload.secureUrl);
       await refreshProfile();
-      setStatus('Photo mise a jour.');
+      setStatus('Photo mise à jour.');
     } catch (error) {
       console.error('Photo profil AfriSell impossible:', error);
-      setStatus(error instanceof Error ? error.message : 'Photo impossible a enregistrer.');
+      setStatus(error instanceof Error ? error.message : 'Photo impossible à enregistrer.');
     } finally {
       setBusy(false);
     }
@@ -645,8 +645,8 @@ export default function ProfileScreen() {
       await refreshProfile();
       setStatus('Profil enregistre.');
     } catch (error) {
-      console.error('Mise a jour profil impossible:', error);
-      setStatus('Impossible d enregistrer le profil.');
+      console.error('Mise à jour profil impossible:', error);
+      setStatus("Impossible d'enregistrer le profil.");
     } finally {
       setBusy(false);
     }
@@ -662,7 +662,7 @@ export default function ProfileScreen() {
     }
 
     setBusy(true);
-    setStatus('Mise a jour du compte...');
+    setStatus('Mise à jour du compte...');
 
     try {
       const pinHash = settings.account.pinEnabled && pin ? await hashPin(pin) : settings.account.pinHash;
@@ -673,7 +673,7 @@ export default function ProfileScreen() {
           pinHash
         }
       };
-      await persistSettings(nextSettings, 'Compte mis a jour.');
+      await persistSettings(nextSettings, 'Compte mis à jour.');
       setPin('');
     } finally {
       setBusy(false);
@@ -682,12 +682,12 @@ export default function ProfileScreen() {
 
   const saveBusinessAccount = async () => {
     if (!user || !selectedBusinessCategory || !selectedBusinessService || !selectedBusinessSegment) {
-      setStatus('Complete les 3 choix pour enregistrer ton compte business.');
+      setStatus('Complète les 3 choix pour enregistrer ton compte business.');
       return;
     }
 
     if (ownedBusinessCategoryIds.has(selectedBusinessCategory.id)) {
-      setStatus('Tu possedes deja ce type de compte business.');
+      setStatus('Tu possèdes déjà ce type de compte business.');
       return;
     }
 
@@ -739,7 +739,7 @@ export default function ProfileScreen() {
       setBusinessSegmentId('');
     } catch (error) {
       console.error('Business account impossible:', error);
-      setStatus('Impossible d enregistrer le compte business.');
+      setStatus("Impossible d'enregistrer le compte business.");
     } finally {
       setBusy(false);
     }
@@ -749,8 +749,8 @@ export default function ProfileScreen() {
     if (!checked) {
       await persistSettings({
         ...settings,
-        privacy: { ...settings.privacy, camera: false }
-      }, 'Camera desactivee.');
+        privacy: { ...settings.privacy, caméra: false }
+      }, 'Caméra désactivée.');
       return;
     }
 
@@ -759,10 +759,10 @@ export default function ProfileScreen() {
       stream.getTracks().forEach((track) => track.stop());
       await persistSettings({
         ...settings,
-        privacy: { ...settings.privacy, camera: true }
-      }, 'Camera autorisee.');
+        privacy: { ...settings.privacy, caméra: true }
+      }, 'Caméra autorisée.');
     } catch {
-      setStatus('Autorisation camera refusee par le navigateur.');
+      setStatus('Autorisation caméra refusée par le navigateur.');
     }
   };
 
@@ -771,7 +771,7 @@ export default function ProfileScreen() {
       await persistSettings({
         ...settings,
         privacy: { ...settings.privacy, location: false }
-      }, 'Localisation desactivee.');
+      }, 'Localisation désactivée.');
       return;
     }
 
@@ -785,9 +785,9 @@ export default function ProfileScreen() {
         void persistSettings({
           ...settings,
           privacy: { ...settings.privacy, location: true }
-        }, 'Localisation autorisee.');
+        }, 'Localisation autorisée.');
       },
-      () => setStatus('Autorisation localisation refusee par le navigateur.'),
+      () => setStatus('Autorisation localisation refusée par le navigateur.'),
       { enableHighAccuracy: false, timeout: 7000 }
     );
   };
@@ -904,7 +904,7 @@ export default function ProfileScreen() {
             </div>
 
             <input value={profileForm.displayName} onChange={(event) => setProfileForm((current) => ({ ...current, displayName: event.target.value }))} placeholder="Nom" className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold outline-none focus:border-[#15EA3E]/50" />
-            <input value={profileForm.businessName} onChange={(event) => setProfileForm((current) => ({ ...current, businessName: event.target.value }))} placeholder="Nom boutique ou activite" className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold outline-none focus:border-[#15EA3E]/50" />
+            <input value={profileForm.businessName} onChange={(event) => setProfileForm((current) => ({ ...current, businessName: event.target.value }))} placeholder="Nom boutique ou activité" className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold outline-none focus:border-[#15EA3E]/50" />
             <div className="grid grid-cols-[110px_1fr] gap-2">
               <select value={profileForm.countryCode} onChange={(event) => setProfileForm((current) => ({ ...current, countryCode: event.target.value }))} className="h-12 rounded-2xl border border-white/10 bg-[#0A0A0A] px-3 text-xs font-bold outline-none focus:border-[#15EA3E]/50">
                 {AFRICAN_COUNTRIES_BY_PRIORITY.map((country) => (
@@ -913,7 +913,7 @@ export default function ProfileScreen() {
               </select>
               <div className="flex h-12 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] focus-within:border-[#15EA3E]/50">
                 <span className="flex items-center border-r border-white/10 px-3 text-xs font-black text-[#15EA3E]">{selectedCountry.dialCode}</span>
-                <input value={profileForm.phoneLocal} onChange={(event) => setProfileForm((current) => ({ ...current, phoneLocal: event.target.value }))} inputMode="tel" placeholder="Telephone" className="min-w-0 flex-1 bg-transparent px-3 text-sm font-semibold outline-none" />
+                <input value={profileForm.phoneLocal} onChange={(event) => setProfileForm((current) => ({ ...current, phoneLocal: event.target.value }))} inputMode="tel" placeholder="Téléphone" className="min-w-0 flex-1 bg-transparent px-3 text-sm font-semibold outline-none" />
               </div>
             </div>
             <input value={profileForm.city} onChange={(event) => setProfileForm((current) => ({ ...current, city: event.target.value }))} placeholder="Ville" className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold outline-none focus:border-[#15EA3E]/50" />
@@ -926,16 +926,16 @@ export default function ProfileScreen() {
       )}
 
       {activePanel === 'account' && (
-        <PanelShell title="Gerer le compte" subtitle="Securite" busy={busy} status={status} onClose={() => setActivePanel(null)}>
+        <PanelShell title="Gérer le compte" subtitle="Sécurité" busy={busy} status={status} onClose={() => setActivePanel(null)}>
           <form onSubmit={savePin} className="space-y-3">
             <ToggleRow title="Code PIN" description="Demander un code pour les actions sensibles." checked={settings.account.pinEnabled} onChange={(checked) => setSettings((current) => ({ ...current, account: { ...current.account, pinEnabled: checked } }))} />
             {settings.account.pinEnabled && (
               <input value={pin} onChange={(event) => setPin(event.target.value.replace(/[^\d]/g, '').slice(0, 8))} inputMode="numeric" placeholder="Nouveau code PIN" className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold outline-none focus:border-[#15EA3E]/50" />
             )}
-            <ToggleRow title="Alertes connexion" description="Prevenir quand le compte est utilise sur un appareil." checked={settings.account.loginAlerts} onChange={(checked) => updateSettings('account', { loginAlerts: checked }, 'Alertes connexion mises a jour.')} />
-            <ToggleRow title="Biometrie" description="Preparer l usage de Face ID ou empreinte quand disponible." checked={settings.account.biometricEnabled} onChange={(checked) => updateSettings('account', { biometricEnabled: checked }, 'Preference biometrie enregistree.')} />
+            <ToggleRow title="Alertes connexion" description="Prévenir quand le compte est utilisé sur un appareil." checked={settings.account.loginAlerts} onChange={(checked) => updateSettings('account', { loginAlerts: checked }, 'Alertes connexion mises à jour.')} />
+            <ToggleRow title="Biométrie" description="Préparer l’usage de Face ID ou empreinte quand disponible." checked={settings.account.biometricEnabled} onChange={(checked) => updateSettings('account', { biometricEnabled: checked }, 'Préférence biométrie enregistrée.')} />
             <button type="submit" disabled={busy} className="h-12 w-full rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-widest text-black disabled:bg-white/10 disabled:text-white/35">
-              Enregistrer securite
+              Enregistrer sécurité
             </button>
           </form>
         </PanelShell>
@@ -946,9 +946,9 @@ export default function ProfileScreen() {
           <div className="space-y-3">
             {ownedBusinessAccounts.length ? (
               <div className="space-y-2 rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-4">
-                <p className="text-sm font-black text-white">Vous possedez deja un compte business.</p>
+                <p className="text-sm font-black text-white">Vous possédez déjà un compte business.</p>
                 <p className="text-[11px] font-semibold leading-relaxed text-white/55">
-                  Accede a ton dashboard ou ajoute un autre type de compte business.
+                  Accède à ton dashboard ou ajoute un autre type de compte business.
                 </p>
                 <div className="space-y-2 pt-1">
                   {ownedBusinessAccounts.map((account) => (
@@ -961,7 +961,7 @@ export default function ProfileScreen() {
                         to={`/business?account=${account.categoryId}`}
                         className="rounded-xl bg-[#15EA3E] px-3 py-2 text-[9px] font-black uppercase tracking-wider text-black"
                       >
-                        Acceder
+                        Accéder
                       </Link>
                     </div>
                   ))}
@@ -971,16 +971,16 @@ export default function ProfileScreen() {
               <div className="rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-4">
                 <p className="text-sm font-black text-white">Quel type de compte business voulez-vous ?</p>
                 <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/55">
-                  Choisis d abord le grand domaine. Les etapes suivantes s adaptent a ton choix.
+                  Choisis d'abord le grand domaine. Les etapes suivantes s adaptént à ton choix.
                 </p>
               </div>
             )}
 
             {ownedBusinessAccounts.length ? (
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                <p className="text-sm font-black text-white">Voulez-vous obtenir d autres types de compte business ?</p>
+                <p className="text-sm font-black text-white">Voulez-vous obtenir d'autres types de compte business ?</p>
                 <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/45">
-                  Les categories deja creees ne sont plus selectionnables.
+                  Les categories déjà créées ne sont plus sélectionnables.
                 </p>
               </div>
             ) : null}
@@ -1017,7 +1017,7 @@ export default function ProfileScreen() {
 
             {!availableBusinessCategories.length && (
               <p className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-[11px] font-semibold leading-relaxed text-white/50">
-                Tous les types de compte business disponibles sont deja actifs sur ton profil.
+                Tous les types de compte business disponibles sont déjà actifs sur ton profil.
               </p>
             )}
 
@@ -1052,7 +1052,7 @@ export default function ProfileScreen() {
             {selectedBusinessService && (
               <div className="space-y-2 pt-2">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/42">
-                  Selectionne ton profil
+                  Sélectionne ton profil
                 </p>
                 <div className="grid grid-cols-1 gap-2">
                   {selectedBusinessService.segments.map((segment) => (
@@ -1099,17 +1099,17 @@ export default function ProfileScreen() {
       )}
 
       {activePanel === 'app' && (
-        <PanelShell title="Gerer l app" subtitle="Preferences" busy={busy} status={status} onClose={() => setActivePanel(null)}>
+        <PanelShell title="Gérer l'app" subtitle="Préférences" busy={busy} status={status} onClose={() => setActivePanel(null)}>
           <div className="space-y-3">
             <select value={settings.app.language} onChange={(event) => updateSettings('app', { language: event.target.value }, 'Langue enregistree.')} className="h-12 w-full rounded-2xl border border-white/10 bg-[#0A0A0A] px-4 text-sm font-semibold outline-none focus:border-[#15EA3E]/50">
-              <option value="fr">Francais</option>
+              <option value="fr">Français</option>
               <option value="ln">Lingala</option>
               <option value="sw">Swahili</option>
               <option value="en">English</option>
             </select>
-            <ToggleRow title="Mode leger" description="Interface plus simple pour les petits telephones." checked={settings.app.lightMode} onChange={(checked) => updateSettings('app', { lightMode: checked }, 'Mode leger mis a jour.')} />
-            <ToggleRow title="Economiser les donnees" description="Limiter les medias lourds quand c est possible." checked={settings.app.lowDataMode} onChange={(checked) => updateSettings('app', { lowDataMode: checked }, 'Mode donnees mis a jour.')} />
-            <ToggleRow title="Donnees hors ligne" description="Garder les infos utiles disponibles sans reseau." checked={settings.app.offlineData} onChange={(checked) => updateSettings('app', { offlineData: checked }, 'Hors ligne mis a jour.')} />
+            <ToggleRow title="Mode léger" description="Interface plus simple pour les petits téléphones." checked={settings.app.lightMode} onChange={(checked) => updateSettings('app', { lightMode: checked }, 'Mode léger mis à jour.')} />
+            <ToggleRow title="Economiser les données" description="Limiter les médias lourds quand c'est possible." checked={settings.app.lowDataMode} onChange={(checked) => updateSettings('app', { lowDataMode: checked }, 'Mode données mis à jour.')} />
+            <ToggleRow title="Données hors ligne" description="Garder les infos utiles disponibles sans réseau." checked={settings.app.offlineData} onChange={(checked) => updateSettings('app', { offlineData: checked }, 'Hors ligne mis à jour.')} />
             <button type="button" onClick={clearLocalCache} className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] text-xs font-black uppercase tracking-widest text-white">
               Nettoyer le cache
             </button>
@@ -1120,20 +1120,20 @@ export default function ProfileScreen() {
       {activePanel === 'notifications' && (
         <PanelShell title="Notifications" subtitle="Alertes" busy={busy} status={status} onClose={() => setActivePanel(null)}>
           <div className="space-y-3">
-            <ToggleRow title="Commandes" description="Recevoir les alertes de commande." checked={settings.notifications.orders} onChange={(checked) => updateSettings('notifications', { orders: checked }, 'Notifications commandes mises a jour.')} />
-            <ToggleRow title="Messages" description="Recevoir les messages AfriChat." checked={settings.notifications.messages} onChange={(checked) => updateSettings('notifications', { messages: checked }, 'Notifications messages mises a jour.')} />
-            <ToggleRow title="Paiements" description="Recevoir les alertes AfriSpay." checked={settings.notifications.payments} onChange={(checked) => updateSettings('notifications', { payments: checked }, 'Notifications paiements mises a jour.')} />
-            <ToggleRow title="Alertes importantes" description="Securite, compte et annonces importantes." checked={settings.notifications.alerts} onChange={(checked) => updateSettings('notifications', { alerts: checked }, 'Alertes mises a jour.')} />
+            <ToggleRow title="Commandes" description="Recevoir les alertes de commande." checked={settings.notifications.orders} onChange={(checked) => updateSettings('notifications', { orders: checked }, 'Notifications commandes mises à jour.')} />
+            <ToggleRow title="Messages" description="Recevoir les messages AfriChat." checked={settings.notifications.messages} onChange={(checked) => updateSettings('notifications', { messages: checked }, 'Notifications messages mises à jour.')} />
+            <ToggleRow title="Paiements" description="Recevoir les alertes AfriSpay." checked={settings.notifications.payments} onChange={(checked) => updateSettings('notifications', { payments: checked }, 'Notifications paiements mises à jour.')} />
+            <ToggleRow title="Alertes importantes" description="Sécurité, compte et annonces importantes." checked={settings.notifications.alerts} onChange={(checked) => updateSettings('notifications', { alerts: checked }, 'Alertes mises à jour.')} />
           </div>
         </PanelShell>
       )}
 
       {activePanel === 'privacy' && (
-        <PanelShell title="Confidentialite" subtitle="Autorisations" busy={busy} status={status} onClose={() => setActivePanel(null)}>
+        <PanelShell title="Confidentialité" subtitle="Autorisations" busy={busy} status={status} onClose={() => setActivePanel(null)}>
           <div className="space-y-3">
-            <ToggleRow title="Profil public" description="Permettre aux autres de voir ton profil." checked={settings.privacy.publicProfile} onChange={(checked) => updateSettings('privacy', { publicProfile: checked }, 'Visibilite profil mise a jour.')} />
-            <ToggleRow title="Camera" description="Autoriser la camera pour scan, video et photo." checked={settings.privacy.camera} onChange={requestCamera} />
-            <ToggleRow title="Localisation" description="Aider a proposer ville, livraison et offres proches." checked={settings.privacy.location} onChange={requestLocation} />
+            <ToggleRow title="Profil public" description="Permettre aux autres de voir ton profil." checked={settings.privacy.publicProfile} onChange={(checked) => updateSettings('privacy', { publicProfile: checked }, 'Visibilité profil mise à jour.')} />
+            <ToggleRow title="Caméra" description="Autoriser la caméra pour scan, vidéo et photo." checked={settings.privacy.camera} onChange={requestCamera} />
+            <ToggleRow title="Localisation" description="Aider à proposer ville, livraison et offres proches." checked={settings.privacy.location} onChange={requestLocation} />
             <ToggleRow title="Contacts" description="Garder ton choix pour les futures invitations." checked={settings.privacy.contacts} onChange={(checked) => updateSettings('privacy', { contacts: checked }, 'Preference contacts enregistree.')} />
           </div>
         </PanelShell>

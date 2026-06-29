@@ -29,7 +29,7 @@ export default function CreatePostScreen() {
   const chunksRef = useRef<Blob[]>([]);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [cameraStatus, setCameraStatus] = useState('Ouverture camera...');
+  const [caméraStatus, setCameraStatus] = useState('Ouverture caméra...');
   const [isRecording, setIsRecording] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -50,9 +50,9 @@ export default function CreatePostScreen() {
   useEffect(() => {
     let mounted = true;
 
-    const startCamera = async () => {
+    const startCaméra = async () => {
       if (!navigator.mediaDevices?.getUserMedia) {
-        setCameraStatus('Camera indisponible sur ce navigateur.');
+        setCameraStatus('Caméra indisponible sur ce navigateur.');
         return;
       }
 
@@ -72,12 +72,12 @@ export default function CreatePostScreen() {
         }
         setCameraStatus('');
       } catch (error) {
-        console.error('Camera AfriSell indisponible:', error);
-        setCameraStatus('Autorise la camera pour publier directement.');
+        console.error('Caméra AfriSell indisponible:', error);
+        setCameraStatus('Autorise la caméra pour publier directement.');
       }
     };
 
-    void startCamera();
+    void startCaméra();
 
     return () => {
       mounted = false;
@@ -110,7 +110,7 @@ export default function CreatePostScreen() {
   const capturePhoto = () => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) {
-      setStatus('Camera pas encore prete.');
+      setStatus('Caméra pas encore prête.');
       return;
     }
 
@@ -131,7 +131,7 @@ export default function CreatePostScreen() {
   const toggleRecording = () => {
     const stream = streamRef.current;
     if (!stream) {
-      setStatus('Camera pas encore prete.');
+      setStatus('Caméra pas encore prête.');
       return;
     }
 
@@ -141,7 +141,7 @@ export default function CreatePostScreen() {
     }
 
     if (!('MediaRecorder' in window)) {
-      setStatus('Enregistrement video indisponible sur ce navigateur.');
+      setStatus('Enregistrement vidéo indisponible sur ce navigateur.');
       return;
     }
 
@@ -219,9 +219,9 @@ export default function CreatePostScreen() {
       <input ref={galleryInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFileSelect} className="hidden" />
       <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFileSelect} className="hidden" />
 
-      {cameraStatus && (
+      {caméraStatus && (
         <div className="absolute inset-x-6 top-24 z-20 rounded-2xl border border-white/10 bg-black/55 p-3 text-center text-xs font-semibold text-white/68 backdrop-blur-md">
-          {cameraStatus}
+          {caméraStatus}
         </div>
       )}
 
@@ -230,7 +230,7 @@ export default function CreatePostScreen() {
           <button type="button" onClick={capturePhoto} className="flex h-16 w-16 items-center justify-center rounded-full border-[5px] border-white bg-white/12 shadow-[0_0_22px_rgba(0,0,0,0.42)] backdrop-blur-md" aria-label="Capturer photo">
             <span className="h-9 w-9 rounded-full bg-white" />
           </button>
-          <button type="button" onClick={toggleRecording} className={cn('flex h-13 w-13 items-center justify-center rounded-full border border-white/20 backdrop-blur-md', isRecording ? 'bg-red-500 text-white' : 'bg-black/45 text-[#15EA3E]')} aria-label={isRecording ? 'Arreter video' : 'Enregistrer video'}>
+          <button type="button" onClick={toggleRecording} className={cn('flex h-13 w-13 items-center justify-center rounded-full border border-white/20 backdrop-blur-md', isRecording ? 'bg-red-500 text-white' : 'bg-black/45 text-[#15EA3E]')} aria-label={isRecording ? 'Arrêter vidéo' : 'Enregistrer vidéo'}>
             <AfriSellIcon name={isRecording ? 'close' : 'video'} size={18} />
           </button>
         </div>
@@ -243,7 +243,7 @@ export default function CreatePostScreen() {
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <span className="rounded-full bg-white/[0.06] px-3 py-1.5 text-[9px] font-black text-white/62">
-              {selectedFiles.length ? `${selectedFiles.length} media` : 'Camera active'}
+              {selectedFiles.length ? `${selectedFiles.length} media` : 'Caméra active'}
             </span>
             {canAssociate && (
               <label className="flex items-center gap-1.5 rounded-full bg-white/[0.06] px-3 py-1.5 text-[9px] font-black text-white/70">

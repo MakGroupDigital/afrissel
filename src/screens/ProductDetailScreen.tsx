@@ -20,7 +20,7 @@ const deliveryOptions: CheckoutDelivery[] = [
   {
     id: 'local_express',
     title: 'Express local',
-    description: 'Livraison rapide dans la meme ville.',
+    description: 'Livraison rapide dans la même ville.',
     price: 5,
     eta: '24h'
   },
@@ -29,7 +29,7 @@ const deliveryOptions: CheckoutDelivery[] = [
     title: 'Retrait vendeur',
     description: 'Recupere directement chez le vendeur.',
     price: 0,
-    eta: 'Aujourd hui'
+    eta: 'Aujourd’hui'
   }
 ];
 
@@ -95,7 +95,7 @@ function EmptyDetail() {
         <AfriSellIcon name="market" size={28} />
       </div>
       <h1 className="mt-5 text-lg font-black">Produit introuvable</h1>
-      <p className="mt-2 text-sm leading-relaxed text-gray-500">Cet article n est plus disponible dans le Market.</p>
+      <p className="mt-2 text-sm leading-relaxed text-gray-500">Cet article n'est plus disponible dans le Market.</p>
       <Link to="/market" className="mt-5 rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-widest text-black">
         Retour Market
       </Link>
@@ -165,7 +165,7 @@ export default function ProductDetailScreen() {
 
   const handleAddToCart = () => {
     addToCart(checkoutProduct);
-    setStatus(alreadyInCart ? 'Article deja dans le panier.' : 'Article ajoute au panier.');
+    setStatus(alreadyInCart ? 'Article déjà dans le panier.' : 'Article ajoute au panier.');
   };
 
   const handleBuy = () => {
@@ -190,7 +190,7 @@ export default function ProductDetailScreen() {
         profile,
         product: checkoutProduct
       });
-      setStatus('Prix Village partage dans AfriChat. Le vendeur peut suivre le groupe.');
+      setStatus('Prix Village partage dans AfriChat. Le vendeur peut suivre le groupé.');
       void result;
       navigate(`/chat?contact=${encodeURIComponent(product.authorId)}&name=${encodeURIComponent(product.authorName)}&status=${encodeURIComponent('Prix Village')}&avatar=${encodeURIComponent(product.authorAvatar || '')}`);
     } catch (error) {
@@ -325,7 +325,7 @@ export default function ProductDetailScreen() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-black">{product.authorName}</p>
-              <p className="mt-0.5 text-[11px] font-semibold text-white/42">Vendeur verifie par AfriSell</p>
+              <p className="mt-0.5 text-[11px] font-semibold text-white/42">Vendeur vérifie par AfriSell</p>
             </div>
             <span className="rounded-full bg-[#15EA3E] px-2 py-1 text-[8px] font-black uppercase tracking-wider text-black">
               Stand
@@ -335,7 +335,7 @@ export default function ProductDetailScreen() {
 
         <section className="mt-5 grid grid-cols-3 gap-2">
           {[
-            { label: 'Confiance', value: 'Verifie', icon: 'shield' as const },
+            { label: 'Confiance', value: 'Vérifié', icon: 'shield' as const },
             { label: 'AfriCoin', value: `+${afriCoinValue}`, icon: 'star' as const },
             { label: 'FPP', value: formatMarketPrice(fppValue, product.currency), icon: 'heart' as const }
           ].map((item) => (
@@ -394,7 +394,7 @@ export default function ProductDetailScreen() {
         <section className="mt-5 rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4">
           <h2 className="text-sm font-black">Paiement AfriSpay</h2>
           <p className="mt-1 text-xs font-semibold leading-relaxed text-white/48">
-            Paiement direct avec ton wallet AfriSpay. AfriCoin, FPP et vendeur sont notifies apres confirmation.
+            Paiement direct avec ton wallet AfriSpay. AfriCoin, FPP et vendeur sont notifiés après confirmation.
           </p>
           <div className="mt-3 flex items-center gap-2 rounded-2xl bg-black/35 p-3">
             <AfriSellIcon name="shield" size={18} className="text-[#15EA3E]" />
