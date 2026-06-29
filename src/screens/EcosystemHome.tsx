@@ -457,7 +457,7 @@ export default function EcosystemHome() {
               className="flex h-10 max-w-[104px] shrink-0 items-center gap-2 rounded-2xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-3 text-[#15EA3E]"
               aria-label="Wallet AfriSpay"
             >
-              <AfriSellIcon name="pay" size={15} />
+              <img src="/afrispay.jpeg" alt="" className="h-5 w-5 rounded-md object-cover" />
               <span className="truncate text-[10px] font-black">{walletLabel}</span>
             </Link>
             <button
@@ -472,7 +472,11 @@ export default function EcosystemHome() {
               <span className={`absolute top-1 flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
                 isLightMode ? 'left-[22px] bg-[#15EA3E] text-black' : 'left-1 bg-white/[0.08] text-[#15EA3E]'
               }`}>
-                <AfriSellIcon name={isLightMode ? 'flash' : 'offline'} size={14} />
+                {isLightMode ? (
+                  <span className="relative h-4 w-4 rounded-full bg-black before:absolute before:-left-0.5 before:top-0 before:h-4 before:w-4 before:rounded-full before:bg-[#15EA3E]" />
+                ) : (
+                  <span className="relative h-4 w-4 rounded-full border-2 border-[#15EA3E] after:absolute after:left-1/2 after:top-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:bg-[#15EA3E]" />
+                )}
               </span>
             </button>
             <Link to="/profile" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Profil">

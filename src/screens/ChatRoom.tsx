@@ -993,7 +993,7 @@ export default function ChatRoom() {
                 </div>
               </div>
             </div>
-            <EmptyState icon="market" title="Aucune chaine" body="Les vitrines suivies seront listees ici comme des chaines WhatsApp." />
+            <EmptyState icon="market" title="Aucune chaine" body="Les vitrines suivies seront listees ici avec leurs annonces et nouveautes." />
           </div>
         )}
 
