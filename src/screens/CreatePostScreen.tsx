@@ -19,6 +19,8 @@ const makeFileName = (prefix: string, extension: string) => (
   `${prefix}-${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`
 );
 
+type CameraFacing = 'environment' | 'user';
+
 export default function CreatePostScreen() {
   const navigate = useNavigate();
   const { user, profile } = useFirebaseAuth();
@@ -29,7 +31,10 @@ export default function CreatePostScreen() {
   const chunksRef = useRef<Blob[]>([]);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [caméraStatus, setCameraStatus] = useState('Ouverture caméra...');
+  const cameraCaptureInputRef = useRef<HTMLInputElement | null>(null);
+  const [cameraStatus, setCameraStatus] = useState('Ouverture caméra...');
+  const [cameraFacing, setCameraFacing] = useState<CameraFacing>('environment');
+  const [cameraReady, setCameraReady] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -47,44 +52,60 @@ export default function CreatePostScreen() {
   const canAssociate = canAddBusiness && ownProducts.length > 0;
   const selectedProduct = ownProducts.find((product) => product.id === linkedProductId);
 
-  useEffect(() => {
-    let mounted = true;
+  const stopCamera = () => {
+    recorderRef.current?.state === 'recording' && recorderRef.current.stop();
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setCameraReady(false);
+  };
 
-    const startCaméra = async () => {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setCameraStatus('Caméra indisponible sur ce navigateur.');
-        return;
-      }
+  const startCamera = async (facing: CameraFacing = cameraFacing) => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraStatus('Caméra indisponible sur ce navigateur. Utilise Galerie ou Mémoire.');
+      setCameraReady(false);
+      return;
+    }
 
+    setCameraStatus(facing === 'user' ? 'Ouverture caméra selfie...' : 'Ouverture caméra arrière...');
+    stopCamera();
+
+    const constraintsList: MediaStreamConstraints[] = [
+      { video: { facingMode: { ideal: facing }, width: { ideal: 1080 }, height: { ideal: 1920 } }, audio: true },
+      { video: { facingMode: facing }, audio: true },
+      { video: true, audio: true },
+      { video: true, audio: false }
+    ];
+
+    for (const constraints of constraintsList) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-          audio: true
-        });
-        if (!mounted) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play().catch(() => undefined);
         }
+        setCameraFacing(facing);
+        setCameraReady(true);
         setCameraStatus('');
+        return;
       } catch (error) {
-        console.error('Caméra AfriSell indisponible:', error);
-        setCameraStatus('Autorise la caméra pour publier directement.');
+        console.warn('Tentative caméra AfriSell impossible:', error);
       }
-    };
+    }
 
-    void startCaméra();
+    setCameraStatus('Caméra refusée ou indisponible. Tu peux importer depuis Galerie ou Mémoire.');
+    setCameraReady(false);
+  };
+
+  useEffect(() => {
+    void startCamera('environment');
 
     return () => {
-      mounted = false;
-      recorderRef.current?.state === 'recording' && recorderRef.current.stop();
-      streamRef.current?.getTracks().forEach((track) => track.stop());
+      stopCamera();
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
+  // Camera bootstrap only runs once; facing changes are explicit user actions.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => () => {
@@ -92,13 +113,19 @@ export default function CreatePostScreen() {
   }, [previewUrl]);
 
   const setFilesForPublish = (files: File[]) => {
-    if (!files.length) return;
+    const mediaFiles = files.filter((file) => file.type.startsWith('image/') || file.type.startsWith('video/'));
+    if (!mediaFiles.length) {
+      setStatus('Choisis une image ou une vidéo compatible.');
+      return;
+    }
+    const hasVideo = mediaFiles.some((file) => file.type.startsWith('video/'));
+    const normalizedFiles = hasVideo ? [mediaFiles.find((file) => file.type.startsWith('video/')) as File] : mediaFiles.slice(0, 8);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setSelectedFiles(files);
-    setPreviewUrl(URL.createObjectURL(files[0]));
+    setSelectedFiles(normalizedFiles);
+    setPreviewUrl(URL.createObjectURL(normalizedFiles[0]));
     setStatus('');
     if (!title.trim()) {
-      setTitle(files[0].name.replace(/\.[^.]+$/, '') || 'Nouvelle publication');
+      setTitle(normalizedFiles[0].name.replace(/\.[^.]+$/, '') || 'Nouvelle publication');
     }
   };
 
@@ -119,8 +146,6 @@ export default function CreatePostScreen() {
     canvas.height = video.videoHeight;
     const context = canvas.getContext('2d');
     if (!context) return;
-    context.translate(canvas.width, 0);
-    context.scale(-1, 1);
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     canvas.toBlob((blob) => {
       if (!blob) return;
@@ -160,6 +185,18 @@ export default function CreatePostScreen() {
     setIsRecording(true);
   };
 
+  const switchCamera = () => {
+    const nextFacing = cameraFacing === 'environment' ? 'user' : 'environment';
+    void startCamera(nextFacing);
+  };
+
+  const clearSelection = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl('');
+    setSelectedFiles([]);
+    setStatus('');
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!selectedFiles.length || publishing) return;
@@ -184,7 +221,7 @@ export default function CreatePostScreen() {
 
   return (
     <main className="relative h-full overflow-hidden bg-black text-white">
-      <video ref={videoRef} muted playsInline autoPlay className="absolute inset-0 h-full w-full -scale-x-100 object-cover" />
+      <video ref={videoRef} muted playsInline autoPlay className="absolute inset-0 h-full w-full object-cover" />
       {previewUrl && (
         selectedFiles[0]?.type.startsWith('video/') ? (
           <video src={previewUrl} controls playsInline className="absolute inset-0 h-full w-full object-cover" />
@@ -198,10 +235,14 @@ export default function CreatePostScreen() {
         <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md">
           <AfriSellIcon name="close" size={17} />
         </button>
-        <div className="flex items-center gap-1.5 rounded-full bg-black/42 p-1.5 backdrop-blur-md">
+        <div className="flex max-w-[78vw] items-center gap-1.5 overflow-x-auto rounded-full bg-black/42 p-1.5 backdrop-blur-md scrollbar-hide">
           <button type="button" onClick={() => galleryInputRef.current?.click()} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
             <AfriSellIcon name="app" size={13} className="text-[#15EA3E]" />
             Galerie
+          </button>
+          <button type="button" onClick={switchCamera} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
+            <AfriSellIcon name="camera" size={13} className="text-[#15EA3E]" />
+            {cameraFacing === 'environment' ? 'Selfie' : 'Arrière'}
           </button>
           <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
             <AfriSellIcon name="clip" size={13} className="text-[#15EA3E]" />
@@ -216,22 +257,34 @@ export default function CreatePostScreen() {
         </div>
       </header>
 
-      <input ref={galleryInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFileSelect} className="hidden" />
+      <input ref={galleryInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFileSelect} className="sr-only" />
       <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFileSelect} className="hidden" />
+      <input ref={cameraCaptureInputRef} type="file" accept="image/*" capture={cameraFacing} onChange={handleFileSelect} className="hidden" />
 
-      {caméraStatus && (
+      {cameraStatus && (
         <div className="absolute inset-x-6 top-24 z-20 rounded-2xl border border-white/10 bg-black/55 p-3 text-center text-xs font-semibold text-white/68 backdrop-blur-md">
-          {caméraStatus}
+          {cameraStatus}
+          <div className="mt-2 flex justify-center gap-2">
+            <button type="button" onClick={() => void startCamera(cameraFacing)} className="rounded-full bg-[#15EA3E] px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-black">
+              Réessayer
+            </button>
+            <button type="button" onClick={() => galleryInputRef.current?.click()} className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-white/70">
+              Galerie
+            </button>
+          </div>
         </div>
       )}
 
       <form onSubmit={submit} className="absolute inset-x-0 bottom-0 z-20 px-4 pb-5">
         <div className="mb-4 flex items-end justify-center gap-5">
-          <button type="button" onClick={capturePhoto} className="flex h-16 w-16 items-center justify-center rounded-full border-[5px] border-white bg-white/12 shadow-[0_0_22px_rgba(0,0,0,0.42)] backdrop-blur-md" aria-label="Capturer photo">
+          <button type="button" onClick={capturePhoto} disabled={!cameraReady} className="flex h-16 w-16 items-center justify-center rounded-full border-[5px] border-white bg-white/12 shadow-[0_0_22px_rgba(0,0,0,0.42)] backdrop-blur-md disabled:opacity-45" aria-label="Capturer photo">
             <span className="h-9 w-9 rounded-full bg-white" />
           </button>
           <button type="button" onClick={toggleRecording} className={cn('flex h-13 w-13 items-center justify-center rounded-full border border-white/20 backdrop-blur-md', isRecording ? 'bg-red-500 text-white' : 'bg-black/45 text-[#15EA3E]')} aria-label={isRecording ? 'Arrêter vidéo' : 'Enregistrer vidéo'}>
             <AfriSellIcon name={isRecording ? 'close' : 'video'} size={18} />
+          </button>
+          <button type="button" onClick={() => cameraCaptureInputRef.current?.click()} className="flex h-13 w-13 items-center justify-center rounded-full border border-white/20 bg-black/45 text-[#15EA3E] backdrop-blur-md" aria-label="Caméra native">
+            <AfriSellIcon name="camera" size={18} />
           </button>
         </div>
 
@@ -243,8 +296,13 @@ export default function CreatePostScreen() {
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <span className="rounded-full bg-white/[0.06] px-3 py-1.5 text-[9px] font-black text-white/62">
-              {selectedFiles.length ? `${selectedFiles.length} media` : 'Caméra active'}
+              {selectedFiles.length ? `${selectedFiles.length} média` : cameraReady ? 'Caméra active' : 'Galerie disponible'}
             </span>
+            {selectedFiles.length > 0 && (
+              <button type="button" onClick={clearSelection} className="rounded-full bg-white/[0.06] px-3 py-1.5 text-[9px] font-black text-white/70">
+                Reprendre
+              </button>
+            )}
             {canAssociate && (
               <label className="flex items-center gap-1.5 rounded-full bg-white/[0.06] px-3 py-1.5 text-[9px] font-black text-white/70">
                 <input type="checkbox" checked={shouldAssociate} onChange={(event) => setShouldAssociate(event.target.checked)} className="h-3 w-3 accent-[#15EA3E]" />
