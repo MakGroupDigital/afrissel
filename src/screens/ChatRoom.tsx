@@ -345,15 +345,24 @@ function MessageBubble({
             {message.text && <p className="px-3 py-2 text-[12px] font-semibold text-white/70">{message.text}</p>}
           </div>
         ) : isFile ? (
-          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3">
+          <a
+            href={message.mediaUrl || undefined}
+            download={message.fileName || true}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3"
+            onClick={(event) => {
+              if (!message.mediaUrl) event.preventDefault();
+            }}
+          >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/8 text-[#15EA3E]">
               <AfriSellIcon name="file" size={18} />
             </span>
             <span className="min-w-0">
               <span className="block truncate text-sm font-black">{message.fileName || message.text}</span>
-              <span className="mt-0.5 block text-[10px] font-semibold text-white/45">{message.mimeType || 'Document'}</span>
+              <span className="mt-0.5 block text-[10px] font-semibold text-white/45">{message.mediaUrl ? 'Ouvrir ou télécharger' : message.mimeType || 'Document'}</span>
             </span>
-          </div>
+          </a>
         ) : isLocation ? (
           <a href={message.text.replace('Position partagée: ', '')} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black">
@@ -465,6 +474,7 @@ export default function ChatRoom() {
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [attaching, setAttaching] = useState(false);
+  const [translationEnabled, setTranslationEnabled] = useState(false);
   const [creatingThread, setCreatingThread] = useState('');
   const [actionStatus, setActionStatus] = useState('');
   const [actionStatusKind, setActionStatusKind] = useState<'error' | 'success'>('error');
@@ -493,6 +503,8 @@ export default function ChatRoom() {
   const [kissEffectKey, setKissEffectKey] = useState(0);
   const [showConversationPanel, setShowConversationPanel] = useState(false);
   const [showChatSettings, setShowChatSettings] = useState(false);
+  const [villageInviteValue, setVillageInviteValue] = useState('');
+  const [villageInviteLoading, setVillageInviteLoading] = useState(false);
   const storyInputRef = useRef<HTMLInputElement | null>(null);
   const chatCameraInputRef = useRef<HTMLInputElement | null>(null);
   const chatGalleryInputRef = useRef<HTMLInputElement | null>(null);
@@ -530,12 +542,48 @@ export default function ChatRoom() {
     setActionStatus('');
   };
 
+  const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Lecture du fichier impossible.'));
+    reader.readAsDataURL(file);
+  });
+
+  const translateDraft = () => {
+    setTranslationEnabled((current) => !current);
+    if (!draft.trim()) {
+      showActionStatus(
+        translationEnabled ? 'Traduction désactivée.' : 'Traduction activée. Écris un message puis appuie encore pour préparer la traduction.',
+        'success',
+        true
+      );
+      return;
+    }
+
+    const translated = draft
+      .replace(/\bhello\b/gi, 'bonjour')
+      .replace(/\bthanks\b/gi, 'merci')
+      .replace(/\bprice\b/gi, 'prix')
+      .replace(/\bdelivery\b/gi, 'livraison')
+      .replace(/\bpayment\b/gi, 'paiement')
+      .replace(/\bproduct\b/gi, 'produit')
+      .replace(/\bcommande\b/gi, 'order')
+      .replace(/\bprix\b/gi, 'price')
+      .replace(/\blivraison\b/gi, 'delivery')
+      .replace(/\bpaiement\b/gi, 'payment');
+
+    setDraft(translated === draft ? `[Traduction AfriChat]\n${draft}` : translated);
+    showActionStatus('Traduction préparée dans le champ message.', 'success', true);
+  };
+
   const activeThread = useMemo(
     () => threads.find((thread) => thread.id === activeThreadId) || (fallbackThread?.id === activeThreadId ? fallbackThread : null),
     [activeThreadId, fallbackThread, threads]
   );
 
   const messages = activeThread ? messagesByThread[activeThread.id] || [] : [];
+  const isActiveVillage = activeThread?.type === 'village';
+  const activeVillageInviteLink = activeThread?.inviteLink || (isActiveVillage ? `${window.location.origin}/chat?village=${encodeURIComponent(activeThread.id)}` : '');
   const normalizedQuery = query.trim().toLowerCase();
   const activeParticipantId = activeThread?.participantId && !activeThread.participantId.startsWith('device_')
     ? activeThread.participantId
@@ -886,6 +934,27 @@ export default function ChatRoom() {
     void openContact(contact);
   }, [location.search, user?.uid]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const params = new URLSearchParams(location.search);
+    const villageId = params.get('village');
+    if (!villageId) return;
+
+    const routeKey = `${user.uid}:village:${villageId}`;
+    if (contactRouteHandledRef.current === routeKey) return;
+
+    const villageThread = threads.find((thread) => thread.id === villageId);
+    if (!villageThread) {
+      setActiveSpace('village');
+      return;
+    }
+
+    contactRouteHandledRef.current = routeKey;
+    setActiveSpace('village');
+    openThread(villageThread);
+  }, [location.search, threads, user?.uid]);
+
   const importDeviceContacts = async () => {
     const contactNavigator = navigator as NavigatorWithContacts;
 
@@ -1065,6 +1134,96 @@ export default function ChatRoom() {
       setContactsStatus(getChatActionErrorMessage(addError, 'Ajout du contact impossible.'));
     } finally {
       setAddingContact(false);
+    }
+  };
+
+  const inviteUserToActiveVillage = async () => {
+    if (!user || !activeThread || activeThread.type !== 'village') return;
+    const cleanIdentifier = extractContactIdentifier(villageInviteValue);
+    if (!cleanIdentifier) {
+      showActionStatus('Entre un email, un numéro ou un identifiant AfriSell.');
+      return;
+    }
+
+    setVillageInviteLoading(true);
+    clearActionStatus();
+    try {
+      const match = await findUserByIdentifier(cleanIdentifier);
+      if (!match) {
+        const inviteRef = push(ref(realtimeDb, `villageInvites/${activeThread.id}`));
+        await set(inviteRef, {
+          id: inviteRef.key,
+          identifier: cleanIdentifier,
+          invitedBy: user.uid,
+          threadId: activeThread.id,
+          productId: activeThread.productId || '',
+          status: 'pending',
+          createdAt: Date.now(),
+          updatedAt: serverTimestamp()
+        });
+        setVillageInviteValue('');
+        showActionStatus('Invitation enregistrée. Elle sera proposée dès que ce compte sera trouvé.', 'success', true);
+        return;
+      }
+
+      if (match.id === user.uid) {
+        showActionStatus("Tu es déjà membre de ce Village.");
+        return;
+      }
+
+      const displayName = match.profile.businessName || match.profile.displayName || 'Utilisateur AfriSell';
+      const avatarURL = match.profile.logoURL || match.profile.photoURL || '';
+      const now = Date.now();
+      const messageRef = push(ref(realtimeDb, `chatMessages/${activeThread.id}`));
+      const messageId = messageRef.key || `invite_${now}`;
+      const updates: Record<string, unknown> = {
+        [`chatThreads/${activeThread.id}/members/${match.id}`]: true,
+        [`chatThreads/${activeThread.id}/memberNames/${match.id}`]: displayName,
+        [`userChats/${match.id}/${activeThread.id}`]: {
+          threadId: activeThread.id,
+          title: activeThread.title,
+          avatarURL: activeThread.productImage || activeThread.avatarURL || '',
+          type: 'village',
+          status: 'Invitation Village',
+          productId: activeThread.productId || '',
+          productName: activeThread.productName || '',
+          productImage: activeThread.productImage || activeThread.avatarURL || '',
+          villagePrice: activeThread.villagePrice || 0,
+          currency: activeThread.currency || 'USD',
+          inviteLink: activeVillageInviteLink,
+          lastMessage: `Invitation à rejoindre ${activeThread.title}.`,
+          lastMessageAt: now,
+          unreadCount: 1,
+          updatedAt: serverTimestamp()
+        },
+        [`chatMessages/${activeThread.id}/${messageId}`]: {
+          id: messageId,
+          senderId: user.uid,
+          text: `${displayName} a été invité dans le Village.`,
+          type: 'system',
+          createdAt: now,
+          status: 'sent'
+        }
+      };
+
+      if (activeThread.productId) {
+        updates[`villageDeals/${activeThread.productId}/villages/${activeThread.id}/members/${match.id}`] = {
+          uid: match.id,
+          name: displayName,
+          avatarURL,
+          paymentStatus: 'invited',
+          invitedBy: user.uid,
+          joinedAt: now
+        };
+      }
+
+      await update(ref(realtimeDb), updates);
+      setVillageInviteValue('');
+      showActionStatus(`${displayName} a été ajouté au Village.`, 'success', true);
+    } catch (inviteError) {
+      showActionStatus(getChatActionErrorMessage(inviteError, 'Invitation Village impossible.'));
+    } finally {
+      setVillageInviteLoading(false);
     }
   };
 
@@ -1256,6 +1415,92 @@ export default function ChatRoom() {
     }
   };
 
+  const sendChatAttachment = async (file: File) => {
+    if (!activeThread || !user || attaching) return;
+
+    const isMedia = file.type.startsWith('image/') || file.type.startsWith('video/');
+    setAttaching(true);
+    clearActionStatus();
+
+    try {
+      if (isMedia) {
+        const canUseLocalFallback = file.size <= 900 * 1024;
+        const upload = isCloudinaryReady()
+          ? await uploadMediaToCloudinary(file, user.uid)
+          : null;
+        const mediaUrl = upload?.mediaUrl || (canUseLocalFallback ? await readFileAsDataUrl(file) : '');
+        if (!mediaUrl) {
+          throw new Error('Fichier trop lourd pour l’envoi local. Active Cloudinary ou choisis un média plus léger.');
+        }
+        const messageType = (upload?.resourceType || (file.type.startsWith('video/') ? 'video' : 'image')) === 'video' ? 'video' : 'image';
+        await sendMessage(
+          activeThread,
+          `${messageType === 'video' ? 'Vidéo' : 'Photo'}: ${file.name}`,
+          {
+            type: messageType,
+            mediaUrl,
+            fileName: file.name,
+            mimeType: file.type
+          }
+        );
+        showActionStatus('Média envoyé dans la conversation.', 'success', true);
+        return;
+      }
+
+      const fileUrl = file.size <= 700 * 1024 ? await readFileAsDataUrl(file) : '';
+      await sendMessage(activeThread, `Fichier: ${file.name}`, {
+        type: 'file',
+        mediaUrl: fileUrl,
+        fileName: file.name,
+        mimeType: file.type || 'application/octet-stream'
+      });
+      showActionStatus('Fichier ajouté à la conversation.', 'success', true);
+    } catch (attachmentError) {
+      showActionStatus(getChatActionErrorMessage(attachmentError, 'Envoi de la pièce jointe impossible.'));
+    } finally {
+      setAttaching(false);
+    }
+  };
+
+  const handleChatAttachmentSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+    if (!file) return;
+    void sendChatAttachment(file);
+  };
+
+  const shareCurrentLocation = async () => {
+    if (!activeThread || attaching) return;
+
+    if (!navigator.geolocation) {
+      showActionStatus('La position n’est pas disponible sur cet appareil.');
+      return;
+    }
+
+    setAttaching(true);
+    clearActionStatus();
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 60000
+        });
+      });
+      const { latitude, longitude } = position.coords;
+      const mapUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
+      await sendMessage(activeThread, `Position partagée: ${mapUrl}`, {
+        type: 'location'
+      });
+      showActionStatus('Position envoyée.', 'success', true);
+    } catch (locationError) {
+      showActionStatus(getChatActionErrorMessage(locationError, 'Partage de position impossible.'));
+    } finally {
+      setAttaching(false);
+    }
+  };
+
   const createThread = async (
     type: 'village' | 'kyaghanda' | 'support',
     customConfig?: { title: string; status: string; nextSpace?: ChatSpace }
@@ -1347,6 +1592,102 @@ export default function ChatRoom() {
         </div>
 
         <div className="africhat-message-wall min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          {isActiveVillage && (
+            <section className="mb-4 overflow-hidden rounded-[1.6rem] border border-[#15EA3E]/22 bg-[#071007] shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
+              <div className="relative min-h-32 p-4">
+                {(activeThread.productImage || activeThread.avatarURL) && (
+                  <img src={activeThread.productImage || activeThread.avatarURL} alt="" className="absolute inset-0 h-full w-full object-cover opacity-22" />
+                )}
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.86),rgba(0,0,0,0.5)),radial-gradient(circle_at_12%_20%,rgba(21,234,62,0.28),transparent_36%)]" />
+                <div className="relative z-10 flex items-start gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.25rem_0.75rem_1.25rem_0.75rem] bg-[#15EA3E] text-black">
+                    <AfriSellIcon name="hub" size={21} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">{activeThread.status || 'Village AfriSell'}</p>
+                    <h2 className="mt-1 line-clamp-2 text-lg font-black leading-tight text-white">{activeThread.title}</h2>
+                    <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-white/55">
+                      {activeThread.productName || 'Espace collectif pour acheter, inviter, organiser et suivre les décisions du Village.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="relative z-10 mt-4 grid grid-cols-3 gap-2">
+                  {[
+                    { label: 'Produit', value: activeThread.productName ? 'Lié' : 'Libre' },
+                    { label: 'Accès', value: activeThread.visibility === 'public' ? 'Public' : 'Privé' },
+                    { label: 'Prix', value: activeThread.villagePrice ? `${Number(activeThread.villagePrice).toLocaleString('fr-FR')} ${activeThread.currency || 'USD'}` : 'Village' }
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-2xl border border-white/10 bg-black/28 p-2 text-center">
+                      <p className="truncate text-[10px] font-black text-white">{item.value}</p>
+                      <p className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-white/38">{item.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="relative z-10 mt-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/24 p-2">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(activeVillageInviteLink)}`}
+                    alt="QR Village"
+                    className="h-14 w-14 shrink-0 rounded-xl bg-white p-1"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-white/58">Invitation QR</p>
+                    <p className="mt-0.5 line-clamp-2 text-[10px] font-semibold text-white/38">Scanne ou partage le lien pour rejoindre ce Village.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="border-t border-white/10 p-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => activeThread.productId ? navigate(`/market/${activeThread.productId}`) : navigate('/market')}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-[10px] font-black uppercase tracking-wider text-white/70"
+                  >
+                    Produit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate(activeThread.productId ? `/wallet?action=transfer&product=${encodeURIComponent(activeThread.productId)}` : '/wallet?action=transfer')}
+                    className="rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black"
+                  >
+                    Payer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(activeVillageInviteLink);
+                      showActionStatus('Lien du Village copié.', 'success', true);
+                    }}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-[10px] font-black uppercase tracking-wider text-white/70"
+                  >
+                    Lien
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowConversationPanel(true)}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-[10px] font-black uppercase tracking-wider text-white/70"
+                  >
+                    Gérer
+                  </button>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={villageInviteValue}
+                    onChange={(event) => setVillageInviteValue(event.target.value)}
+                    placeholder="Ajouter par email ou numéro"
+                    className="h-11 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/35 px-3 text-xs font-semibold text-white outline-none focus:border-[#15EA3E]/45"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void inviteUserToActiveVillage()}
+                    disabled={villageInviteLoading}
+                    className="h-11 rounded-2xl bg-[#15EA3E] px-4 text-[10px] font-black uppercase tracking-wider text-black disabled:bg-gray-800 disabled:text-gray-500"
+                  >
+                    {villageInviteLoading ? '...' : 'Ajouter'}
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
             <button
               type="button"
@@ -1414,21 +1755,61 @@ export default function ChatRoom() {
           onSubmit={submitMessage}
           className="sticky bottom-0 z-20 flex shrink-0 flex-col gap-3 border-t border-gray-900 bg-black px-4 pb-3 pt-3"
         >
+          <input
+            ref={chatCameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleChatAttachmentSelect}
+            className="hidden"
+          />
+          <input
+            ref={chatGalleryInputRef}
+            type="file"
+            accept="image/*,video/*"
+            onChange={handleChatAttachmentSelect}
+            className="hidden"
+          />
+          <input
+            ref={chatFileInputRef}
+            type="file"
+            onChange={handleChatAttachmentSelect}
+            className="hidden"
+          />
           <div className="flex items-center justify-between px-1">
-            <button type="button" className="flex items-center gap-1.5 text-gray-500">
-              <AfriSellIcon name="language" size={13} />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Traduction</span>
-            </button>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-700">AfriChat</span>
-          </div>
-          <div className="flex items-end gap-2">
             <button
               type="button"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gray-800 bg-[#0A0A0A] text-gray-500 transition-colors hover:text-white"
-              aria-label="Joindre un fichier"
+              onClick={translateDraft}
+              className={cn('flex items-center gap-1.5', translationEnabled ? 'text-[#15EA3E]' : 'text-gray-500')}
             >
-              <AfriSellIcon name="clip" size={18} />
+              <AfriSellIcon name="language" size={13} />
+              <span className="text-[10px] font-bold uppercase tracking-wider">{translationEnabled ? 'Traduction active' : 'Traduction'}</span>
             </button>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-700">
+              {attaching ? 'Envoi en cours...' : 'AfriChat'}
+            </span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {[
+              { label: 'Caméra', icon: 'camera' as AfriSellIconName, onClick: () => chatCameraInputRef.current?.click() },
+              { label: 'Galerie', icon: 'gallery' as AfriSellIconName, onClick: () => chatGalleryInputRef.current?.click() },
+              { label: 'Fichier', icon: 'file' as AfriSellIconName, onClick: () => chatFileInputRef.current?.click() },
+              { label: 'Contact', icon: 'contact' as AfriSellIconName, onClick: () => setShowAddContactPanel(true) },
+              { label: 'Position', icon: 'location' as AfriSellIconName, onClick: () => void shareCurrentLocation() }
+            ].map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                onClick={action.onClick}
+                disabled={attaching}
+                className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black text-white/70 transition-colors hover:border-[#15EA3E]/30 hover:text-[#15EA3E] disabled:opacity-45"
+              >
+                <AfriSellIcon name={action.icon} size={14} />
+                {action.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-end gap-2">
             <div className="flex min-h-[44px] flex-1 items-center overflow-hidden rounded-xl border border-gray-800 bg-[#0A0A0A] px-4 transition-colors focus-within:border-[#15EA3E]/50">
               <textarea
                 value={draft}
@@ -1441,7 +1822,7 @@ export default function ChatRoom() {
             </div>
             <button
               type="submit"
-              disabled={!draft.trim() || sending}
+              disabled={!draft.trim() || sending || attaching}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-500"
               aria-label="Envoyer"
             >
@@ -1467,6 +1848,44 @@ export default function ChatRoom() {
               </div>
 
               <div className="grid gap-2">
+                {isActiveVillage && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(activeVillageInviteLink);
+                        setShowConversationPanel(false);
+                        showActionStatus('Lien du Village copié.', 'success', true);
+                      }}
+                      className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
+                    >
+                      <AfriSellIcon name="share" size={17} className="text-[#15EA3E]" />
+                      <span className="text-xs font-black text-white">Copier le lien du Village</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowConversationPanel(false);
+                        setShowAddContactPanel(true);
+                      }}
+                      className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
+                    >
+                      <AfriSellIcon name="contact" size={17} className="text-[#15EA3E]" />
+                      <span className="text-xs font-black text-white">Ajouter un membre</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowConversationPanel(false);
+                        navigate(activeThread.productId ? `/market/${activeThread.productId}` : '/market');
+                      }}
+                      className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
+                    >
+                      <AfriSellIcon name="market" size={17} className="text-[#15EA3E]" />
+                      <span className="text-xs font-black text-white">Voir le produit du Village</span>
+                    </button>
+                  </>
+                )}
                 {activeParticipantId && (
                   <button
                     type="button"
@@ -1482,7 +1901,7 @@ export default function ChatRoom() {
                 )}
                 <button
                   type="button"
-                  onClick={() => showActionStatus('Gestion avancée de la conversation en préparation.', 'success', true)}
+                  onClick={() => showActionStatus(isActiveVillage ? 'Gestion du Village disponible dans le panneau et les actions rapides.' : 'Gestion avancée de la conversation en préparation.', 'success', true)}
                   className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
                 >
                   <AfriSellIcon name="shield" size={17} className="text-[#15EA3E]" />
@@ -1504,6 +1923,71 @@ export default function ChatRoom() {
           </div>
         )}
         {showChatSettings && <ChatSettingsSheet onClose={() => setShowChatSettings(false)} />}
+        {showAddContactPanel && (
+          <div className="absolute inset-0 z-50 flex items-end bg-black/55 backdrop-blur-sm">
+            <section className="w-full rounded-t-[2rem] border-t border-white/10 bg-[#050505] p-5 shadow-[0_-24px_60px_rgba(0,0,0,0.5)]">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Nouveau contact</p>
+                  <h2 className="mt-1 text-lg font-black text-white">Ajouter à AfriChat</h2>
+                </div>
+                <button type="button" onClick={() => setShowAddContactPanel(false)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/55">
+                  <AfriSellIcon name="close" size={14} />
+                </button>
+              </div>
+              <label className="flex h-12 items-center gap-3 rounded-2xl border border-white/10 bg-black/35 px-3">
+                <AfriSellIcon name="mail" size={16} className="text-white/35" />
+                <input
+                  value={manualContactValue}
+                  onChange={(event) => setManualContactValue(event.target.value)}
+                  placeholder="Email, numéro ou code QR AfriSell"
+                  className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-white outline-none placeholder:text-white/28"
+                />
+              </label>
+              {manualLookupLoading && (
+                <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white/45">
+                  Recherche dans AfriSell...
+                </p>
+              )}
+              {manualLookupResult && (
+                <div className="mt-3 rounded-[1.35rem] border border-[#15EA3E]/20 bg-[#071007] p-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar
+                      title={manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriSell'}
+                      src={manualLookupResult.profile.logoURL || manualLookupResult.profile.photoURL}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-black text-white">
+                        {manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriSell'}
+                      </p>
+                      <p className="mt-1 truncate text-[10px] font-semibold text-white/45">
+                        {manualLookupResult.profile.email || manualLookupResult.profile.phone || 'Profil AfriSell'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {contactsStatus && (
+                <p className={cn(
+                  'mt-3 rounded-2xl border px-3 py-2 text-[10px] font-semibold leading-relaxed',
+                  contactsStatus.includes('impossible') || contactsStatus.includes('Aucun') || contactsStatus.includes('peux pas')
+                    ? 'border-red-500/20 bg-red-500/10 text-red-100'
+                    : 'border-[#15EA3E]/20 bg-[#15EA3E]/10 text-[#15EA3E]'
+                )}>
+                  {contactsStatus}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => void requestChatContact(manualContactValue, manualLookupResult)}
+                disabled={addingContact || !manualLookupResult || manualLookupResult.id === user?.uid}
+                className="mt-4 w-full rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black disabled:bg-gray-800 disabled:text-gray-500"
+              >
+                {addingContact ? 'Envoi...' : 'Envoyer la demande'}
+              </button>
+            </section>
+          </div>
+        )}
       </div>
     );
   }

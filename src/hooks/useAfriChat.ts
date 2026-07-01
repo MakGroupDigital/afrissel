@@ -11,6 +11,13 @@ export type AfriChatThread = {
   participantId?: string;
   participantName?: string;
   participantAvatarURL?: string;
+  productId?: string;
+  productName?: string;
+  productImage?: string;
+  villagePrice?: number;
+  currency?: string;
+  inviteLink?: string;
+  visibility?: 'public' | 'private' | string;
   lastMessage?: string;
   lastMessageAt?: number | string | { seconds?: number };
   unreadCount?: number;
@@ -66,6 +73,17 @@ type RawContact = Omit<AfriChatContact, 'id'> & {
   name?: string;
 };
 
+type RawPublicVillageDeal = {
+  id?: string;
+  productId?: string;
+  title?: string;
+  productName?: string;
+  productImage?: string;
+  createdAt?: number;
+  villagePrice?: number;
+  currency?: string;
+};
+
 const getTimestamp = (value?: AfriChatThread['lastMessageAt'] | AfriChatMessage['createdAt']) => {
   if (!value) return 0;
   if (typeof value === 'object') return (value.seconds || 0) * 1000;
@@ -94,6 +112,13 @@ const normalizeThread = (id: string, thread: RawThread): AfriChatThread => ({
   participantId: thread.participantId,
   participantName: thread.participantName,
   participantAvatarURL: thread.participantAvatarURL,
+  productId: thread.productId,
+  productName: thread.productName,
+  productImage: thread.productImage,
+  villagePrice: thread.villagePrice,
+  currency: thread.currency,
+  inviteLink: thread.inviteLink,
+  visibility: thread.visibility,
   lastMessage: thread.lastMessage || '',
   lastMessageAt: thread.lastMessageAt,
   unreadCount: Number(thread.unreadCount || 0),
@@ -179,6 +204,7 @@ export const useAfriChat = () => {
 
     const userThreadsRef = ref(realtimeDb, `userChats/${user.uid}`);
     const userContactsRef = ref(realtimeDb, `chatContacts/${user.uid}`);
+    const publicVillagesRef = ref(realtimeDb, 'publicVillageDeals');
 
     const unsubscribeThreads = onValue(
       userThreadsRef,
@@ -231,12 +257,43 @@ export const useAfriChat = () => {
       }
     );
 
+    const unsubscribePublicVillages = onValue(publicVillagesRef, (snapshot) => {
+      const data = snapshot.val() as Record<string, RawPublicVillageDeal> | null;
+      const publicVillageThreads = Object.entries(data || {}).map(([id, village]): AfriChatThread => ({
+        id: village.id || id,
+        title: village.title || village.productName || 'Village public',
+        avatarURL: village.productImage || '',
+        productId: village.productId || id,
+        productName: village.productName || '',
+        productImage: village.productImage || '',
+        villagePrice: village.villagePrice,
+        currency: village.currency,
+        visibility: 'public',
+        type: 'village',
+        status: 'Village d’achat public',
+        lastMessage: village.productName ? `Prix Village: ${village.productName}` : 'Village public AfriSell',
+        lastMessageAt: village.createdAt || 0,
+        unreadCount: 0
+      }));
+
+      setThreads((currentThreads) => {
+        const currentById = new Map<string, AfriChatThread>(currentThreads.map((thread) => [thread.id, thread]));
+        publicVillageThreads.forEach((thread) => {
+          if (!currentById.has(thread.id)) currentById.set(thread.id, thread);
+        });
+        return Array.from(currentById.values())
+          .sort((first, second) => getTimestamp(second.lastMessageAt) - getTimestamp(first.lastMessageAt));
+      });
+    });
+
     return () => {
       mounted = false;
       unsubscribeThreads();
       unsubscribeContacts();
+      unsubscribePublicVillages();
       off(userThreadsRef);
       off(userContactsRef);
+      off(publicVillagesRef);
     };
   }, [user]);
 

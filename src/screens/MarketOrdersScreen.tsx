@@ -18,6 +18,7 @@ type MarketOrder = {
   totalAmount: number;
   currency: string;
   status: string;
+  documentType?: 'receipt' | 'invoice';
   deliveryStatus?: string;
   villageStatus?: string;
   createdAt?: number;
@@ -106,7 +107,7 @@ export default function MarketOrdersScreen() {
                 {order.status}
               </span>
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="mt-3 grid grid-cols-4 gap-2">
               <Link to={`/market/${order.productId}`} className="rounded-xl border border-white/10 bg-black/20 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-white/62">
                 Produit
               </Link>
@@ -115,6 +116,9 @@ export default function MarketOrdersScreen() {
               </Link>
               <Link to="/chat" className="rounded-xl bg-[#15EA3E] px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-black">
                 Chat
+              </Link>
+              <Link to={`/order/${order.id}`} className="rounded-xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
+                {order.documentType === 'invoice' ? 'Facture' : 'Reçu'}
               </Link>
             </div>
           </article>

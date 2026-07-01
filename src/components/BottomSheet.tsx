@@ -6,6 +6,7 @@ import { AfriSellIcon } from './AfriSellIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
 import { completeCommerceOrder } from '../domains/commerce';
+import { downloadDataUrl, generateOrderDocumentPng, OrderDocumentKind } from '../lib/orderDocument';
 
 const formatPrice = (value: number, currency = 'USD') => {
   if (currency === 'USD') return `$${value.toLocaleString('fr-FR')}`;
@@ -18,8 +19,10 @@ export default function BottomSheet() {
   const { user, profile } = useFirebaseAuth();
   const { balance, currency } = useAfriSpayWallet();
   const [paymentStatus, setPaymentStatus] = React.useState<'idle' | 'processing' | 'success'>('idle');
+  const [paymentMode, setPaymentMode] = React.useState<'afrispay' | 'delivery'>('afrispay');
   const [checkoutError, setCheckoutError] = React.useState('');
-  const [confirmedOrder, setConfirmedOrder] = React.useState<{ orderId: string; threadId: string; villageStatus: string } | null>(null);
+  const [documentStatus, setDocumentStatus] = React.useState('');
+  const [confirmedOrder, setConfirmedOrder] = React.useState<{ orderId: string; threadId: string; villageStatus: string; documentType: OrderDocumentKind; totalAmount: number; currency: string } | null>(null);
 
   const deliveryPrice = Number(selectedDelivery?.price || 0);
   const totalAmount = Number(selectedProduct?.villagePrice || selectedProduct?.price || 0) + deliveryPrice;
@@ -39,13 +42,17 @@ export default function BottomSheet() {
         user,
         profile,
         product: selectedProduct,
-        delivery: selectedDelivery
+        delivery: selectedDelivery,
+        paymentMode
       });
       removeFromCart(selectedProduct.id);
       setConfirmedOrder({
         orderId: result.orderId,
         threadId: result.threadId,
-        villageStatus: result.villageStatus
+        villageStatus: result.villageStatus,
+        documentType: result.documentType,
+        totalAmount: result.totalAmount,
+        currency: result.currency
       });
       setPaymentStatus('success');
     } catch (error) {
@@ -58,10 +65,35 @@ export default function BottomSheet() {
     if (paymentStatus !== 'processing') {
       setPaymentStatus('idle');
       setCheckoutError('');
+      setDocumentStatus('');
       setConfirmedOrder(null);
+      setPaymentMode('afrispay');
       closeCheckout();
     }
   }
+
+  const handleDownloadDocument = async () => {
+    if (!confirmedOrder || !selectedProduct) return;
+
+    setDocumentStatus('Préparation du document sécurisé...');
+    try {
+      const verificationUrl = `${window.location.origin}/order/${confirmedOrder.orderId}`;
+      const dataUrl = await generateOrderDocumentPng({
+        kind: confirmedOrder.documentType,
+        orderId: confirmedOrder.orderId,
+        product: selectedProduct,
+        delivery: selectedDelivery,
+        buyerName: profile?.displayName || user?.displayName || 'Client AfriSell',
+        totalAmount: confirmedOrder.totalAmount,
+        currency: confirmedOrder.currency,
+        verificationUrl
+      });
+      downloadDataUrl(dataUrl, `afrisell-${confirmedOrder.documentType}-${confirmedOrder.orderId}.png`);
+      setDocumentStatus('Document téléchargé.');
+    } catch (error) {
+      setDocumentStatus(error instanceof Error ? error.message : 'Téléchargement du document impossible.');
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -92,22 +124,37 @@ export default function BottomSheet() {
                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#15EA3E]/15">
                   <AfriSellIcon name="check" size={32} className="text-[#15EA3E]" />
                 </div>
-                <h3 className="mb-2 text-sm font-bold uppercase tracking-widest text-white">Commande confirmee</h3>
+                <h3 className="mb-2 text-sm font-bold uppercase tracking-widest text-white">
+                  {confirmedOrder?.documentType === 'invoice' ? 'Facture créée' : 'Commande confirmée'}
+                </h3>
                 <p className="text-xs font-semibold leading-relaxed text-gray-500">
-                  Paiement AfriSpay, commande, livraison Safari et chat vendeur/client sont créés.
+                  {confirmedOrder?.documentType === 'invoice'
+                    ? 'La facture de paiement à la livraison est prête avec QR de vérification.'
+                    : 'Paiement AfriSpay, reçu, livraison Safari et chat vendeur/client sont créés.'}
                 </p>
                 {confirmedOrder && (
-                  <div className="mt-4 grid w-full grid-cols-3 gap-2">
+                  <div className="mt-4 grid w-full grid-cols-2 gap-2">
+                    <button type="button" onClick={() => void handleDownloadDocument()} className="rounded-xl bg-[#15EA3E] px-2 py-3 text-[9px] font-black uppercase tracking-wider text-black">
+                      Télécharger {confirmedOrder.documentType === 'invoice' ? 'facture' : 'reçu'}
+                    </button>
+                    <Link to={`/order/${confirmedOrder.orderId}`} onClick={handleClose} className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-3 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
+                      Vérifier
+                    </Link>
                     <Link to="/chat" onClick={handleClose} className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-3 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
                       Chat
                     </Link>
                     <Link to="/safari" onClick={handleClose} className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-3 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
                       Livraison
                     </Link>
-                    <button type="button" onClick={handleClose} className="rounded-xl bg-[#15EA3E] px-2 py-3 text-[9px] font-black uppercase tracking-wider text-black">
+                    <button type="button" onClick={handleClose} className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-3 text-[9px] font-black uppercase tracking-wider text-white/70">
                       Fermer
                     </button>
                   </div>
+                )}
+                {documentStatus && (
+                  <p className="mt-3 rounded-xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 px-3 py-2 text-[10px] font-bold text-[#15EA3E]">
+                    {documentStatus}
+                  </p>
                 )}
                 <p className="mt-3 text-[10px] font-mono text-gray-600">Order: {confirmedOrder?.orderId}</p>
               </motion.div>
@@ -154,6 +201,27 @@ export default function BottomSheet() {
                   </div>
                 )}
 
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'afrispay', label: 'Payer maintenant', body: 'Reçu sécurisé' },
+                    { id: 'delivery', label: 'À la livraison', body: 'Facture sécurisée' }
+                  ].map((mode) => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => setPaymentMode(mode.id as typeof paymentMode)}
+                      className={`rounded-xl border p-3 text-left ${
+                        paymentMode === mode.id
+                          ? 'border-[#15EA3E]/45 bg-[#15EA3E]/10 text-white'
+                          : 'border-gray-800 bg-[#0A0A0A] text-white/58'
+                      }`}
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-wider">{mode.label}</p>
+                      <p className="mt-1 text-[9px] font-semibold text-white/40">{mode.body}</p>
+                    </button>
+                  ))}
+                </div>
+
                 {checkoutError && (
                   <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs font-semibold leading-relaxed text-red-100">
                     {checkoutError}
@@ -165,7 +233,11 @@ export default function BottomSheet() {
                   disabled={paymentStatus === 'processing'}
                   className="w-full mt-4 bg-[#15EA3E] text-black font-bold text-xs uppercase tracking-widest py-4 rounded-xl shadow-[0_0_15px_rgba(21,234,62,0.2)] hover:bg-[#1ee844] active:scale-95 transition-all disabled:bg-gray-800 disabled:text-gray-500"
                 >
-                   {paymentStatus === 'processing' ? 'Confirmation...' : `Confirmer • ${formatPrice(totalAmount, selectedProduct.currency)}`}
+                   {paymentStatus === 'processing'
+                     ? 'Confirmation...'
+                     : paymentMode === 'delivery'
+                       ? `Créer facture • ${formatPrice(totalAmount, selectedProduct.currency)}`
+                       : `Payer • ${formatPrice(totalAmount, selectedProduct.currency)}`}
                 </button>
               </div>
             )}

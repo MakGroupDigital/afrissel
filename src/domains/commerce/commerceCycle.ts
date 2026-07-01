@@ -15,6 +15,7 @@ type CompleteOrderInput = {
   profile?: CommerceProfile | null;
   product: Product;
   delivery?: CheckoutDelivery | null;
+  paymentMode?: 'afrispay' | 'delivery';
 };
 
 type VillageShareInput = {
@@ -54,7 +55,7 @@ const ensureSeller = (product: Product, currentUserId: string) => {
   return sellerId;
 };
 
-export async function completeCommerceOrder({ user, profile, product, delivery }: CompleteOrderInput) {
+export async function completeCommerceOrder({ user, profile, product, delivery, paymentMode = 'afrispay' }: CompleteOrderInput) {
   const sellerId = ensureSeller(product, user.uid);
   const deliveryPrice = Number(delivery?.price || 0);
   const productAmount = Number(product.villagePrice || product.price || 0);
@@ -65,15 +66,17 @@ export async function completeCommerceOrder({ user, profile, product, delivery }
     throw new Error('Montant de commande invalide.');
   }
 
-  const walletBalanceRef = ref(realtimeDb, `wallets/${user.uid}/balance`);
-  const debitResult = await runTransaction(walletBalanceRef, (currentBalance) => {
-    const balance = Number(currentBalance || 0);
-    if (!Number.isFinite(balance) || balance < totalAmount) return;
-    return balance - totalAmount;
-  });
+  if (paymentMode === 'afrispay') {
+    const walletBalanceRef = ref(realtimeDb, `wallets/${user.uid}/balance`);
+    const debitResult = await runTransaction(walletBalanceRef, (currentBalance) => {
+      const balance = Number(currentBalance || 0);
+      if (!Number.isFinite(balance) || balance < totalAmount) return;
+      return balance - totalAmount;
+    });
 
-  if (!debitResult.committed) {
-    throw new Error('Solde AfriSpay insuffisant pour confirmer cette commande.');
+    if (!debitResult.committed) {
+      throw new Error('Solde AfriSpay insuffisant pour confirmer cette commande.');
+    }
   }
 
   const orderRef = push(ref(realtimeDb, 'orders'));
@@ -104,7 +107,9 @@ export async function completeCommerceOrder({ user, profile, product, delivery }
   };
   const customerName = buyerName(user, profile);
   const customerAvatar = buyerAvatar(user, profile);
-  const orderMessage = `Commande ${orderId} confirmee: ${product.name} - ${formatMoney(totalAmount, currency)}. Livraison: ${deliveryRecord.title}.`;
+  const isPaidNow = paymentMode === 'afrispay';
+  const documentType = isPaidNow ? 'receipt' : 'invoice';
+  const orderMessage = `${isPaidNow ? 'Commande payee' : 'Facture creee'} ${orderId}: ${product.name} - ${formatMoney(totalAmount, currency)}. Livraison: ${deliveryRecord.title}.`;
 
   const updates: Record<string, unknown> = {
     [`orders/${orderId}`]: {
@@ -123,8 +128,10 @@ export async function completeCommerceOrder({ user, profile, product, delivery }
       deliveryAmount: deliveryPrice,
       totalAmount,
       currency,
-      status: 'paid',
-      paymentStatus: 'confirmed',
+      status: isPaidNow ? 'paid' : 'awaiting_delivery_payment',
+      paymentStatus: isPaidNow ? 'confirmed' : 'pay_on_delivery',
+      paymentMode,
+      documentType,
       deliveryStatus: deliveryRecord.status,
       villageStatus,
       chatThreadId: threadId,
@@ -133,31 +140,6 @@ export async function completeCommerceOrder({ user, profile, product, delivery }
     },
     [`userOrders/${user.uid}/${orderId}`]: true,
     [`sellerOrders/${sellerId}/${orderId}`]: true,
-    [`wallets/${user.uid}/updatedAt`]: serverTimestamp(),
-    [`walletTransactions/${user.uid}/${orderId}`]: {
-      id: orderId,
-      type: 'debit',
-      title: `Achat ${product.name}`,
-      amount: -totalAmount,
-      currency,
-      module: 'market',
-      channel: 'AfriSpay',
-      status: 'confirmed',
-      orderId,
-      createdAt: now
-    },
-    [`walletTransactions/${sellerId}/${orderId}`]: {
-      id: orderId,
-      type: 'credit',
-      title: `Vente ${product.name}`,
-      amount: productAmount,
-      currency,
-      module: 'market',
-      channel: 'AfriSpay Escrow',
-      status: 'escrow_pending_delivery',
-      orderId,
-      createdAt: now
-    },
     [`safariDeliveries/${orderId}`]: {
       orderId,
       productId: product.id,
@@ -225,6 +207,34 @@ export async function completeCommerceOrder({ user, profile, product, delivery }
     [`chatThreads/${threadId}/memberNames/${sellerId}`]: product.seller
   };
 
+  if (isPaidNow) {
+    updates[`wallets/${user.uid}/updatedAt`] = serverTimestamp();
+    updates[`walletTransactions/${user.uid}/${orderId}`] = {
+      id: orderId,
+      type: 'debit',
+      title: `Achat ${product.name}`,
+      amount: -totalAmount,
+      currency,
+      module: 'market',
+      channel: 'AfriSpay',
+      status: 'confirmed',
+      orderId,
+      createdAt: now
+    };
+    updates[`walletTransactions/${sellerId}/${orderId}`] = {
+      id: orderId,
+      type: 'credit',
+      title: `Vente ${product.name}`,
+      amount: productAmount,
+      currency,
+      module: 'market',
+      channel: 'AfriSpay Escrow',
+      status: 'escrow_pending_delivery',
+      orderId,
+      createdAt: now
+    };
+  }
+
   if (messageId) {
     updates[`chatMessages/${threadId}/${messageId}`] = {
       id: messageId,
@@ -239,7 +249,7 @@ export async function completeCommerceOrder({ user, profile, product, delivery }
   }
 
   await update(ref(realtimeDb), updates);
-  return { orderId, threadId, totalAmount, currency, villageStatus };
+  return { orderId, threadId, totalAmount, currency, villageStatus, documentType, paymentMode };
 }
 
 export async function shareVillageDealToAfriChat({ user, profile, product }: VillageShareInput) {

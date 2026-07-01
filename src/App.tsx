@@ -22,6 +22,7 @@ import ZandofyMarketplaceScreen from './screens/ZandofyMarketplaceScreen';
 import MarketHome from './screens/MarketHome';
 import ProductDetailScreen from './screens/ProductDetailScreen';
 import MarketOrdersScreen from './screens/MarketOrdersScreen';
+import OrderVerificationScreen from './screens/OrderVerificationScreen';
 import SellerStandScreen from './screens/SellerStandScreen';
 import WalletDashboard from './screens/WalletDashboard';
 import KycVerificationScreen from './screens/KycVerificationScreen';
@@ -132,6 +133,7 @@ function AppRoutes() {
         <Route path="/create" element={<RequireAuth><CreatePostScreen /></RequireAuth>} />
         <Route path="/market" element={<MarketHome />} />
         <Route path="/market/orders" element={<MarketOrdersScreen />} />
+        <Route path="/order/:orderId" element={<OrderVerificationScreen />} />
         <Route path="/market/stand/:sellerId" element={<SellerStandScreen />} />
         <Route path="/market/:productId" element={<ProductDetailScreen />} />
         <Route path="/wallet" element={<RequireAuth><WalletDashboard /></RequireAuth>} />
