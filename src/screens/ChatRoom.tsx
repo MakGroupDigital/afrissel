@@ -275,6 +275,101 @@ function MessageStatusTicks({ status }: { status?: AfriChatMessage['status'] }) 
   );
 }
 
+const linkPattern = /(https?:\/\/[^\s]+|\/chat\?village=[^\s]+)/g;
+
+function MessageText({ text }: { text: string }) {
+  const parts = text.split(linkPattern).filter(Boolean);
+
+  return (
+    <p className="whitespace-pre-wrap text-[13px] font-medium leading-relaxed">
+      {parts.map((part, index) => {
+        const isLink = /^(https?:\/\/[^\s]+|\/chat\?village=[^\s]+)$/.test(part);
+        if (!isLink) return <span key={`${part}-${index}`}>{part}</span>;
+
+        return (
+          <a
+            key={`${part}-${index}`}
+            href={part}
+            className="font-black text-[#15EA3E] underline decoration-[#15EA3E]/35 underline-offset-4"
+            target={part.startsWith('http') ? '_blank' : undefined}
+            rel={part.startsWith('http') ? 'noreferrer' : undefined}
+          >
+            {part}
+          </a>
+        );
+      })}
+    </p>
+  );
+}
+
+function VoiceLineMessage({ src, isMine }: { src: string; isMine: boolean }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const bars = [18, 34, 24, 42, 28, 50, 22, 38, 30, 46, 20, 36, 26, 44, 32, 24, 40, 28, 48, 22];
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      void audio.play();
+      return;
+    }
+    audio.pause();
+  };
+
+  return (
+    <div className={cn('flex w-[13.5rem] max-w-full items-center gap-2 py-1', isMine ? 'text-[#15EA3E]' : 'text-white/76')}>
+      <button
+        type="button"
+        onClick={togglePlay}
+        className={cn(
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95',
+          isMine ? 'bg-[#15EA3E] text-black' : 'bg-white/10 text-[#15EA3E]'
+        )}
+        aria-label={playing ? 'Mettre le vocal en pause' : 'Lire le vocal'}
+      >
+        <AfriSellIcon name={playing ? 'signal' : 'play'} size={14} className={playing ? undefined : 'translate-x-[1px]'} />
+      </button>
+      <button type="button" onClick={togglePlay} className="min-w-0 flex-1" aria-label="Lire le message vocal">
+        <div className="flex h-9 items-center gap-[3px]">
+          {bars.map((height, index) => {
+            const active = (index / bars.length) * 100 <= progress;
+            return (
+              <span
+                key={index}
+                className={cn(
+                  'w-[3px] rounded-full transition-all duration-150',
+                  active ? 'bg-[#15EA3E]' : isMine ? 'bg-[#15EA3E]/28' : 'bg-white/22',
+                  playing && 'animate-pulse'
+                )}
+                style={{
+                  height: `${playing ? Math.max(12, (height + ((index * 7 + Math.round(progress)) % 18)) % 52) : height}px`
+                }}
+              />
+            );
+          })}
+        </div>
+      </button>
+      <audio
+        ref={audioRef}
+        src={src}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => {
+          setPlaying(false);
+          setProgress(0);
+        }}
+        onTimeUpdate={(event) => {
+          const audio = event.currentTarget;
+          setProgress(audio.duration ? (audio.currentTime / audio.duration) * 100 : 0);
+        }}
+        className="hidden"
+      />
+    </div>
+  );
+}
+
 function MessageBubble({
   message,
   isMine,
@@ -285,7 +380,7 @@ function MessageBubble({
   isMine: boolean;
   onOpenKiss?: () => void;
 }) {
-  const messageBadge = message.type && message.type !== 'text'
+  const messageBadge = message.type && message.type !== 'text' && message.type !== 'audio'
     ? {
       order: 'Commande',
       village_share: 'Prix Village',
@@ -332,14 +427,14 @@ function MessageBubble({
 
   return (
     <div className={cn('flex w-full', isMine ? 'justify-end' : 'justify-start')}>
-      <button
-        type="button"
+      <div
         onClick={isKiss ? onOpenKiss : undefined}
-        disabled={!isKiss}
         className={cn(
-        'max-w-[82%] rounded-2xl border px-3.5 py-3',
+        isAudio ? 'max-w-[82%] px-1 py-1' : 'max-w-[82%] rounded-2xl border px-3.5 py-3',
         isKiss ? 'text-left active:scale-[0.98]' : 'cursor-default text-left',
-        isMine
+        isAudio
+          ? ''
+          : isMine
           ? 'rounded-br-md border-[#15EA3E]/30 bg-[#15EA3E]/12 text-white'
           : 'rounded-bl-md border-gray-800 bg-[#0A0A0A] text-gray-200'
       )}>
@@ -370,18 +465,7 @@ function MessageBubble({
             {message.text && <p className="px-3 py-2 text-[12px] font-semibold text-white/70">{message.text}</p>}
           </div>
         ) : isAudio ? (
-          <div className="min-w-[220px] rounded-2xl border border-white/10 bg-black/30 p-3">
-            <div className="mb-2 flex items-center gap-2 text-[#15EA3E]">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#15EA3E] text-black">
-                <AfriSellIcon name="mic" size={16} />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-xs font-black text-white">{message.fileName || 'Message vocal'}</span>
-                <span className="block text-[10px] font-bold text-white/45">Audio AfriChat</span>
-              </span>
-            </div>
-            <audio src={message.mediaUrl} controls className="h-9 w-full" />
-          </div>
+          <VoiceLineMessage src={message.mediaUrl || ''} isMine={isMine} />
         ) : isFile ? (
           <a
             href={message.mediaUrl || undefined}
@@ -412,7 +496,7 @@ function MessageBubble({
             </span>
           </a>
         ) : (
-          <p className="whitespace-pre-wrap text-[13px] font-medium leading-relaxed">{message.text}</p>
+          <MessageText text={message.text} />
         )}
         {message.productId && (
           <p className="mt-2 rounded-xl bg-black/20 px-2 py-1 text-[10px] font-bold text-white/50">
@@ -423,7 +507,7 @@ function MessageBubble({
           <span>{formatChatTime(message.createdAt)}</span>
           {isMine && <MessageStatusTicks status={message.status} />}
         </div>
-      </button>
+      </div>
     </div>
   );
 }
@@ -1775,7 +1859,12 @@ export default function ChatRoom() {
                   />
                   <div className="min-w-0">
                     <p className="text-[10px] font-black uppercase tracking-wider text-white/58">Invitation QR</p>
-                    <p className="mt-0.5 line-clamp-2 text-[10px] font-semibold text-white/38">Scanne ou partage le lien pour rejoindre ce Village.</p>
+                    <a
+                      href={activeVillageInviteLink}
+                      className="mt-0.5 line-clamp-2 text-[10px] font-black text-[#15EA3E] underline decoration-[#15EA3E]/35 underline-offset-4"
+                    >
+                      Rejoindre ce Village
+                    </a>
                   </div>
                 </div>
               </div>
@@ -1856,7 +1945,7 @@ export default function ChatRoom() {
             </button>
             <button
               type="button"
-              onClick={() => void sendQuickMessage('village_share', 'Je partage ce Prix Village. Qui rejoint le Village pour debloquer le meilleur prix ?')}
+              onClick={() => void sendQuickMessage('village_share', `Je partage ce Prix Village. Rejoins le Village ici: ${activeVillageInviteLink || `${window.location.origin}/chat`}`)}
               className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white/65"
             >
               Prix Village
