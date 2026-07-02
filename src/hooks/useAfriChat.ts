@@ -29,7 +29,7 @@ export type AfriChatMessage = {
   id: string;
   senderId: string;
   text: string;
-  type?: 'text' | 'order' | 'village_share' | 'payment' | 'delivery' | 'kyaghanda' | 'system' | 'kiss' | 'image' | 'video' | 'file' | 'contact' | 'location';
+  type?: 'text' | 'order' | 'village_share' | 'payment' | 'delivery' | 'kyaghanda' | 'system' | 'kiss' | 'image' | 'video' | 'audio' | 'file' | 'contact' | 'location';
   orderId?: string;
   productId?: string;
   amount?: number;

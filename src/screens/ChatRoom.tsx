@@ -173,6 +173,10 @@ function ChatSpaceIcon({ id, icon, active }: { id: ChatSpace; icon: AfriSellIcon
 }
 
 function ThreadRow({ thread, active, onOpen }: { key?: React.Key; thread: AfriChatThread; active: boolean; onOpen: () => void }) {
+  const unreadCount = Number(thread.unreadCount || 0);
+  const isDirectThread = thread.type === 'direct' || Boolean(thread.participantId);
+  const isConnected = isDirectThread || String(thread.status || '').toLowerCase().includes('connect');
+
   return (
     <button
       type="button"
@@ -187,16 +191,33 @@ function ThreadRow({ thread, active, onOpen }: { key?: React.Key; thread: AfriCh
       <Avatar title={thread.title} src={thread.avatarURL} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-3">
-          <p className="truncate text-sm font-black text-white">{thread.title}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate text-sm font-black text-white">{thread.title}</p>
+            {isConnected && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#15EA3E]/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-[#15EA3E]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#15EA3E] shadow-[0_0_8px_rgba(21,234,62,0.7)]" />
+                Connecté
+              </span>
+            )}
+          </div>
           <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-gray-600">
             {formatChatTime(thread.lastMessageAt)}
           </span>
         </div>
         <div className="mt-1 flex items-center justify-between gap-3">
           <p className="truncate text-xs text-gray-500">{thread.lastMessage || 'Aucun message pour le moment'}</p>
-          {Boolean(thread.unreadCount) && (
+          {unreadCount > 0 ? (
             <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#15EA3E] px-1.5 text-[10px] font-black text-black">
-              {thread.unreadCount}
+              {unreadCount}
+            </span>
+          ) : thread.lastMessage ? (
+            <span className="inline-flex shrink-0 items-center gap-1 text-[9px] font-black uppercase tracking-wide text-[#15EA3E]/80">
+              <MessageStatusTicks status="read" />
+              Lu
+            </span>
+          ) : (
+            <span className="inline-flex shrink-0 items-center gap-1 text-[9px] font-black uppercase tracking-wide text-white/24">
+              <MessageStatusTicks status="sent" />
             </span>
           )}
         </div>
@@ -275,6 +296,7 @@ function MessageBubble({
       kiss: 'Bisous',
       image: 'Photo',
       video: 'Vidéo',
+      audio: 'Vocal',
       file: 'Fichier',
       contact: 'Contact',
       location: 'Position'
@@ -283,6 +305,7 @@ function MessageBubble({
   const isKiss = message.type === 'kiss';
   const isImage = message.type === 'image' && message.mediaUrl;
   const isVideo = message.type === 'video' && message.mediaUrl;
+  const isAudio = message.type === 'audio' && message.mediaUrl;
   const isFile = message.type === 'file';
   const isLocation = message.type === 'location';
   const badgeIcon: AfriSellIconName = message.type === 'kiss'
@@ -297,13 +320,15 @@ function MessageBubble({
             ? 'gallery'
             : message.type === 'video'
               ? 'video'
-              : message.type === 'file'
-                ? 'file'
-                : message.type === 'contact'
-                  ? 'contact'
-                  : message.type === 'location'
-                    ? 'location'
-                    : 'chat';
+              : message.type === 'audio'
+                ? 'mic'
+                : message.type === 'file'
+                  ? 'file'
+                  : message.type === 'contact'
+                    ? 'contact'
+                    : message.type === 'location'
+                      ? 'location'
+                      : 'chat';
 
   return (
     <div className={cn('flex w-full', isMine ? 'justify-end' : 'justify-start')}>
@@ -343,6 +368,19 @@ function MessageBubble({
           <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/30">
             <video src={message.mediaUrl} controls playsInline className="max-h-72 w-full bg-black object-cover" />
             {message.text && <p className="px-3 py-2 text-[12px] font-semibold text-white/70">{message.text}</p>}
+          </div>
+        ) : isAudio ? (
+          <div className="min-w-[220px] rounded-2xl border border-white/10 bg-black/30 p-3">
+            <div className="mb-2 flex items-center gap-2 text-[#15EA3E]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#15EA3E] text-black">
+                <AfriSellIcon name="mic" size={16} />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-black text-white">{message.fileName || 'Message vocal'}</span>
+                <span className="block text-[10px] font-bold text-white/45">Audio AfriChat</span>
+              </span>
+            </div>
+            <audio src={message.mediaUrl} controls className="h-9 w-full" />
           </div>
         ) : isFile ? (
           <a
@@ -505,10 +543,14 @@ export default function ChatRoom() {
   const [showChatSettings, setShowChatSettings] = useState(false);
   const [villageInviteValue, setVillageInviteValue] = useState('');
   const [villageInviteLoading, setVillageInviteLoading] = useState(false);
+  const [recordingVoice, setRecordingVoice] = useState(false);
   const storyInputRef = useRef<HTMLInputElement | null>(null);
   const chatCameraInputRef = useRef<HTMLInputElement | null>(null);
   const chatGalleryInputRef = useRef<HTMLInputElement | null>(null);
   const chatFileInputRef = useRef<HTMLInputElement | null>(null);
+  const voiceRecorderRef = useRef<MediaRecorder | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
+  const voiceStreamRef = useRef<MediaStream | null>(null);
   const viewedStoriesRef = useRef(new Set<string>());
   const qrVideoRef = useRef<HTMLVideoElement | null>(null);
   const qrStreamRef = useRef<MediaStream | null>(null);
@@ -548,6 +590,11 @@ export default function ChatRoom() {
     reader.onerror = () => reject(new Error('Lecture du fichier impossible.'));
     reader.readAsDataURL(file);
   });
+
+  const stopVoiceStream = () => {
+    voiceStreamRef.current?.getTracks().forEach((track) => track.stop());
+    voiceStreamRef.current = null;
+  };
 
   const translateDraft = () => {
     setTranslationEnabled((current) => !current);
@@ -863,6 +910,10 @@ export default function ChatRoom() {
 
   useEffect(() => () => {
     stopQrScanner();
+    if (voiceRecorderRef.current && voiceRecorderRef.current.state !== 'inactive') {
+      voiceRecorderRef.current.stop();
+    }
+    stopVoiceStream();
   }, []);
 
   useEffect(() => {
@@ -877,7 +928,11 @@ export default function ChatRoom() {
   }, [activeThreadId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const scrollTimer = window.setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+    }, 24);
+
+    return () => window.clearTimeout(scrollTimer);
   }, [activeThreadId, messages.length]);
 
   const openThread = (thread: AfriChatThread) => {
@@ -1415,6 +1470,95 @@ export default function ChatRoom() {
     }
   };
 
+  const sendVoiceClip = async (blob: Blob) => {
+    if (!activeThread || !user) return;
+
+    setAttaching(true);
+    clearActionStatus();
+
+    try {
+      const mimeType = blob.type || 'audio/webm';
+      const extension = mimeType.includes('mp4') || mimeType.includes('m4a') ? 'm4a' : 'webm';
+      const file = new File([blob], `message-vocal-${Date.now()}.${extension}`, { type: mimeType });
+      const audioUrl = file.size <= 1500 * 1024 ? await readFileAsDataUrl(file) : '';
+
+      if (!audioUrl) {
+        throw new Error('Message vocal trop long. Enregistre un vocal plus court.');
+      }
+
+      await sendMessage(activeThread, 'Message vocal', {
+        type: 'audio',
+        mediaUrl: audioUrl,
+        fileName: file.name,
+        mimeType
+      });
+      showActionStatus('Message vocal envoyé.', 'success', true);
+    } catch (voiceError) {
+      showActionStatus(getChatActionErrorMessage(voiceError, 'Envoi du message vocal impossible.'));
+    } finally {
+      setAttaching(false);
+    }
+  };
+
+  const toggleVoiceRecording = async () => {
+    if (recordingVoice) {
+      const recorder = voiceRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.stop();
+      }
+      return;
+    }
+
+    if (!activeThread || attaching || sending) return;
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      showActionStatus('L’enregistrement vocal n’est pas disponible sur cet appareil.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : '';
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
+      voiceChunksRef.current = [];
+      voiceStreamRef.current = stream;
+      voiceRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          voiceChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const clipType = recorder.mimeType || 'audio/webm';
+        const clip = new Blob(voiceChunksRef.current, { type: clipType });
+        voiceChunksRef.current = [];
+        voiceRecorderRef.current = null;
+        setRecordingVoice(false);
+        stopVoiceStream();
+        if (clip.size > 0) {
+          void sendVoiceClip(clip);
+        } else {
+          showActionStatus('Aucun son détecté dans ce message vocal.');
+        }
+      };
+
+      recorder.start();
+      setRecordingVoice(true);
+      showActionStatus('Enregistrement vocal en cours. Appuie encore sur le micro pour envoyer.', 'success');
+    } catch (voiceError) {
+      setRecordingVoice(false);
+      stopVoiceStream();
+      showActionStatus(getChatActionErrorMessage(voiceError, 'Micro inaccessible. Vérifie l’autorisation audio.'));
+    }
+  };
+
   const sendChatAttachment = async (file: File) => {
     if (!activeThread || !user || attaching) return;
 
@@ -1820,6 +1964,20 @@ export default function ChatRoom() {
                 rows={1}
               />
             </div>
+            <button
+              type="button"
+              onClick={() => void toggleVoiceRecording()}
+              disabled={attaching || sending}
+              className={cn(
+                'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-45',
+                recordingVoice
+                  ? 'border-red-400/50 bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)]'
+                  : 'border-white/10 bg-white/[0.055] text-[#15EA3E] hover:border-[#15EA3E]/35'
+              )}
+              aria-label={recordingVoice ? 'Arrêter et envoyer le vocal' : 'Enregistrer un message vocal'}
+            >
+              <AfriSellIcon name={recordingVoice ? 'close' : 'mic'} size={18} />
+            </button>
             <button
               type="submit"
               disabled={!draft.trim() || sending || attaching}

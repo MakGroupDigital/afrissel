@@ -97,13 +97,13 @@ const countryFilters = ['Tous pays', 'RDC', 'Congo', 'Côte d’Ivoire', 'Séné
 const cityFilters = ['Toutes villes', 'Kinshasa', 'Goma', 'Lubumbashi', 'Bukavu', 'Matadi', 'Bunia', 'Kolwezi'];
 const bannerSlides = [
   {
-    image: '/portrait-woman-working-dried-flowers-shop.jpg',
+    image: 'https://res.cloudinary.com/dh0ilegll/image/upload/v1782950736/afrissel/market-banners/portrait-woman-working-dried-flowers-shop.jpg',
     eyebrow: 'Stand créateur',
     title: 'Transforme ton atelier en vitrine AfriSell.',
     body: 'Expose tes produits, crée un Village d’achat et vends avec livraison Safari.'
   },
   {
-    image: '/african-woman-posing-studio.jpg',
+    image: 'https://res.cloudinary.com/dh0ilegll/image/upload/v1782950755/afrissel/market-banners/african-woman-posing-studio.jpg',
     eyebrow: 'Boutique locale',
     title: 'Découvre les offres qui font bouger le marché.',
     body: 'Mode, services, fournisseurs et Prix Village dans une seule expérience.'
@@ -415,7 +415,7 @@ export default function MarketHome() {
   };
 
   return (
-    <div className="flex min-h-full flex-col bg-black text-white">
+    <div className="flex min-h-full w-full max-w-full flex-col overflow-x-hidden bg-black text-white">
       <div className="sticky top-0 z-40 bg-black/70 px-4 py-3 backdrop-blur-xl">
         <input ref={photoInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoSearch} className="hidden" />
         <div className="flex min-w-0 items-center gap-2 rounded-[1.25rem] border border-[#15EA3E]/18 bg-[#071007]/95 p-2 shadow-[0_18px_38px_rgba(0,0,0,0.34)] transition-colors focus-within:border-[#15EA3E]/55">
@@ -501,21 +501,23 @@ export default function MarketHome() {
         )}
       </div>
 
-      <section className="px-4 pt-3">
-        <div className="relative min-h-[230px] overflow-hidden rounded-[1.75rem] border border-[#15EA3E]/22 bg-[#071007] shadow-[0_22px_54px_rgba(0,0,0,0.36),0_0_42px_rgba(21,234,62,0.08)]">
+      <section className="w-full max-w-full overflow-hidden px-4 pt-3">
+        <div className="relative h-[250px] w-full max-w-full overflow-hidden rounded-[1.75rem] border border-[#15EA3E]/22 bg-[#071007] shadow-[0_22px_54px_rgba(0,0,0,0.36),0_0_42px_rgba(21,234,62,0.08)]">
           {bannerSlides.map((slide, index) => (
             <img
               key={slide.image}
               src={slide.image}
               alt=""
+              loading={index === 0 ? 'eager' : 'lazy'}
+              decoding="async"
               className={cn(
-                'absolute inset-0 h-full w-full object-cover transition-opacity duration-700',
+                'absolute inset-0 h-full w-full select-none object-cover transition-opacity duration-700',
                 index === activeBannerIndex ? 'opacity-100' : 'opacity-0'
               )}
             />
           ))}
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.88),rgba(0,0,0,0.48),rgba(0,0,0,0.14)),radial-gradient(circle_at_18%_20%,rgba(21,234,62,0.34),transparent_34%)]" />
-          <div className="relative z-10 flex min-h-[230px] flex-col justify-between p-4">
+          <div className="relative z-10 flex h-full min-w-0 flex-col justify-between p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1.25rem] border border-white/15 bg-black/35 p-2 backdrop-blur">
                 <img src="/afrimarket sans nom icone sans fond.png" alt="AfriMarket" className="h-full w-full object-contain" />
@@ -535,14 +537,14 @@ export default function MarketHome() {
                 ))}
               </div>
             </div>
-            <div className="max-w-[82%]">
+            <div className="min-h-[96px] max-w-[82%] min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{bannerSlides[activeBannerIndex].eyebrow}</p>
-              <h1 className="mt-2 text-2xl font-black leading-[1.05] text-white">{bannerSlides[activeBannerIndex].title}</h1>
+              <h1 className="mt-2 line-clamp-2 text-2xl font-black leading-[1.05] text-white">{bannerSlides[activeBannerIndex].title}</h1>
               <p className="mt-2 line-clamp-2 text-xs font-semibold leading-relaxed text-white/68">
                 {bannerSlides[activeBannerIndex].body}
               </p>
             </div>
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            <div className="flex h-8 max-w-full gap-2 overflow-x-auto overflow-y-hidden scrollbar-hide">
               {marketChannels.filter((channel) => channel.id !== 'all').map((channel) => (
                 <button
                   key={channel.id}
