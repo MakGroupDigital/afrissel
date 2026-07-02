@@ -32,7 +32,7 @@ export default function CreatePostScreen() {
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraCaptureInputRef = useRef<HTMLInputElement | null>(null);
-  const [cameraStatus, setCameraStatus] = useState('Ouverture caméra...');
+  const [cameraStatus, setCameraStatus] = useState('Préparation caméra...');
   const [cameraFacing, setCameraFacing] = useState<CameraFacing>('environment');
   const [cameraReady, setCameraReady] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -59,29 +59,48 @@ export default function CreatePostScreen() {
     setCameraReady(false);
   };
 
-  const startCamera = async (facing: CameraFacing = cameraFacing) => {
+  const startCamera = async (facing: CameraFacing = cameraFacing, userInitiated = false) => {
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraStatus('Caméra indisponible sur ce navigateur. Utilise Galerie ou Mémoire.');
       setCameraReady(false);
       return;
     }
 
-    setCameraStatus(facing === 'user' ? 'Ouverture caméra selfie...' : 'Ouverture caméra arrière...');
+    if (!window.isSecureContext && window.location.hostname !== 'localhost') {
+      setCameraStatus('La caméra demande une connexion sécurisée. Ouvre l’app en HTTPS ou sur localhost.');
+      setCameraReady(false);
+      return;
+    }
+
+    setCameraStatus(facing === 'user' ? 'Demande accès caméra selfie...' : 'Demande accès caméra arrière...');
     stopCamera();
 
     const constraintsList: MediaStreamConstraints[] = [
-      { video: { facingMode: { ideal: facing }, width: { ideal: 1080 }, height: { ideal: 1920 } }, audio: true },
-      { video: { facingMode: facing }, audio: true },
-      { video: true, audio: true },
+      { video: { facingMode: { ideal: facing }, width: { ideal: 1080 }, height: { ideal: 1920 } }, audio: false },
+      { video: { facingMode: facing }, audio: false },
       { video: true, audio: false }
     ];
 
+    let lastError: unknown = null;
     for (const constraints of constraintsList) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          await new Promise<void>((resolve) => {
+            const video = videoRef.current;
+            if (!video) {
+              resolve();
+              return;
+            }
+            if (video.readyState >= 2) {
+              resolve();
+              return;
+            }
+            video.onloadedmetadata = () => resolve();
+            window.setTimeout(resolve, 900);
+          });
           await videoRef.current.play().catch(() => undefined);
         }
         setCameraFacing(facing);
@@ -89,16 +108,28 @@ export default function CreatePostScreen() {
         setCameraStatus('');
         return;
       } catch (error) {
+        lastError = error;
         console.warn('Tentative caméra AfriSell impossible:', error);
       }
     }
 
-    setCameraStatus('Caméra refusée ou indisponible. Tu peux importer depuis Galerie ou Mémoire.');
+    const errorName = lastError instanceof DOMException ? lastError.name : '';
+    if (errorName === 'NotAllowedError' || errorName === 'SecurityError') {
+      setCameraStatus(
+        userInitiated
+          ? 'Accès caméra refusé par le navigateur. Autorise la caméra dans les réglages du site puis réessaie.'
+          : 'Appuie sur Autoriser caméra pour afficher la demande d’accès du navigateur.'
+      );
+    } else if (errorName === 'NotFoundError' || errorName === 'OverconstrainedError') {
+      setCameraStatus('Aucune caméra compatible détectée. Tu peux importer depuis Galerie ou Mémoire.');
+    } else {
+      setCameraStatus('Caméra indisponible pour le moment. Réessaie ou importe depuis Galerie.');
+    }
     setCameraReady(false);
   };
 
   useEffect(() => {
-    void startCamera('environment');
+    void startCamera('environment', false);
 
     return () => {
       stopCamera();
@@ -187,7 +218,7 @@ export default function CreatePostScreen() {
 
   const switchCamera = () => {
     const nextFacing = cameraFacing === 'environment' ? 'user' : 'environment';
-    void startCamera(nextFacing);
+    void startCamera(nextFacing, true);
   };
 
   const clearSelection = () => {
@@ -265,8 +296,8 @@ export default function CreatePostScreen() {
         <div className="absolute inset-x-6 top-24 z-20 rounded-2xl border border-white/10 bg-black/55 p-3 text-center text-xs font-semibold text-white/68 backdrop-blur-md">
           {cameraStatus}
           <div className="mt-2 flex justify-center gap-2">
-            <button type="button" onClick={() => void startCamera(cameraFacing)} className="rounded-full bg-[#15EA3E] px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-black">
-              Réessayer
+            <button type="button" onClick={() => void startCamera(cameraFacing, true)} className="rounded-full bg-[#15EA3E] px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-black">
+              Autoriser caméra
             </button>
             <button type="button" onClick={() => galleryInputRef.current?.click()} className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-white/70">
               Galerie
