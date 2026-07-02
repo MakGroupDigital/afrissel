@@ -53,7 +53,10 @@ export type AfriSellIconName =
   | 'play'
   | 'home'
   | 'clock'
-  | 'plus';
+  | 'plus'
+  | 'menu'
+  | 'settings'
+  | 'edit';
 
 interface AfriSellIconProps {
   name: AfriSellIconName;
@@ -73,6 +76,25 @@ const paths: Record<AfriSellIconName, React.ReactNode> = {
     <>
       <path d="M12 5v14" />
       <path d="M5 12h14" />
+    </>
+  ),
+  menu: (
+    <>
+      <path d="M4.5 7h15" />
+      <path d="M4.5 12h15" />
+      <path d="M4.5 17h11" />
+    </>
+  ),
+  settings: (
+    <>
+      <path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z" />
+      <path d="M18.2 13.2c.1-.4.1-.8.1-1.2s0-.8-.1-1.2l2-1.5-2-3.4-2.4 1a8.3 8.3 0 0 0-2.1-1.2L13.4 3h-3.9l-.4 2.7c-.7.3-1.4.7-2 1.2l-2.5-1-2 3.4 2 1.5c-.1.4-.1.8-.1 1.2s0 .8.1 1.2l-2 1.5 2 3.4 2.5-1c.6.5 1.3.9 2 1.2l.4 2.7h3.9l.4-2.7c.7-.3 1.4-.7 2.1-1.2l2.4 1 2-3.4-2.1-1.5Z" />
+    </>
+  ),
+  edit: (
+    <>
+      <path d="M5 19h4.2L19.4 8.8a2.1 2.1 0 0 0-3-3L6.2 16H5v3Z" />
+      <path d="m14.8 7.4 1.8 1.8" />
     </>
   ),
   clock: (

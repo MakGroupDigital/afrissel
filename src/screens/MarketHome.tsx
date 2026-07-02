@@ -1,5 +1,5 @@
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { MARKET_CATEGORIES, AfriMarketContent, formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
@@ -207,6 +207,7 @@ function MiniMarketCard({ product, label }: { key?: React.Key; product: AfriMark
 export default function MarketHome() {
   const { marketProducts, loading, error } = useAfriMarket();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const voiceRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const voiceTimeoutRef = useRef<number | null>(null);
@@ -224,6 +225,14 @@ export default function MarketHome() {
   const [imageSearchPreview, setImageSearchPreview] = useState('');
   const [imageSearchTerms, setImageSearchTerms] = useState('');
   const [imageSearchName, setImageSearchName] = useState('');
+
+  useEffect(() => {
+    const searchFromUrl = searchParams.get('search') || '';
+    if (searchFromUrl) {
+      setQuery(searchFromUrl);
+      setSearchStatus(`Recherche: ${searchFromUrl}`);
+    }
+  }, [searchParams]);
 
   const activeChannel = marketChannels.find((channel) => channel.id === activeChannelId) || marketChannels[0];
   const subsectionFilters = ['Tous', ...activeChannel.subsections];

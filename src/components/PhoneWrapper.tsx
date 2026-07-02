@@ -6,6 +6,7 @@ import BottomSheet from './BottomSheet';
 import { InvertedAfricaLogo } from './InvertedAfricaLogo';
 import OfflineStatus from './OfflineStatus';
 import PwaInstallPrompt from './PwaInstallPrompt';
+import AppQuickActions from './AppQuickActions';
 
 interface PhoneWrapperProps {
   children: React.ReactNode;
@@ -62,6 +63,8 @@ export default function PhoneWrapper({ children }: PhoneWrapperProps) {
         </div>
 
         {!isImmersive && <BottomNavigation />}
+
+        {!isImmersive && <AppQuickActions />}
 
         {!isImmersive && <BottomSheet />}
 

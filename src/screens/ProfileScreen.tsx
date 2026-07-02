@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { updateProfile } from 'firebase/auth';
 import { get, ref, serverTimestamp, update } from 'firebase/database';
@@ -462,6 +462,7 @@ function PanelShell({
 
 export default function ProfileScreen() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, profile, logout, refreshProfile } = useFirebaseAuth();
   const [activePanel, setActivePanel] = useState<ProfilePanel>(null);
   const [busy, setBusy] = useState(false);
@@ -501,6 +502,13 @@ export default function ProfileScreen() {
   const selectedBusinessCategory = businessCategories.find((category) => category.id === businessCategoryId);
   const selectedBusinessService = selectedBusinessCategory?.services.find((service) => service.id === businessServiceId);
   const selectedBusinessSegment = selectedBusinessService?.segments.find((segment) => segment.id === businessSegmentId);
+
+  useEffect(() => {
+    const panel = searchParams.get('panel');
+    if (panel === 'profile' || panel === 'business' || panel === 'account' || panel === 'app' || panel === 'notifications' || panel === 'privacy') {
+      setActivePanel(panel);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!user) return;
