@@ -61,6 +61,7 @@ export default function AppQuickActions() {
 
   const visible = shouldShowQuickActions(location.pathname);
   const isOwnProfile = location.pathname === '/profile';
+  const isProfilePage = isOwnProfile || location.pathname.startsWith('/u/');
   const canEdit = isOwnProfile || !location.pathname.startsWith('/u/');
 
   const activeShortcut = useMemo(
@@ -102,16 +103,17 @@ export default function AppQuickActions() {
 
   return (
     <>
-      <div className="pointer-events-none absolute inset-x-0 top-4 z-[70] flex items-start justify-between px-4">
+      <div className="pointer-events-none absolute inset-x-0 top-1 z-[80] flex items-start justify-between px-3 pt-[env(safe-area-inset-top)]">
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
-          className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-2xl border border-white/12 bg-black/52 text-white shadow-[0_12px_28px_rgba(0,0,0,0.35)] backdrop-blur-xl transition-transform active:scale-95"
+          className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-2xl border border-white/12 bg-black/58 text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] backdrop-blur-xl transition-transform active:scale-95"
           aria-label="Ouvrir le menu AfriSell"
         >
-          <AfriSellIcon name="menu" size={18} />
+          <AfriSellIcon name="menu" size={17} />
         </button>
 
+        {isProfilePage && (
         <div className="pointer-events-auto flex items-center gap-2 rounded-[1.35rem] border border-white/12 bg-black/44 p-1.5 shadow-[0_12px_28px_rgba(0,0,0,0.32)] backdrop-blur-xl">
           {canEdit && (
             <button
@@ -140,9 +142,10 @@ export default function AppQuickActions() {
             <AfriSellIcon name="settings" size={16} />
           </button>
         </div>
+        )}
       </div>
 
-      {searchOpen && (
+      {isProfilePage && searchOpen && (
         <form onSubmit={submitSearch} className="absolute inset-x-4 top-[4.25rem] z-[72] rounded-[1.4rem] border border-[#15EA3E]/22 bg-black/78 p-2 shadow-[0_18px_42px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
           <div className="flex items-center gap-2">
             <AfriSellIcon name="search" size={16} className="text-[#15EA3E]" />
