@@ -11,8 +11,6 @@ type Shortcut = {
   description: string;
 };
 
-const hiddenPrefixes = ['/', '/onboarding', '/login', '/account-setup', '/create', '/scan'];
-
 const shortcuts: Shortcut[] = [
   { label: 'Accueil', route: '/ecosystem', icon: 'home', description: 'Retour à la super app' },
   { label: 'Découvrir', route: '/feed', icon: 'video', description: 'ABC, vidéos et contenus' },
@@ -26,29 +24,8 @@ const shortcuts: Shortcut[] = [
   { label: 'Profil', route: '/profile', icon: 'profile', description: 'Compte, business et réglages' }
 ];
 
-const modulePrefixes = [
-  '/ecosystem',
-  '/feed',
-  '/market',
-  '/wallet',
-  '/chat',
-  '/profile',
-  '/u/',
-  '/apps',
-  '/safari',
-  '/school',
-  '/med',
-  '/freelance',
-  '/biashara',
-  '/afriai',
-  '/fpp',
-  '/zandofy',
-  '/business'
-];
-
 const shouldShowQuickActions = (pathname: string) => {
-  if (hiddenPrefixes.includes(pathname)) return false;
-  return modulePrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`) || pathname.startsWith(prefix));
+  return pathname === '/profile' || pathname.startsWith('/u/');
 };
 
 export default function AppQuickActions() {
@@ -135,7 +112,7 @@ export default function AppQuickActions() {
           </button>
           <button
             type="button"
-            onClick={() => go('/profile?panel=app')}
+            onClick={() => go('/settings')}
             className="flex h-8 w-8 items-center justify-center rounded-xl text-white/82 transition-colors hover:bg-white/10 hover:text-[#15EA3E]"
             aria-label="Réglages"
           >

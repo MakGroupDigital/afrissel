@@ -78,6 +78,14 @@ const fallbackAbc = [
   }
 ];
 
+const afriSpayHomeActions = [
+  { label: 'Dépôt', icon: 'deposit' as const, route: '/wallet?action=deposit' },
+  { label: 'Retrait', icon: 'withdraw' as const, route: '/wallet?action=withdraw' },
+  { label: 'Envoyer', icon: 'send' as const, route: '/wallet?action=transfer' },
+  { label: 'Scanner', icon: 'scan' as const, route: '/wallet?action=scan' },
+  { label: 'Payer', icon: 'pay' as const, route: '/wallet' }
+];
+
 const freelanceSubtypes = new Set(['freelancer', 'creative', 'tech_service', 'local_service']);
 const supplierSubtypes = new Set(['supplier', 'b2b_supplier', 'b2c_supplier', 'importer', 'local_distributor']);
 
@@ -435,10 +443,10 @@ export default function EcosystemHome() {
   }, [isLightMode]);
 
   return (
-    <main className={`flex h-full min-h-0 flex-col overflow-hidden bg-[#050705] text-white ${isLightMode ? 'ecosystem-light' : ''}`}>
+        <main className={`flex h-full min-h-0 flex-col overflow-hidden bg-[#050705] text-white ${isLightMode ? 'ecosystem-light' : ''}`}>
       <div data-home-chrome className={`relative z-40 shrink-0 transition-[max-height,opacity,transform] duration-300 ease-out ${
         isHomeChromeVisible
-          ? 'max-h-[270px] translate-y-0 overflow-visible pb-1 pt-4 opacity-100'
+          ? 'max-h-[350px] translate-y-0 overflow-visible pb-1 pt-4 opacity-100'
           : 'pointer-events-none max-h-0 -translate-y-3 overflow-hidden opacity-0'
       }`}>
       <header className="shrink-0 px-4">
@@ -533,6 +541,39 @@ export default function EcosystemHome() {
             </div>
           )}
         </form>
+      </section>
+
+      <section className="mt-3 shrink-0 px-4">
+        <div className="relative overflow-hidden rounded-[1.35rem] border border-[#15EA3E]/20 bg-[#071007] px-3 py-3 shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_86%_10%,rgba(21,234,62,0.18),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.06),transparent_45%)]" />
+          <div className="relative z-10 flex items-center gap-3">
+            <Link
+              to={user ? '/wallet' : '/login'}
+              state={!user ? { next: '/wallet' } : undefined}
+              className="flex min-w-0 flex-1 items-center gap-2"
+            >
+              <img src="/afrispay.jpeg" alt="" className="h-10 w-10 shrink-0 rounded-2xl object-cover shadow-[0_10px_22px_rgba(0,0,0,0.28)]" />
+              <span className="min-w-0">
+                <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">AfriSpay</span>
+                <span className="mt-0.5 block truncate text-sm font-black text-white">{walletLabel}</span>
+              </span>
+            </Link>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {afriSpayHomeActions.map((action) => (
+                <Link
+                  key={action.label}
+                  to={user ? action.route : '/login'}
+                  state={!user ? { next: action.route } : undefined}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.055] text-[#15EA3E] active:scale-95"
+                  aria-label={action.label}
+                  title={action.label}
+                >
+                  <AfriSellIcon name={action.icon} size={13} />
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="mt-5 shrink-0 px-4">

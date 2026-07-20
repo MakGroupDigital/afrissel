@@ -37,10 +37,32 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const selectedPhoneCountry = AFRICAN_COUNTRIES_BY_PRIORITY.find((country) => country.code === phoneCountryCode) || getDefaultCountry();
   const visibleAuthError = authError && (attemptedAuth || !authError.includes('connexion Google est indisponible')) ? authError : '';
-  const nextPath = ((location.state as { next?: string } | null)?.next) || new URLSearchParams(location.search).get('next') || '/ecosystem';
+  const authState = location.state as { next?: string; flow?: 'login' | 'register'; email?: string; addAccount?: boolean; switchAccount?: boolean } | null;
+  const nextPath = authState?.next || new URLSearchParams(location.search).get('next') || '/ecosystem';
+  const isAccountSwitchFlow = Boolean(authState?.addAccount || authState?.switchAccount);
+  const authTitle = authState?.addAccount
+    ? 'Ajouter un compte'
+    : authState?.switchAccount
+      ? 'Connecter ce compte'
+      : flow === 'login'
+        ? 'Accéder à mon compte'
+        : 'Créer mon compte';
 
   useEffect(() => {
-    if (!loading && user) {
+    if (authState?.flow) {
+      setFlow(authState.flow);
+    }
+    const emailHint = authState?.email || window.localStorage.getItem('afrissel:login-email-hint') || '';
+    if (emailHint) {
+      setEmail(emailHint);
+      setMethod('email');
+      setFlow('login');
+      window.localStorage.removeItem('afrissel:login-email-hint');
+    }
+  }, [authState?.email, authState?.flow]);
+
+  useEffect(() => {
+    if (!loading && user && !isAccountSwitchFlow) {
       window.localStorage.setItem('afrisell:onboarding-seen', '1');
       if (profile?.demographicsSetupRequired && !profile.demographicsSetupCompleted) {
         navigate('/identity-setup', { replace: true, state: { next: nextPath } });
@@ -48,14 +70,23 @@ export default function LoginScreen() {
       }
       navigate(nextPath, { replace: true });
     }
-  }, [loading, navigate, nextPath, profile?.demographicsSetupCompleted, profile?.demographicsSetupRequired, user]);
+  }, [isAccountSwitchFlow, loading, navigate, nextPath, profile?.demographicsSetupCompleted, profile?.demographicsSetupRequired, user]);
 
-  const runAuth = async (action: () => Promise<void>) => {
+  const finishAccountSwitch = () => {
+    window.localStorage.setItem('afrisell:onboarding-seen', '1');
+    window.localStorage.removeItem('afrissel:auth-intent');
+    navigate(nextPath, { replace: true, state: null });
+  };
+
+  const runAuth = async (action: () => Promise<void>, options: { redirectOnSuccess?: boolean } = {}) => {
     setAttemptedAuth(true);
     setBusy(true);
     setAuthError('');
     try {
       await action();
+      if (options.redirectOnSuccess) {
+        finishAccountSwitch();
+      }
     } catch (error) {
       console.error('Connexion AfriSell impossible:', error);
       setAuthError(getAfriSellAuthErrorMessage(error));
@@ -67,14 +98,14 @@ export default function LoginScreen() {
 
   const runSocialAuth = (provider: 'google', action: () => Promise<void>) => {
     setSocialProviderOpening(provider);
-    void runAuth(action);
+    void runAuth(action, { redirectOnSuccess: isAccountSwitchFlow });
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (method === 'phone') {
       if (phoneCodeSent) {
-        void runAuth(() => confirmPhoneCode(phoneCode));
+        void runAuth(() => confirmPhoneCode(phoneCode), { redirectOnSuccess: isAccountSwitchFlow });
         return;
       }
 
@@ -86,11 +117,11 @@ export default function LoginScreen() {
     }
 
     if (flow === 'register') {
-      void runAuth(() => registerWithEmail(name, email, password));
+      void runAuth(() => registerWithEmail(name, email, password), { redirectOnSuccess: isAccountSwitchFlow });
       return;
     }
 
-    void runAuth(() => signInWithEmail(email, password));
+    void runAuth(() => signInWithEmail(email, password), { redirectOnSuccess: isAccountSwitchFlow });
   };
 
   const selectFlow = (nextFlow: 'login' | 'register') => {
@@ -156,9 +187,12 @@ export default function LoginScreen() {
 
         <section className="mt-3 min-w-0 shrink-0">
           <div className="text-center">
-            <h2 className="text-base font-black">
-              {flow === 'login' ? 'Accéder à mon compte' : 'Créer mon compte'}
-            </h2>
+            <h2 className="text-base font-black">{authTitle}</h2>
+            {isAccountSwitchFlow && (
+              <p className="mt-1 text-[10px] font-semibold leading-snug text-white/42">
+                Le compte actuel reste enregistré. Cette étape sert uniquement à ajouter ou activer un autre compte.
+              </p>
+            )}
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-2">

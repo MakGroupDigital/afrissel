@@ -698,11 +698,13 @@ export const useFirebaseAuth = () => {
     },
     signInWithEmail: async (email: string, password: string) => {
       updateAuthStore({ authError: '' });
+      await setPersistence(firebaseAuth, browserLocalPersistence);
       const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
       await syncCurrentUser(credential.user);
     },
     registerWithEmail: async (name: string, email: string, password: string) => {
       updateAuthStore({ authError: '' });
+      await setPersistence(firebaseAuth, browserLocalPersistence);
       const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
       const displayName = name.trim() || email.split('@')[0] || 'Utilisateur AfriSell';
       await updateProfile(credential.user, { displayName });

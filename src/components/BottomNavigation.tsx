@@ -20,10 +20,10 @@ export default function BottomNavigation() {
   const { user } = useFirebaseAuth();
 
   const navItems: NavigationItem[] = [
-    { icon: 'home', label: 'Accueil', path: '/ecosystem', iconSize: 20, shape: 'plain' },
-    { image: '/icone decouvrir barre de navigation sans fond.png', label: 'Découvrir', path: '/feed', imageClassName: 'scale-[0.84]', shape: 'wide' },
-    { image: '/afrimarket sans nom icone sans fond.png', label: 'Marché', path: '/market', imageClassName: 'scale-[0.86]', shape: 'soft' },
-    { image: '/icone message barre de navigation sans nom clean.png', label: 'Messages', path: '/chat', imageClassName: 'scale-[0.9]', shape: 'chat' },
+    { icon: 'home', label: 'Accueil', path: '/ecosystem', iconSize: 21, shape: 'plain' },
+    { image: '/icone decouvrir barre de navigation sans fond.png', label: 'Découvrir', path: '/feed', imageClassName: 'scale-[0.88]', shape: 'wide' },
+    { image: '/afrimarket sans nom icone sans fond.png', label: 'Marché', path: '/market', imageClassName: 'scale-[0.9]', shape: 'soft' },
+    { image: '/icone message barre de navigation sans nom clean.png', label: 'Messages', path: '/chat', imageClassName: 'scale-[0.92]', shape: 'chat' },
   ];
 
   const openCreatePage = () => {
@@ -69,19 +69,19 @@ function NavigationLink({ item, pathname }: { key?: React.Key; item: NavigationI
   );
 
   const shellClass = {
-    plain: 'w-[2.05rem] rounded-full',
+    plain: 'w-[3.05rem] rounded-[1.25rem]',
     wide: 'w-[3.55rem] rounded-[0.95rem]',
     soft: 'w-[2.55rem] rounded-full',
     chat: 'w-[3.05rem] [border-radius:1.4rem_0.85rem_1.4rem_0.95rem]'
   }[item.shape];
 
   const iconShellClass = {
-    plain: 'h-7 w-7',
+    plain: 'h-7 w-9',
     wide: 'h-7 w-10',
     soft: 'h-[2.15rem] w-[2.15rem]',
     chat: 'h-7 w-9'
   }[item.shape];
-  const showLabel = item.shape !== 'plain';
+  const showLabel = true;
 
   return (
     <NavLink
@@ -89,9 +89,7 @@ function NavigationLink({ item, pathname }: { key?: React.Key; item: NavigationI
       className={cn(
         'group flex h-full shrink-0 flex-col items-center justify-center gap-0.5 transition-all duration-300',
         shellClass,
-        item.shape === 'plain'
-          ? 'bg-transparent'
-          : isActive ? 'bg-white/[0.075]' : 'hover:bg-white/[0.035]',
+        isActive ? 'bg-white/[0.075]' : 'hover:bg-white/[0.035]',
         item.shape === 'soft' && isActive && 'ring-1 ring-[#15EA3E]/24',
         item.shape === 'wide' && isActive && 'shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]',
         item.shape === 'chat' && isActive && 'bg-[#15EA3E]/10'
@@ -109,7 +107,7 @@ function NavigationLink({ item, pathname }: { key?: React.Key; item: NavigationI
             alt=""
             className={cn(
               'afrisell-nav-image h-full w-full object-contain transition-[filter,opacity] duration-300',
-              isActive ? 'opacity-95 saturate-[0.9] brightness-105' : 'opacity-62 grayscale brightness-125 contrast-90 group-hover:opacity-86',
+              isActive ? 'opacity-100 saturate-[1.12] brightness-110' : 'opacity-88 saturate-[1.05] brightness-105 group-hover:opacity-100 group-hover:brightness-110',
               item.imageClassName
             )}
           />
@@ -119,7 +117,7 @@ function NavigationLink({ item, pathname }: { key?: React.Key; item: NavigationI
             size={item.iconSize || 22}
             className={cn(
               'transition-colors duration-300',
-              isActive ? 'text-[#15EA3E]' : 'text-white/58 group-hover:text-white/82'
+              isActive ? 'text-[#15EA3E]' : 'text-[#15EA3E]/78 group-hover:text-[#15EA3E]'
             )}
           />
         )}
@@ -127,7 +125,7 @@ function NavigationLink({ item, pathname }: { key?: React.Key; item: NavigationI
       {showLabel && (
         <span className={cn(
           'max-w-full truncate text-center text-[7.2px] font-bold leading-none transition-colors duration-300',
-          isActive ? 'text-[#15EA3E]' : 'text-white/52 group-hover:text-white/72',
+          isActive ? 'text-[#15EA3E]' : 'text-white/68 group-hover:text-white/86',
           item.shape === 'wide' && 'tracking-[-0.01em]'
         )}>
           {item.label}

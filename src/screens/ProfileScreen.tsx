@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { updateProfile } from 'firebase/auth';
 import { get, ref, serverTimestamp, update } from 'firebase/database';
@@ -7,6 +7,7 @@ import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { uploadMediaToCloudinary } from '../lib/cloudinary';
 import { realtimeDb } from '../lib/firebase';
 import { updateAfriSellUserPhoto, useFirebaseAuth } from '../hooks/useFirebaseAuth';
+import { useAfriMarket } from '../hooks/useAfriMarket';
 import { getAccountRoleDefinition, getAccountSubtypeDefinition } from '../lib/accountTypes';
 import { AFRISELL_MAIN_LOGO } from '../lib/branding';
 import {
@@ -18,14 +19,22 @@ import {
 } from '../lib/africaLocation';
 import { cn } from '../lib/utils';
 
-type ProfilePanel = 'profile' | 'business' | 'account' | 'app' | 'notifications' | 'privacy' | null;
+type ProfilePanel = 'profile' | 'business' | 'settings' | 'account' | 'app' | 'notifications' | 'privacy' | 'multiAccount' | null;
 
 type ProfileAction = {
-  id: Exclude<ProfilePanel, null> | 'logout';
+  id: Exclude<ProfilePanel, null> | 'addAccount' | 'logout';
   title: string;
   description: string;
   icon: AfriSellIconName;
   danger?: boolean;
+};
+
+type RememberedAccount = {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoURL: string;
+  lastUsedAt: string;
 };
 
 type UserSettings = {
@@ -324,6 +333,34 @@ const actions: ProfileAction[] = [
     icon: 'market'
   },
   {
+    id: 'addAccount',
+    title: 'Ajouter un compte',
+    description: 'Ajouter ou connecter un autre compte sans couper celui-ci.',
+    icon: 'plus'
+  },
+  {
+    id: 'logout',
+    title: 'Deconnexion',
+    description: 'Couper la session active sur cet appareil.',
+    icon: 'logout',
+    danger: true
+  }
+];
+
+const settingsSections: ProfileAction[] = [
+  {
+    id: 'profile',
+    title: 'Profil',
+    description: 'Identité, photo, téléphone et adresse.',
+    icon: 'profile'
+  },
+  {
+    id: 'business',
+    title: 'Business account',
+    description: 'Type de compte, activité, boutique et vérification.',
+    icon: 'market'
+  },
+  {
     id: 'account',
     title: 'Gérer le compte',
     description: 'Sécurité, code PIN, appareils et preferences.',
@@ -348,15 +385,38 @@ const actions: ProfileAction[] = [
     icon: 'shield'
   },
   {
+    id: 'addAccount',
+    title: 'Ajouter un compte',
+    description: 'Ajouter ou connecter un autre compte sans couper celui-ci.',
+    icon: 'plus'
+  },
+  {
     id: 'logout',
     title: 'Deconnexion',
-    description: 'Fermer la session sur cet appareil.',
+    description: 'Couper la session active sur cet appareil.',
     icon: 'logout',
     danger: true
   }
 ];
 
 const storageKey = (uid?: string) => `afrissel:settings:${uid || 'guest'}`;
+const rememberedAccountsKey = 'afrissel:remembered-accounts';
+
+const readRememberedAccounts = (): RememberedAccount[] => {
+  try {
+    const stored = window.localStorage.getItem(rememberedAccountsKey);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((account): account is RememberedAccount => Boolean(account?.uid));
+  } catch {
+    return [];
+  }
+};
+
+const writeRememberedAccounts = (accounts: RememberedAccount[]) => {
+  window.localStorage.setItem(rememberedAccountsKey, JSON.stringify(accounts.slice(0, 6)));
+};
 
 const hashPin = async (pin: string) => {
   const encoded = new TextEncoder().encode(pin);
@@ -463,8 +523,10 @@ function PanelShell({
 
 export default function ProfileScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user, profile, logout, refreshProfile } = useFirebaseAuth();
+  const { abcContents, marketProducts } = useAfriMarket();
   const [activePanel, setActivePanel] = useState<ProfilePanel>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
@@ -481,6 +543,7 @@ export default function ProfileScreen() {
   const [businessCategoryId, setBusinessCategoryId] = useState('');
   const [businessServiceId, setBusinessServiceId] = useState('');
   const [businessSegmentId, setBusinessSegmentId] = useState('');
+  const [rememberedAccounts, setRememberedAccounts] = useState<RememberedAccount[]>([]);
 
   const displayName = profile?.displayName || user?.displayName || 'Utilisateur AfriSell';
   const email = profile?.email || user?.email || 'Compte Firebase';
@@ -503,13 +566,47 @@ export default function ProfileScreen() {
   const selectedBusinessCategory = businessCategories.find((category) => category.id === businessCategoryId);
   const selectedBusinessService = selectedBusinessCategory?.services.find((service) => service.id === businessServiceId);
   const selectedBusinessSegment = selectedBusinessService?.segments.find((segment) => segment.id === businessSegmentId);
+  const authorContents = abcContents.filter((content) => content.authorId === user?.uid).slice(0, 8);
+  const authorProducts = marketProducts.filter((product) => product.authorId === user?.uid).slice(0, 6);
+  const coverImage = profile?.mediaURL || authorContents[0]?.coverURL || authorProducts[0]?.coverURL || photoURL || '/biashara.jpeg';
+  const publicRole = businessAccount?.moduleName || businessAccount?.categoryLabel || roleDefinition?.label || 'AfriSell';
+  const publicHeadline = profile?.bio || businessAccount?.serviceLabel || 'Membre de l’écosystème AfriSell.';
+  const publicLocation = [profile?.city, profile?.country].filter(Boolean).join(', ');
+  const isSettingsPage = location.pathname === '/settings';
 
   useEffect(() => {
     const panel = searchParams.get('panel');
-    if (panel === 'profile' || panel === 'business' || panel === 'account' || panel === 'app' || panel === 'notifications' || panel === 'privacy') {
+    if (panel === 'profile' || panel === 'business' || panel === 'settings' || panel === 'account' || panel === 'app' || panel === 'notifications' || panel === 'privacy' || panel === 'multiAccount') {
       setActivePanel(panel);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    setRememberedAccounts(readRememberedAccounts());
+  }, []);
+
+  const rememberCurrentAccount = () => {
+    if (!user) return readRememberedAccounts();
+    const currentAccount: RememberedAccount = {
+      uid: user.uid,
+      displayName,
+      email: profile?.email || user.email || '',
+      photoURL,
+      lastUsedAt: new Date().toISOString()
+    };
+    const nextAccounts = [
+      currentAccount,
+      ...readRememberedAccounts().filter((account) => account.uid !== user.uid)
+    ];
+    writeRememberedAccounts(nextAccounts);
+    setRememberedAccounts(nextAccounts);
+    return nextAccounts;
+  };
+
+  useEffect(() => {
+    if (!user || !profile) return;
+    rememberCurrentAccount();
+  }, [user?.uid, profile?.updatedAt]);
 
   useEffect(() => {
     if (!user) return;
@@ -581,15 +678,49 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
+    rememberCurrentAccount();
     window.localStorage.setItem('afrissel:lastLogout', new Date().toISOString());
     await logout();
     navigate('/login');
+  };
+
+  const handleAddAccount = async () => {
+    rememberCurrentAccount();
+    window.localStorage.setItem('afrissel:auth-intent', 'add-account');
+    navigate('/login', { state: { next: '/profile', flow: 'login', addAccount: true } });
+  };
+
+  const handleSwitchAccount = async (account: RememberedAccount) => {
+    if (account.uid === user?.uid) {
+      setStatus('Ce compte est déjà actif.');
+      return;
+    }
+    setBusy(true);
+    setStatus(`Connexion à ${account.displayName || 'ce compte'}...`);
+    rememberCurrentAccount();
+    if (account.email) {
+      window.localStorage.setItem('afrissel:login-email-hint', account.email);
+    }
+    window.localStorage.setItem('afrissel:auth-intent', 'switch-account');
+    navigate('/login', { state: { next: '/profile', flow: 'login', email: account.email, switchAccount: true } });
+  };
+
+  const forgetRememberedAccount = (uid: string) => {
+    const nextAccounts = readRememberedAccounts().filter((account) => account.uid !== uid);
+    writeRememberedAccounts(nextAccounts);
+    setRememberedAccounts(nextAccounts);
+    setStatus('Compte retiré de la liste locale.');
   };
 
   const openPanel = (panel: ProfileAction['id']) => {
     setStatus('');
     if (panel === 'logout') {
       void handleLogout();
+      return;
+    }
+
+    if (panel === 'addAccount') {
+      setActivePanel('multiAccount');
       return;
     }
 
@@ -825,77 +956,259 @@ export default function ProfileScreen() {
   };
 
   return (
-    <div className="relative min-h-full bg-[#050705] px-4 pb-8 pt-4 text-white">
-      <header className="flex items-center justify-between">
-        <Link to="/ecosystem" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70">
-          <AfriSellIcon name="arrow" size={18} className="rotate-180" />
-        </Link>
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Profil</p>
+    <div className="relative min-h-full overflow-y-auto bg-black pb-8 text-white scrollbar-hide">
+      {isSettingsPage ? (
+        <main className="min-h-full px-4 pb-8 pt-4">
+          <header className="flex items-center justify-between">
+            <button type="button" onClick={() => navigate('/profile')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70">
+              <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+            </button>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Réglages</p>
+            <div className="h-10 w-10" />
+          </header>
+
+          <section className="mt-6 rounded-[1.6rem] border border-[#15EA3E]/18 bg-[#15EA3E]/10 p-4">
+            <div className="flex items-center gap-3">
+              <img src={photoURL} alt="" className="h-14 w-14 rounded-2xl object-cover" />
+              <div className="min-w-0 flex-1">
+                <h1 className="truncate text-xl font-black text-white">{displayName}</h1>
+                <p className="mt-0.5 truncate text-xs font-semibold text-white/50">{email}</p>
+              </div>
+            </div>
+          </section>
+
+          {roleDefinition && (
+            <Link
+              to={`/business${businessAccount?.categoryId ? `?account=${businessAccount.categoryId}` : ''}`}
+              className="mt-4 block rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-4 active:scale-[0.99]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black/30 text-[#15EA3E]">
+                  <AfriSellIcon name={roleDefinition.icon} size={20} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate text-sm font-black text-white">{roleDefinition.label}</h2>
+                  <p className="mt-0.5 truncate text-[11px] font-semibold text-white/55">
+                    {subtypeDefinition?.label || businessAccount?.serviceLabel || roleDefinition.shortLabel}
+                  </p>
+                </div>
+                <span className="rounded-full bg-[#15EA3E] px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-black">
+                  Actif
+                </span>
+                <AfriSellIcon name="arrow" size={15} className="text-white/28" />
+              </div>
+            </Link>
+          )}
+
+          <section className="mt-5 space-y-2.5">
+            {settingsSections.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => openPanel(item.id)}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-2xl border p-3 text-left active:scale-[0.99]',
+                  item.danger ? 'border-red-500/20 bg-red-500/10 text-red-100' : 'border-white/10 bg-white/[0.04] text-white'
+                )}
+              >
+                <span className={cn(
+                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl',
+                  item.danger ? 'bg-red-500/10 text-red-200' : 'bg-[#15EA3E]/10 text-[#15EA3E]'
+                )}>
+                  <AfriSellIcon name={item.icon} size={20} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-black text-white">{item.title}</span>
+                  <span className="mt-0.5 block line-clamp-1 text-[11px] font-semibold text-white/42">{item.description}</span>
+                </span>
+                <AfriSellIcon name="arrow" size={15} className={item.danger ? 'text-red-200/60' : 'text-white/25'} />
+              </button>
+            ))}
+          </section>
+        </main>
+      ) : (
+      <>
+      <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-4">
+        <div className="h-10 w-10" />
+        <p className="rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E] backdrop-blur-xl">Mon profil</p>
         <div className="h-10 w-10" />
       </header>
 
-      <section className="mt-6 flex flex-col items-center text-center">
-        <button
-          type="button"
-          onClick={() => openPanel('profile')}
-          className="relative h-24 w-24 overflow-hidden rounded-[2rem] border border-[#15EA3E]/25 bg-black active:scale-[0.98]"
-        >
-          <img src={photoURL} alt="Profil AfriSell" className="h-full w-full object-cover" />
-          <span className="absolute inset-x-0 bottom-0 bg-black/70 py-1 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
-            Modifier
-          </span>
-        </button>
-        <h1 className="mt-4 text-2xl font-black tracking-normal">{displayName}</h1>
-        <p className="mt-1 text-xs font-semibold text-white/45">{email}</p>
-        <div className="mt-4 rounded-full border border-[#15EA3E]/20 bg-[#15EA3E]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#15EA3E]">
-          Compte actif
+      <section className="relative overflow-hidden border-b border-white/10 bg-[#050805]">
+        <div className="relative h-48">
+          <img src={coverImage} alt="" className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.86))]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_12%,rgba(21,234,62,0.32),transparent_34%)]" />
+        </div>
+
+        <div className="relative -mt-14 px-4 pb-5">
+          <div className="flex items-end justify-between gap-3">
+            <div className="relative h-28 w-28 overflow-hidden rounded-[2rem] border-4 border-black bg-[#071007] shadow-[0_18px_40px_rgba(0,0,0,0.55)]">
+              <img src={photoURL} alt={displayName} className="h-full w-full object-cover" />
+            </div>
+            <div className="mb-2 flex items-center gap-2">
+              <Link
+                to={`/u/${user?.uid || ''}`}
+                className="flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-[10px] font-black uppercase tracking-widest text-white"
+              >
+                Voir public
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-[#15EA3E] px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-black">
+                {publicRole}
+              </span>
+              {businessAccount?.status && (
+                <span className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-white/62">
+                  {businessAccount.status}
+                </span>
+              )}
+            </div>
+            <h1 className="mt-2 text-[1.9rem] font-black leading-none text-white">{displayName}</h1>
+            <p className="mt-1 text-xs font-semibold text-white/42">{email}</p>
+            <p className="mt-2 max-w-[94%] text-sm font-semibold leading-relaxed text-white/60">{publicHeadline}</p>
+            {publicLocation && (
+              <p className="mt-2 text-[11px] font-black uppercase tracking-wider text-[#15EA3E]">{publicLocation}</p>
+            )}
+          </div>
+
+          <div className="mt-4 grid grid-cols-4 gap-2">
+            {[
+              { value: authorContents.length, label: 'ABC' },
+              { value: authorProducts.length, label: 'Market' },
+              { value: ownedBusinessAccounts.length, label: 'Apps' },
+              { value: profile?.kycStatus === 'verified' ? 'OK' : 'ID', label: 'KYC' }
+            ].map((stat) => (
+              <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-3 text-center">
+                <p className="text-base font-black text-white">{stat.value}</p>
+                <p className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-white/38">{stat.label}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {roleDefinition && (
-        <Link to={`/business${businessAccount?.categoryId ? `?account=${businessAccount.categoryId}` : ''}`} className="mt-6 block rounded-2xl border border-white/10 bg-white/[0.04] p-4 active:scale-[0.99]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
-              <AfriSellIcon name={roleDefinition.icon} size={20} />
+      <div className="px-4">
+        {ownedBusinessAccounts.length > 0 && (
+          <section className="mt-5">
+            <h2 className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/52">Comptes business</h2>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+              {ownedBusinessAccounts.map((account) => (
+                <Link key={account.categoryId} to={`/business?account=${account.categoryId}`} className="w-[190px] shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3 active:scale-[0.99]">
+                  <p className="truncate text-sm font-black">{account.categoryLabel}</p>
+                  <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-relaxed text-white/45">
+                    {account.serviceLabel} - {account.segmentLabel}
+                  </p>
+                </Link>
+              ))}
             </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-black">{roleDefinition.label}</h2>
-              <p className="mt-0.5 text-[11px] font-semibold text-white/44">
-                {subtypeDefinition?.label || roleDefinition.shortLabel}
-              </p>
-            </div>
-            <span className="rounded-full bg-[#15EA3E] px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-black">
-              Actif
-            </span>
-            <AfriSellIcon name="arrow" size={15} className="text-white/28" />
-          </div>
-        </Link>
+          </section>
+        )}
+
+        <section className="mt-5 grid grid-cols-2 gap-3">
+          <Link to="/feed" className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
+            <AfriSellIcon name="video" size={20} className="text-[#15EA3E]" />
+            <p className="mt-3 text-sm font-black">Mes contenus</p>
+            <p className="mt-1 text-[11px] font-semibold text-white/42">ABC, posts et vidéos.</p>
+          </Link>
+          <Link to="/market" className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
+            <AfriSellIcon name="market" size={20} className="text-[#15EA3E]" />
+            <p className="mt-3 text-sm font-black">Mes vitrines</p>
+            <p className="mt-1 text-[11px] font-semibold text-white/42">Produits et services.</p>
+          </Link>
+        </section>
+      </div>
+      </>
       )}
 
-      <section className="mt-7 flex flex-col gap-2.5">
-        {actions.map((item) => (
-          <button
-            key={item.title}
-            onClick={() => openPanel(item.id)}
-            className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left active:scale-[0.99] ${
-              item.danger
-                ? 'border-red-500/20 bg-red-500/10 text-red-100'
-                : 'border-white/10 bg-white/[0.04] text-white'
-            }`}
-          >
-            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
-              item.danger ? 'bg-red-500/10 text-red-200' : 'bg-[#15EA3E]/10 text-[#15EA3E]'
-            }`}>
-              <AfriSellIcon name={item.icon} size={20} />
+      {activePanel === 'multiAccount' && (
+        <PanelShell title="Comptes AfriSell" subtitle="Multi-compte" busy={busy} status={status} onClose={() => setActivePanel(null)}>
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-4">
+              <p className="text-sm font-black text-white">Compte actif</p>
+              <div className="mt-3 flex items-center gap-3">
+                <img src={photoURL} alt="" className="h-12 w-12 rounded-2xl object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-black text-white">{displayName}</p>
+                  <p className="mt-0.5 truncate text-[11px] font-semibold text-white/50">{email}</p>
+                </div>
+                <span className="rounded-full bg-[#15EA3E] px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-black">
+                  Actif
+                </span>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-black">{item.title}</h2>
-              <p className="mt-0.5 line-clamp-1 text-[11px] font-semibold text-white/42">{item.description}</p>
+
+            <button
+              type="button"
+              onClick={handleAddAccount}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-widest text-black active:scale-[0.98]"
+            >
+              <AfriSellIcon name="plus" size={16} />
+              Ajouter un compte
+            </button>
+
+            <p className="rounded-2xl border border-white/10 bg-black/24 p-3 text-[11px] font-semibold leading-relaxed text-white/48">
+              Ajouter un compte ne lance pas une déconnexion. Le compte actif reste mémorisé, puis le nouveau compte sera ajouté à cette liste après connexion.
+            </p>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+              <p className="text-sm font-black text-white">Comptes enregistrés</p>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/45">
+                Appuie sur un compte pour basculer vers lui.
+              </p>
+
+              <div className="mt-3 space-y-2">
+                {rememberedAccounts.length ? rememberedAccounts.map((account) => (
+                  <div key={account.uid} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/24 p-2">
+                    {account.uid === user?.uid ? (
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <img src={account.photoURL || AFRISELL_MAIN_LOGO} alt="" className="h-11 w-11 rounded-xl object-cover" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-black text-white">{account.displayName || 'Utilisateur AfriSell'}</p>
+                          <p className="mt-0.5 truncate text-[10px] font-semibold text-white/42">{account.email || 'Compte AfriSell'}</p>
+                        </div>
+                        <span className="rounded-xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-2.5 py-2 text-[8px] font-black uppercase tracking-wider text-[#15EA3E]">
+                          Actif
+                        </span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchAccount(account)}
+                        className="flex min-w-0 flex-1 items-center gap-2 rounded-xl text-left active:scale-[0.99]"
+                      >
+                        <img src={account.photoURL || AFRISELL_MAIN_LOGO} alt="" className="h-11 w-11 rounded-xl object-cover" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-black text-white">{account.displayName || 'Utilisateur AfriSell'}</span>
+                          <span className="mt-0.5 block truncate text-[10px] font-semibold text-white/42">{account.email || 'Compte AfriSell'}</span>
+                        </span>
+                        <span className="rounded-xl bg-white px-3 py-2 text-[9px] font-black uppercase tracking-wider text-black">
+                          Connecter
+                        </span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => forgetRememberedAccount(account.uid)}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 text-white/35"
+                      aria-label="Retirer ce compte"
+                    >
+                      <AfriSellIcon name="close" size={13} />
+                    </button>
+                  </div>
+                )) : (
+                  <p className="rounded-2xl border border-white/10 bg-black/24 p-3 text-[11px] font-semibold leading-relaxed text-white/45">
+                    Aucun autre compte n'est encore mémorisé sur cet appareil.
+                  </p>
+                )}
+              </div>
             </div>
-            <AfriSellIcon name="arrow" size={15} className={item.danger ? 'text-red-200/60' : 'text-white/25'} />
-          </button>
-        ))}
-      </section>
+          </div>
+        </PanelShell>
+      )}
 
       {activePanel === 'profile' && (
         <PanelShell title="Profil" subtitle="Infos personnelles" busy={busy} status={status} onClose={() => setActivePanel(null)}>
@@ -931,6 +1244,58 @@ export default function ProfileScreen() {
               Enregistrer
             </button>
           </form>
+        </PanelShell>
+      )}
+
+      {activePanel === 'settings' && (
+        <PanelShell title="Réglages" subtitle="Paramètres" busy={busy} status={status} onClose={() => setActivePanel(null)}>
+          <div className="space-y-2.5">
+            {roleDefinition && (
+              <Link
+                to={`/business${businessAccount?.categoryId ? `?account=${businessAccount.categoryId}` : ''}`}
+                className="mb-3 block rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-4 active:scale-[0.99]"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black/30 text-[#15EA3E]">
+                    <AfriSellIcon name={roleDefinition.icon} size={20} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-sm font-black text-white">{roleDefinition.label}</h2>
+                    <p className="mt-0.5 truncate text-[11px] font-semibold text-white/55">
+                      {subtypeDefinition?.label || businessAccount?.serviceLabel || roleDefinition.shortLabel}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[#15EA3E] px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-black">
+                    Actif
+                  </span>
+                  <AfriSellIcon name="arrow" size={15} className="text-white/28" />
+                </div>
+              </Link>
+            )}
+            {settingsSections.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => openPanel(item.id)}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-2xl border p-3 text-left active:scale-[0.99]',
+                  item.danger ? 'border-red-500/20 bg-red-500/10 text-red-100' : 'border-white/10 bg-white/[0.04] text-white'
+                )}
+              >
+                <span className={cn(
+                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl',
+                  item.danger ? 'bg-red-500/10 text-red-200' : 'bg-[#15EA3E]/10 text-[#15EA3E]'
+                )}>
+                  <AfriSellIcon name={item.icon} size={20} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-black text-white">{item.title}</span>
+                  <span className="mt-0.5 block line-clamp-1 text-[11px] font-semibold text-white/42">{item.description}</span>
+                </span>
+                <AfriSellIcon name="arrow" size={15} className={item.danger ? 'text-red-200/60' : 'text-white/25'} />
+              </button>
+            ))}
+          </div>
         </PanelShell>
       )}
 

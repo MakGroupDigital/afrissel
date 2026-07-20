@@ -158,6 +158,7 @@ function AppRoutes() {
         <Route path="/chat" element={<RequireAuth><ChatRoom /></RequireAuth>} />
         <Route path="/scan" element={<RequireAuth><ScannerScreen /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><ProfileScreen /></RequireAuth>} />
+        <Route path="/settings" element={<RequireAuth><ProfileScreen /></RequireAuth>} />
         <Route path="/u/:userId" element={<PublicProfileScreen />} />
         <Route path="/business" element={<RequireAuth><BusinessDashboardScreen /></RequireAuth>} />
       </Routes>
