@@ -548,6 +548,16 @@ const isMobileOrStandalone = () => {
   return isTouchMobile || isStandalone;
 };
 
+const shouldFallbackToRedirect = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return [
+    'auth/popup-blocked',
+    'auth/cancelled-popup-request',
+    'auth/operation-not-supported-in-this-environment'
+  ].some((code) => message.includes(code));
+};
+
 const getPhoneRecaptchaVerifier = () => {
   if (phoneRecaptchaVerifier) return phoneRecaptchaVerifier;
 
@@ -563,6 +573,16 @@ const signInWithSocialProvider = async (provider: typeof googleProvider | typeof
   await setPersistence(firebaseAuth, browserLocalPersistence);
 
   if (isMobileOrStandalone()) {
+    try {
+      const credential = await signInWithPopup(firebaseAuth, provider);
+      await syncCurrentUser(credential.user);
+      return;
+    } catch (error) {
+      if (!shouldFallbackToRedirect(error)) {
+        throw error;
+      }
+    }
+
     setPendingGoogleRedirect();
     try {
       await signInWithRedirect(firebaseAuth, provider);
@@ -577,15 +597,7 @@ const signInWithSocialProvider = async (provider: typeof googleProvider | typeof
     const credential = await signInWithPopup(firebaseAuth, provider);
     await syncCurrentUser(credential.user);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const shouldUseRedirect = [
-      'auth/popup-blocked',
-      'auth/popup-closed-by-user',
-      'auth/cancelled-popup-request',
-      'auth/operation-not-supported-in-this-environment'
-    ].some((code) => message.includes(code));
-
-    if (!shouldUseRedirect) {
+    if (!shouldFallbackToRedirect(error)) {
       throw error;
     }
 
@@ -694,6 +706,16 @@ export const useFirebaseAuth = () => {
       await setPersistence(firebaseAuth, browserLocalPersistence);
 
       if (isMobileOrStandalone()) {
+        try {
+          const credential = await signInWithPopup(firebaseAuth, googleProvider);
+          await syncCurrentUser(credential.user);
+          return;
+        } catch (error) {
+          if (!shouldFallbackToRedirect(error)) {
+            throw error;
+          }
+        }
+
         setPendingGoogleRedirect();
         try {
           await signInWithRedirect(firebaseAuth, googleProvider);
@@ -708,19 +730,17 @@ export const useFirebaseAuth = () => {
         const credential = await signInWithPopup(firebaseAuth, googleProvider);
         await syncCurrentUser(credential.user);
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        const shouldUseRedirect = [
-          'auth/popup-blocked',
-          'auth/popup-closed-by-user',
-          'auth/cancelled-popup-request',
-          'auth/operation-not-supported-in-this-environment'
-        ].some((code) => message.includes(code));
-
-        if (!shouldUseRedirect) {
+        if (!shouldFallbackToRedirect(error)) {
           throw error;
         }
 
-        await signInWithRedirect(firebaseAuth, googleProvider);
+        setPendingGoogleRedirect();
+        try {
+          await signInWithRedirect(firebaseAuth, googleProvider);
+        } catch (redirectError) {
+          clearPendingGoogleRedirect();
+          throw redirectError;
+        }
       }
     },
     signInWithApple: async () => {
