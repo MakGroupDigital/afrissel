@@ -599,6 +599,37 @@ const signInWithSocialProvider = async (provider: typeof googleProvider | typeof
   }
 };
 
+const waitForRedirectRestoredUser = (timeoutMs = 12000) => new Promise<User | null>((resolve) => {
+  if (firebaseAuth.currentUser) {
+    resolve(firebaseAuth.currentUser);
+    return;
+  }
+
+  let resolved = false;
+  let unsubscribe: (() => void) | undefined;
+
+  const finish = (nextUser: User | null) => {
+    if (resolved) return;
+    resolved = true;
+    unsubscribe?.();
+    window.clearTimeout(timeout);
+    window.clearInterval(poll);
+    resolve(nextUser);
+  };
+
+  const poll = window.setInterval(() => {
+    if (firebaseAuth.currentUser) finish(firebaseAuth.currentUser);
+  }, 300);
+
+  const timeout = window.setTimeout(() => {
+    finish(firebaseAuth.currentUser);
+  }, timeoutMs);
+
+  unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
+    if (nextUser) finish(nextUser);
+  });
+});
+
 const consumeGoogleRedirectResult = async () => {
   if (redirectResultHandled) return;
   redirectResultHandled = true;
@@ -620,20 +651,18 @@ const consumeGoogleRedirectResult = async () => {
     }
 
     if (wasPendingRedirect) {
-      window.setTimeout(() => {
-        const restoredUser = firebaseAuth.currentUser;
-        clearPendingGoogleRedirect();
+      const restoredUser = await waitForRedirectRestoredUser();
+      clearPendingGoogleRedirect();
 
-        if (restoredUser) {
-          void syncCurrentUser(restoredUser);
-          return;
-        }
+      if (restoredUser) {
+        await syncCurrentUser(restoredUser);
+        return;
+      }
 
-        updateAuthStore({
-          loading: false,
-          authError: 'Connexion terminée, mais le compte n’a pas été restauré sur cet appareil. Reessaie une fois.'
-        });
-      }, 3200);
+      updateAuthStore({
+        loading: false,
+        authError: 'Connexion Google non finalisée. Appuie encore sur Continuer avec Google.'
+      });
     }
   } catch (error) {
     console.error('Retour Google AfriSell impossible:', error);
