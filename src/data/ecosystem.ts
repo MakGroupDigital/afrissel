@@ -1,3 +1,5 @@
+import { AFRISELL_MAIN_LOGO } from '../lib/branding';
+
 export type EcosystemModule = {
   id: string;
   name: string;
@@ -117,7 +119,7 @@ export const ecosystemModules: EcosystemModule[] = [
     description: 'Assistant vocal, recherche, traduction et aide intelligente.',
     promise: 'IA vocale',
     route: '/afriai',
-    logo: '/afrissel-icon.jpeg',
+    logo: AFRISELL_MAIN_LOGO,
     status: 'Bientôt',
     category: 'engagement',
   },
@@ -128,7 +130,7 @@ export const ecosystemModules: EcosystemModule[] = [
     description: 'Contribution sociale transparente pour education, santé et paix.',
     promise: 'Impact',
     route: '/fpp',
-    logo: '/afrissel-icon.jpeg',
+    logo: AFRISELL_MAIN_LOGO,
     status: 'Bientôt',
     category: 'impact',
   },

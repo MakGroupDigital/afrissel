@@ -4,6 +4,7 @@ import { onValue, ref } from 'firebase/database';
 import { AfriSellIcon } from '../components/AfriSellIcon';
 import { realtimeDb } from '../lib/firebase';
 import { formatMarketPrice } from '../hooks/useAfriMarket';
+import { AFRISELL_MAIN_LOGO } from '../lib/branding';
 
 type VerifiedOrder = {
   id: string;
@@ -84,7 +85,7 @@ export default function OrderVerificationScreen() {
       <header className="rounded-[1.7rem] border border-[#15EA3E]/24 bg-[#071007] p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-black/30 p-2">
-            <img src="/afriselliconecentral.png" alt="" className="h-full w-full object-contain" />
+            <img src={AFRISELL_MAIN_LOGO} alt="" className="h-full w-full object-contain" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Document vérifié</p>

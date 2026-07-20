@@ -1,4 +1,4 @@
-const SW_VERSION = 'v3';
+const SW_VERSION = 'v4';
 const SHELL_CACHE = `afrisell-shell-${SW_VERSION}`;
 const RUNTIME_CACHE = `afrisell-runtime-${SW_VERSION}`;
 const MEDIA_CACHE = `afrisell-media-${SW_VERSION}`;
@@ -8,10 +8,7 @@ const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
-  '/favicon.svg',
-  '/apple-touch-icon.png',
-  '/afrissel-icon.jpeg',
-  '/afrissel-logo.jpeg',
+  '/Logo-afriSell-Super App icône.png',
   '/afrispay.jpeg',
   '/afrimarket.jpeg',
   '/africhat.jpeg',
@@ -179,8 +176,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: '/afrissel-icon.jpeg',
-      badge: '/apple-touch-icon.png',
+      icon: '/Logo-afriSell-Super App icône.png',
+      badge: '/Logo-afriSell-Super App icône.png',
       data: {
         url: payload.url || '/'
       }

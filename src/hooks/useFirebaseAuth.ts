@@ -45,6 +45,11 @@ export interface AfriSellUserProfile {
   phone?: string;
   phoneLocal?: string;
   dialCode?: string;
+  dateOfBirth?: string;
+  gender?: 'female' | 'male' | 'non_binary' | 'prefer_not_to_say' | string;
+  demographicsSetupRequired?: boolean;
+  demographicsSetupCompleted?: boolean;
+  demographicsSetupCompletedAt?: unknown;
   city?: string;
   country?: string;
   countryCode?: string;
@@ -83,6 +88,8 @@ export type AccountSetupDraft = Partial<Pick<
   | 'phone'
   | 'phoneLocal'
   | 'dialCode'
+  | 'dateOfBirth'
+  | 'gender'
   | 'city'
   | 'country'
   | 'countryCode'
@@ -311,17 +318,27 @@ const syncUserProfile = async (user: User): Promise<AfriSellUserProfile> => {
   const userRef = ref(realtimeDb, `users/${user.uid}`);
   const snap = await withDatabaseTimeout(get(userRef), 'Lecture du profil');
   const existing = snap.exists() ? snap.val() as Partial<AfriSellUserProfile> : {};
+  const hasDemographics = Boolean(existing.dateOfBirth && existing.gender);
   const profile = buildProfile(user, existing);
+  const demographicsSetupCompleted = Boolean(existing.demographicsSetupCompleted && hasDemographics) || hasDemographics;
+  const demographicsSetupRequired = !demographicsSetupCompleted;
 
   await withDatabaseTimeout(update(userRef, stripUndefined({
     ...profile,
+    demographicsSetupRequired,
+    demographicsSetupCompleted,
     createdAt: snap.exists() ? existing.createdAt : serverTimestamp(),
     updatedAt: serverTimestamp(),
     lastLoginAt: serverTimestamp()
   })), 'Enregistrement du profil');
 
-  writeOfflineCache(profileCacheKey(user.uid), profile);
-  return profile;
+  const syncedProfile = {
+    ...profile,
+    demographicsSetupRequired,
+    demographicsSetupCompleted
+  };
+  writeOfflineCache(profileCacheKey(user.uid), syncedProfile);
+  return syncedProfile;
 };
 
 const stopProfileListener = () => {
@@ -738,6 +755,32 @@ export const useFirebaseAuth = () => {
       });
       updateAuthStore({ profile: syncedProfile, authError: '' });
       return syncedProfile;
+    },
+    completeDemographicsSetup: async (patch: { dateOfBirth: string; gender: NonNullable<AfriSellUserProfile['gender']> }) => {
+      if (!firebaseAuth.currentUser) return null;
+      const user = firebaseAuth.currentUser;
+      const existing = authStore.profile || buildProfile(user);
+      const nextProfile = buildProfile(user, {
+        ...existing,
+        dateOfBirth: patch.dateOfBirth,
+        gender: patch.gender,
+        demographicsSetupRequired: false,
+        demographicsSetupCompleted: true,
+        demographicsSetupCompletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      await withDatabaseTimeout(update(ref(realtimeDb, `users/${user.uid}`), stripUndefined({
+        dateOfBirth: patch.dateOfBirth,
+        gender: patch.gender,
+        demographicsSetupRequired: false,
+        demographicsSetupCompleted: true,
+        demographicsSetupCompletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      })), 'Finalisation informations utilisateur');
+      writeOfflineCache(profileCacheKey(user.uid), nextProfile);
+      updateAuthStore({ profile: nextProfile, authError: '' });
+      return nextProfile;
     }
   }), []);
 

@@ -11,6 +11,7 @@ import { createBiasharaOpportunity } from '../domains/business';
 import { AfriAiIntent, AfriAiResponse, resolveAfriAiRequest } from '../domains/ai';
 import { enrollSchoolTrack, joinSchoolClass, updateSchoolProgress } from '../domains/education';
 import { createTéléconsultationRequest, saveHealthProfile } from '../domains/health';
+import { AFRISELL_MAIN_LOGO } from '../lib/branding';
 
 type ModuleId = 'school' | 'med' | 'freelance' | 'biashara' | 'afriai' | 'fpp';
 
@@ -85,7 +86,7 @@ const moduleMeta: Record<ModuleId, {
   afriai: {
     title: 'AfriAI',
     eyebrow: 'Assistant vocal',
-    logo: '/afrissel-icon.jpeg',
+    logo: AFRISELL_MAIN_LOGO,
     hero: 'Comprendre, traduire et agir dans tout l’écosystème.',
     body: 'Assistant multilingue pour chercher, expliquer, traduire, guider les achats, paiements, cours et services.',
     icon: 'language'
@@ -93,7 +94,7 @@ const moduleMeta: Record<ModuleId, {
   fpp: {
     title: 'FPP',
     eyebrow: 'Impact transparent',
-    logo: '/afrissel-icon.jpeg',
+    logo: AFRISELL_MAIN_LOGO,
     hero: 'Financer education, santé et paix par le commerce.',
     body: 'Contribution volontaire depuis les Stands, projets publics, suivi transparent, AfriCoin et mobilisation communautaire.',
     icon: 'heart'

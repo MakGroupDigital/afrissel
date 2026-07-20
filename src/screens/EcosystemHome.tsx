@@ -9,6 +9,7 @@ import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { AfriMarketContent, formatMarketPrice, useAfriMarket } from '../hooks/useAfriMarket';
 import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
 import { realtimeDb } from '../lib/firebase';
+import { AFRISELL_MAIN_LOGO } from '../lib/branding';
 
 type QuickAction = {
   label: string;
@@ -444,7 +445,7 @@ export default function EcosystemHome() {
         <div className="flex items-center justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <img src="/afrissel-icon.jpeg" alt="AfriSell" className="h-8 w-8 rounded-xl object-cover" />
+              <img src={AFRISELL_MAIN_LOGO} alt="AfriSell" className="h-8 w-8 rounded-xl object-cover" />
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriSell</p>
             </div>
             <h1 className="mt-2 text-2xl font-black tracking-normal">Bonjour {firstName}</h1>
@@ -598,7 +599,7 @@ export default function EcosystemHome() {
           <div className="absolute -bottom-14 right-8 h-24 w-44 rounded-[999px] bg-[#050705]" />
           <div className="absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[#15EA3E]/12 blur-2xl" />
           <div className="absolute -right-8 bottom-2 h-24 w-24 rounded-full border border-[#15EA3E]/20" />
-          <img src="/afrissel-icon.jpeg" alt="" className="absolute -right-7 top-8 h-28 w-28 rotate-6 rounded-[2rem] object-cover opacity-20" />
+          <img src={AFRISELL_MAIN_LOGO} alt="" className="absolute -right-7 top-8 h-28 w-28 rotate-6 rounded-[2rem] object-cover opacity-20" />
           <div className="absolute left-5 top-0 h-px w-28 bg-[#15EA3E]/50" />
 
           <div className="relative z-10 max-w-[240px]">

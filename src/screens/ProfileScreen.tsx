@@ -8,6 +8,7 @@ import { uploadMediaToCloudinary } from '../lib/cloudinary';
 import { realtimeDb } from '../lib/firebase';
 import { updateAfriSellUserPhoto, useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { getAccountRoleDefinition, getAccountSubtypeDefinition } from '../lib/accountTypes';
+import { AFRISELL_MAIN_LOGO } from '../lib/branding';
 import {
   AFRICAN_COUNTRIES_BY_PRIORITY,
   buildInternationalPhone,
@@ -483,7 +484,7 @@ export default function ProfileScreen() {
 
   const displayName = profile?.displayName || user?.displayName || 'Utilisateur AfriSell';
   const email = profile?.email || user?.email || 'Compte Firebase';
-  const photoURL = profile?.photoURL || user?.photoURL || '/afrissel-icon.jpeg';
+  const photoURL = profile?.photoURL || user?.photoURL || AFRISELL_MAIN_LOGO;
   const roleDefinition = getAccountRoleDefinition(profile?.primaryRole);
   const subtypeDefinition = getAccountSubtypeDefinition(profile?.primaryRole, profile?.primarySubtype);
   const selectedCountry = getCountryByCode(profileForm.countryCode) || getDefaultCountry();

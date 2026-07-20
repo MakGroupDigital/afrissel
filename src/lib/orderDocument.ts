@@ -106,7 +106,7 @@ export async function generateOrderDocumentPng(input: OrderDocumentInput) {
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(input.verificationUrl)}`;
 
   const [afriSellLogo, marketLogo, qrImage, productImage] = await Promise.all([
-    loadImage('/afriselliconecentral.png').catch(() => loadImage('/afrissel-logo.jpeg')),
+    loadImage('/Logo-afriSell-Super App icône.png'),
     loadImage('/afrimarket sans nom icone sans fond.png').catch(() => loadImage('/afrimarket.jpeg')),
     loadImage(qrUrl),
     loadImage(input.product.imageUrl || '/afrimarket.jpeg').catch(() => loadImage('/afrimarket.jpeg'))

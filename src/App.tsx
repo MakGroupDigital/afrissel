@@ -10,6 +10,7 @@ import SplashScreen from './screens/SplashScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import LoginScreen from './screens/LoginScreen';
 import AccountSetupScreen from './screens/AccountSetupScreen';
+import IdentitySetupScreen from './screens/IdentitySetupScreen';
 import EcosystemHome from './screens/EcosystemHome';
 import AppsDirectoryScreen from './screens/AppsDirectoryScreen';
 import SafariServicesScreen from './screens/SafariServicesScreen';
@@ -78,6 +79,7 @@ function RequireAuth({
 
 function AppRoutes() {
   const location = useLocation();
+  const { user, profile, loading } = useFirebaseAuth();
   const [isBooting, setIsBooting] = useState(window.location.pathname !== '/');
   const hasSeenOnboarding = window.localStorage.getItem('afrisell:onboarding-seen') === '1';
 
@@ -87,7 +89,7 @@ function AppRoutes() {
     return () => window.clearTimeout(timer);
   }, [isBooting]);
 
-  if (!hasSeenOnboarding && !['/', '/onboarding', '/login'].includes(location.pathname)) {
+  if (!hasSeenOnboarding && !['/', '/onboarding', '/login', '/identity-setup'].includes(location.pathname)) {
     return (
       <PhoneWrapper>
         <Navigate to="/onboarding" replace />
@@ -103,12 +105,27 @@ function AppRoutes() {
     );
   }
 
+  if (
+    !loading &&
+    user &&
+    profile?.demographicsSetupRequired &&
+    !profile.demographicsSetupCompleted &&
+    location.pathname !== '/identity-setup'
+  ) {
+    return (
+      <PhoneWrapper>
+        <Navigate to="/identity-setup" replace state={{ next: location.pathname + location.search }} />
+      </PhoneWrapper>
+    );
+  }
+
   return (
     <PhoneWrapper>
       <Routes>
         <Route path="/" element={<SplashScreen />} />
         <Route path="/onboarding" element={<OnboardingScreen />} />
         <Route path="/login" element={<LoginScreen />} />
+        <Route path="/identity-setup" element={<RequireAuth><IdentitySetupScreen /></RequireAuth>} />
         <Route path="/account-setup" element={<RequireAuth requireCompletedProfile={false}><AccountSetupScreen /></RequireAuth>} />
         <Route path="/ecosystem" element={<EcosystemHome />} />
         <Route path="/offers/:sectionId" element={<QuickActionOffersScreen />} />

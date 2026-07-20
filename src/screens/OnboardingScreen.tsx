@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AFRISELL_MAIN_LOGO } from '../lib/branding';
 
 const slides = [
   {
@@ -10,7 +11,7 @@ const slides = [
     title: 'La super app africaine.',
     body: 'Tout-en-un : vendre, acheter, payer, discuter et acceder aux services du quotidien.',
     icon: 'hub' as AfriSellIconName,
-    image: '/afrissel-logo.jpeg',
+    image: AFRISELL_MAIN_LOGO,
   },
   {
     kicker: 'Offline-first',

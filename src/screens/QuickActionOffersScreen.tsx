@@ -4,6 +4,7 @@ import { onValue, ref } from 'firebase/database';
 import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { realtimeDb } from '../lib/firebase';
+import { AFRISELL_MAIN_LOGO } from '../lib/branding';
 
 type OfferSectionId = 'restauration' | 'event' | 'immo';
 
@@ -112,7 +113,7 @@ const normalizeProvider = (id: string, profile: RawUserProfile, keywords: string
   return {
     id,
     name: getText(profile.businessName) || getText(profile.displayName) || 'Entreprise AfriSell',
-    avatar: getText(profile.logoURL) || getText(profile.photoURL) || '/afrissel-icon.jpeg',
+    avatar: getText(profile.logoURL) || getText(profile.photoURL) || AFRISELL_MAIN_LOGO,
     city: getText(profile.city) || getText(profile.country) || 'AfriSell',
     role: getText(matchedAccount?.serviceLabel) || getText(matchedAccount?.segmentLabel) || 'Service'
   };
