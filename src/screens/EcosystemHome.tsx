@@ -5,11 +5,13 @@ import { onValue, ref, remove, set } from 'firebase/database';
 import { Building2, CalendarDays, UtensilsCrossed } from 'lucide-react';
 import { ecosystemModules } from '../data/ecosystem';
 import { AfriSellIcon } from '../components/AfriSellIcon';
+import { InvertedAfricaLogo } from '../components/InvertedAfricaLogo';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { AfriMarketContent, formatMarketPrice, useAfriMarket } from '../hooks/useAfriMarket';
 import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
 import { realtimeDb } from '../lib/firebase';
 import { AFRISELL_MAIN_LOGO } from '../lib/branding';
+import { cn } from '../lib/utils';
 
 type QuickAction = {
   label: string;
@@ -222,13 +224,14 @@ export default function EcosystemHome() {
   const homeChromeLockUntilRef = useRef(0);
   const { profile, user } = useFirebaseAuth();
   const { abcContents, marketProducts } = useAfriMarket();
-  const { balance, currency, loading: walletLoading } = useAfriSpayWallet();
+  const { balance, currency, accountLabel, loading: walletLoading } = useAfriSpayWallet();
   const firstName = (profile?.displayName || user?.displayName || 'Utilisateur').split(' ')[0];
   const walletLabel = user
     ? walletLoading
       ? '...'
       : formatMarketPrice(balance, currency) || `${balance.toLocaleString('fr-FR')} ${currency}`
     : 'Wallet';
+  const isAfriSpayActive = profile?.kycStatus === 'verified';
   const promoProducts = [...marketProducts, ...abcContents].slice(0, 8);
   const promoItems = promoProducts.length
     ? promoProducts.map((item) => ({
@@ -446,17 +449,17 @@ export default function EcosystemHome() {
         <main className={`flex h-full min-h-0 flex-col overflow-hidden bg-[#050705] text-white ${isLightMode ? 'ecosystem-light' : ''}`}>
       <div data-home-chrome className={`relative z-40 shrink-0 transition-[max-height,opacity,transform] duration-300 ease-out ${
         isHomeChromeVisible
-          ? 'max-h-[350px] translate-y-0 overflow-visible pb-1 pt-4 opacity-100'
+          ? 'max-h-[320px] translate-y-0 overflow-visible pb-1 pt-2 opacity-100'
           : 'pointer-events-none max-h-0 -translate-y-3 overflow-hidden opacity-0'
       }`}>
       <header className="shrink-0 px-4">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <img src={AFRISELL_MAIN_LOGO} alt="AfriSell" className="h-8 w-8 rounded-xl object-cover" />
+              <img src={AFRISELL_MAIN_LOGO} alt="AfriSell" className="h-6 w-6 rounded-lg object-cover" />
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriSell</p>
+              <h1 className="truncate text-[11px] font-black text-white/78">Bonjour {firstName}</h1>
             </div>
-            <h1 className="mt-2 text-2xl font-black tracking-normal">Bonjour {firstName}</h1>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Link
@@ -494,9 +497,9 @@ export default function EcosystemHome() {
         </div>
       </header>
 
-      <section className="mt-4 shrink-0 px-4">
+      <section className="mt-2 shrink-0 px-4">
         <form onSubmit={submitUniversalSearch} className="relative">
-          <label className="flex h-13 items-center gap-3 rounded-[1.25rem] border border-white/10 bg-white/[0.05] px-4 shadow-[0_14px_32px_rgba(0,0,0,0.22)]">
+          <label className="flex h-11 items-center gap-3 rounded-[1.15rem] border border-white/10 bg-white/[0.05] px-3.5 shadow-[0_10px_24px_rgba(0,0,0,0.18)]">
             <AfriSellIcon name="search" size={17} className="shrink-0 text-[#15EA3E]" />
             <input
               value={searchQuery}
@@ -507,7 +510,7 @@ export default function EcosystemHome() {
             <button
               type="submit"
               disabled={!searchResults.length}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black disabled:bg-white/10 disabled:text-white/30"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black disabled:bg-white/10 disabled:text-white/30"
               aria-label="Lancer la recherche"
             >
               <AfriSellIcon name="arrow" size={14} />
@@ -515,7 +518,7 @@ export default function EcosystemHome() {
           </label>
 
           {searchResults.length > 0 && (
-            <div className="absolute left-0 right-0 top-[58px] z-40 overflow-hidden rounded-[1.25rem] border border-white/10 bg-[#070A07]/96 p-2 shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-xl">
+            <div className="absolute left-0 right-0 top-[48px] z-40 overflow-hidden rounded-[1.25rem] border border-white/10 bg-[#070A07]/96 p-2 shadow-[0_18px_44px_rgba(0,0,0,0.42)] backdrop-blur-xl">
               {searchResults.map((item) => (
                 <Link
                   key={item.id}
@@ -543,41 +546,101 @@ export default function EcosystemHome() {
         </form>
       </section>
 
-      <section className="mt-3 shrink-0 px-4">
-        <div className="relative overflow-hidden rounded-[1.35rem] border border-[#15EA3E]/20 bg-[#071007] px-3 py-3 shadow-[0_14px_32px_rgba(0,0,0,0.24)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_86%_10%,rgba(21,234,62,0.18),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.06),transparent_45%)]" />
-          <div className="relative z-10 flex items-center gap-3">
+      <section className="mt-2 shrink-0 px-4">
+        <div
+          className={cn(
+            'relative overflow-hidden rounded-2xl border p-2.5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]',
+            isAfriSpayActive ? 'border-gray-800 bg-black' : 'border-amber-300/24 bg-[#100E07]'
+          )}
+          style={{
+            background: isAfriSpayActive
+              ? 'linear-gradient(135deg, #0A0A0A 0%, #000000 100%)'
+              : 'linear-gradient(135deg, #121007 0%, #050705 100%)'
+          }}
+        >
+          <div className="absolute -right-16 -top-20 opacity-5 pointer-events-none">
+            <InvertedAfricaLogo className="h-52 w-52 text-white" />
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent opacity-50 pointer-events-none" />
+
+          <div className="relative z-10 flex items-start justify-between gap-3">
             <Link
               to={user ? '/wallet' : '/login'}
               state={!user ? { next: '/wallet' } : undefined}
-              className="flex min-w-0 flex-1 items-center gap-2"
+              className="min-w-0 flex-1"
             >
-              <img src="/afrispay.jpeg" alt="" className="h-10 w-10 shrink-0 rounded-2xl object-cover shadow-[0_10px_22px_rgba(0,0,0,0.28)]" />
-              <span className="min-w-0">
-                <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">AfriSpay</span>
-                <span className="mt-0.5 block truncate text-sm font-black text-white">{walletLabel}</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <img src="/afrispay.jpeg" alt="afrisPay" className="h-8 w-8 rounded-lg border border-[#15EA3E]/20 object-cover" />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold tracking-widest text-gray-400">afrisPay</p>
+                  <p className={cn(
+                    'mt-0.5 w-max rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wider',
+                    isAfriSpayActive ? 'bg-[#15EA3E]/12 text-[#15EA3E]' : 'bg-amber-300/14 text-amber-200'
+                  )}>
+                    {isAfriSpayActive ? 'Activé' : 'Non activé'}
+                  </p>
+                </div>
+              </div>
             </Link>
-            <div className="flex shrink-0 items-center gap-1.5">
-              {afriSpayHomeActions.map((action) => (
-                <Link
-                  key={action.label}
-                  to={user ? action.route : '/login'}
-                  state={!user ? { next: action.route } : undefined}
-                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.055] text-[#15EA3E] active:scale-95"
-                  aria-label={action.label}
-                  title={action.label}
-                >
-                  <AfriSellIcon name={action.icon} size={13} />
-                </Link>
-              ))}
+
+            <div className="flex items-start gap-2">
+              <AfriSellIcon name="signal" size={20} className="mt-1 text-white/55" />
+              <div className="relative flex h-8 w-11 flex-col items-center justify-center gap-[2px] overflow-hidden rounded border border-gray-700/50 bg-gray-900/80">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#15EA3E]/10 to-transparent" />
+                <div className="h-[1px] w-full bg-gray-700/50" />
+                <div className="h-[1px] w-full bg-gray-700/50" />
+                <div className="h-[1px] w-full bg-gray-700/50" />
+                <div className="absolute left-1/2 h-full w-[1px] -translate-x-1/2 bg-gray-700/50" />
+              </div>
             </div>
+          </div>
+
+          <Link
+            to={user ? '/wallet' : '/login'}
+            state={!user ? { next: '/wallet' } : undefined}
+            className="relative z-10 mt-2.5 flex items-end justify-between gap-3"
+          >
+            <div className="min-w-0">
+              <p className="mb-1 truncate font-mono text-[9px] tracking-[0.2em] text-gray-400 opacity-80">
+                {isAfriSpayActive ? accountLabel || 'Compte AfriSpay' : 'ID/KYC requis'}
+              </p>
+              <p className={cn(
+                'truncate font-mono text-xl font-black tracking-tight',
+                isAfriSpayActive ? 'text-white' : 'text-white/45'
+              )}>
+                {isAfriSpayActive ? walletLabel : '••••••'}
+              </p>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-lg font-black italic leading-none tracking-tighter text-[#15EA3E]">SPAY.</span>
+              <span className="text-[8px] font-bold uppercase tracking-widest text-gray-500">Virtual</span>
+            </div>
+          </Link>
+
+          <div className="relative z-10 mt-2 flex items-center justify-between gap-1.5">
+            {afriSpayHomeActions.map((action) => (
+              <Link
+                key={action.label}
+                to={user ? action.route : '/login'}
+                state={!user ? { next: action.route } : undefined}
+                className={cn(
+                  'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl border py-1 active:scale-95',
+                  isAfriSpayActive
+                    ? 'border-white/10 bg-white/[0.055] text-[#15EA3E]'
+                    : 'border-amber-300/14 bg-amber-300/[0.055] text-amber-200'
+                )}
+                aria-label={action.label}
+              >
+                <AfriSellIcon name={action.icon} size={12} />
+                <span className="max-w-full truncate text-[7px] font-black leading-none">{action.label}</span>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="mt-5 shrink-0 px-4">
-        <div className="grid grid-cols-4 gap-x-3 gap-y-4">
+      <section className="mt-3 shrink-0 px-4">
+        <div className="grid grid-cols-4 gap-x-3 gap-y-3">
           {quickActions.map((action) => (
             <Link
               key={action.label}
