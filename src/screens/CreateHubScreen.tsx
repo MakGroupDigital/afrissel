@@ -4,6 +4,7 @@ import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { cn } from '../lib/utils';
 
 type BusinessAccount = {
+  accountKey?: string;
   categoryId?: string;
   categoryLabel?: string;
   moduleName?: string;
@@ -28,7 +29,11 @@ type CreationOption = {
 const getBusinessAccounts = (profile: ReturnType<typeof useFirebaseAuth>['profile']) => {
   const accounts = [
     profile?.businessAccount,
-    ...Object.values(profile?.businessAccounts || {})
+    ...Object.entries(profile?.businessAccounts || {}).map(([accountKey, account]) => (
+      account && typeof account === 'object'
+        ? { accountKey, ...account }
+        : { accountKey }
+    ))
   ].filter(Boolean) as BusinessAccount[];
 
   return accounts;
@@ -38,6 +43,7 @@ const normalizeAccessText = (value: unknown) => String(value || '').trim().toLow
 
 const accountMatchesAny = (account: BusinessAccount, values: Set<string>) => {
   const fields = [
+    account.accountKey,
     account.categoryId,
     account.categoryLabel,
     account.moduleName,
@@ -100,17 +106,19 @@ const hasAccountAccess = (profile: ReturnType<typeof useFirebaseAuth>['profile']
   if (!requiredAccount) return true;
   const primaryRole = normalizeAccessText(profile?.primaryRole);
   const primarySubtype = normalizeAccessText(profile?.primarySubtype);
+  const roles = (profile?.roles || []).map(normalizeAccessText);
+  const roleSubtypes = Object.values(profile?.roleSubtypes || {}).map(normalizeAccessText);
   const accounts = getBusinessAccounts(profile);
 
   if (requiredAccount === 'commerce') {
-    if (['seller', 'business'].includes(primaryRole)) return true;
-    if (commerceAccessValues.has(primarySubtype)) return true;
+    if (['seller', 'business'].includes(primaryRole) || roles.some((role) => ['seller', 'business'].includes(role))) return true;
+    if (commerceAccessValues.has(primarySubtype) || roleSubtypes.some((subtype) => commerceAccessValues.has(subtype))) return true;
     return accounts.some((account) => accountMatchesAny(account, commerceAccessValues));
   }
 
   if (requiredAccount === 'services') {
-    if (['provider', 'business'].includes(primaryRole)) return true;
-    if (serviceAccessValues.has(primarySubtype)) return true;
+    if (['provider', 'business'].includes(primaryRole) || roles.some((role) => ['provider', 'business'].includes(role))) return true;
+    if (serviceAccessValues.has(primarySubtype) || roleSubtypes.some((subtype) => serviceAccessValues.has(subtype))) return true;
     return accounts.some((account) => accountMatchesAny(account, serviceAccessValues));
   }
 

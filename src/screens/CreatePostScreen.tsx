@@ -39,7 +39,11 @@ const getBusinessAccounts = (profile: ReturnType<typeof useFirebaseAuth>['profil
   if (!profile) return [];
   return [
     profile.businessAccount,
-    ...Object.values(profile.businessAccounts || {})
+    ...Object.entries(profile.businessAccounts || {}).map(([accountKey, account]) => (
+      account && typeof account === 'object'
+        ? { accountKey, ...account }
+        : { accountKey }
+    ))
   ].filter(Boolean);
 };
 
@@ -47,6 +51,7 @@ const normalizeAccessText = (value: unknown) => String(value || '').trim().toLow
 
 const accountMatchesAny = (account: Record<string, unknown>, values: Set<string>) => {
   const fields = [
+    account.accountKey,
     account.categoryId,
     account.categoryLabel,
     account.moduleName,
@@ -114,15 +119,21 @@ const hasBusinessAccess = (profile: ReturnType<typeof useFirebaseAuth>['profile'
 
 const hasCommerceAccess = (profile: ReturnType<typeof useFirebaseAuth>['profile']) => {
   if (!profile) return false;
-  if (profile.primaryRole === 'seller' || profile.primaryRole === 'business') return true;
+  const roles = (profile.roles || []).map(normalizeAccessText);
+  const roleSubtypes = Object.values(profile.roleSubtypes || {}).map(normalizeAccessText);
+  if (profile.primaryRole === 'seller' || profile.primaryRole === 'business' || roles.some((role) => ['seller', 'business'].includes(role))) return true;
   if (commerceAccessValues.has(normalizeAccessText(profile.primarySubtype))) return true;
+  if (roleSubtypes.some((subtype) => commerceAccessValues.has(subtype))) return true;
   return getBusinessAccounts(profile).some((account) => accountMatchesAny(account as Record<string, unknown>, commerceAccessValues));
 };
 
 const hasServiceAccess = (profile: ReturnType<typeof useFirebaseAuth>['profile']) => {
   if (!profile) return false;
-  if (profile.primaryRole === 'provider' || profile.primaryRole === 'business') return true;
+  const roles = (profile.roles || []).map(normalizeAccessText);
+  const roleSubtypes = Object.values(profile.roleSubtypes || {}).map(normalizeAccessText);
+  if (profile.primaryRole === 'provider' || profile.primaryRole === 'business' || roles.some((role) => ['provider', 'business'].includes(role))) return true;
   if (serviceAccessValues.has(normalizeAccessText(profile.primarySubtype))) return true;
+  if (roleSubtypes.some((subtype) => serviceAccessValues.has(subtype))) return true;
   return getBusinessAccounts(profile).some((account) => accountMatchesAny(account as Record<string, unknown>, serviceAccessValues));
 };
 
