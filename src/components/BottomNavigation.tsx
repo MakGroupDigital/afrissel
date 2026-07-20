@@ -20,7 +20,7 @@ export default function BottomNavigation() {
   const { user } = useFirebaseAuth();
 
   const navItems: NavigationItem[] = [
-    { icon: 'home', label: 'Accueil', path: '/ecosystem', iconSize: 21, shape: 'plain' },
+    { icon: 'home', label: 'Accueil', path: '/ecosystem', iconSize: 25, shape: 'plain' },
     { image: '/icone decouvrir barre de navigation sans fond.png', label: 'Découvrir', path: '/feed', imageClassName: 'scale-[0.88]', shape: 'wide' },
     { image: '/afrimarket sans nom icone sans fond.png', label: 'Marché', path: '/market', imageClassName: 'scale-[0.9]', shape: 'soft' },
     { image: '/icone message barre de navigation sans nom clean.png', label: 'Messages', path: '/chat', imageClassName: 'scale-[0.92]', shape: 'chat' },

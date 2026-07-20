@@ -400,3 +400,14 @@
     transform: translateY(-118vh) scale(1.38) rotate(22deg);
   }
 }
+
+@keyframes voice-wave {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scaleY(0.45);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}

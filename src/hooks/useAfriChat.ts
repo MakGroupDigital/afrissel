@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { off, onValue, push, ref, serverTimestamp, update } from 'firebase/database';
+import { off, onDisconnect, onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
 import { realtimeDb } from '../lib/firebase';
 import { useFirebaseAuth } from './useFirebaseAuth';
 import { enqueueFirebaseUpdate, isOfflineNow, offlineCacheKey, readOfflineCache, readOfflineCacheAsync, writeOfflineCache } from '../lib/offlineCache';
@@ -20,9 +20,13 @@ export type AfriChatThread = {
   visibility?: 'public' | 'private' | string;
   lastMessage?: string;
   lastMessageAt?: number | string | { seconds?: number };
+  lastMessageSenderId?: string;
+  lastMessageStatus?: AfriChatMessage['status'];
   unreadCount?: number;
   type?: 'direct' | 'group' | 'village' | 'kyaghanda' | 'support' | string;
   status?: string;
+  participantOnline?: boolean;
+  participantLastSeenAt?: number | string | { seconds?: number };
 };
 
 export type AfriChatMessage = {
@@ -121,9 +125,13 @@ const normalizeThread = (id: string, thread: RawThread): AfriChatThread => ({
   visibility: thread.visibility,
   lastMessage: thread.lastMessage || '',
   lastMessageAt: thread.lastMessageAt,
+  lastMessageSenderId: thread.lastMessageSenderId,
+  lastMessageStatus: thread.lastMessageStatus,
   unreadCount: Number(thread.unreadCount || 0),
   type: thread.type || 'direct',
-  status: thread.status
+  status: thread.status,
+  participantOnline: Boolean(thread.participantOnline),
+  participantLastSeenAt: thread.participantLastSeenAt
 });
 
 const normalizeMessage = (id: string, message: RawMessage): AfriChatMessage => ({
@@ -164,8 +172,45 @@ export const useAfriChat = () => {
   const [threads, setThreads] = useState<AfriChatThread[]>([]);
   const [contacts, setContacts] = useState<AfriChatContact[]>([]);
   const [messagesByThread, setMessagesByThread] = useState<Record<string, AfriChatMessage[]>>({});
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!user) {
+      setOnlineUserIds(new Set());
+      return;
+    }
+
+    const userPresenceRef = ref(realtimeDb, `presence/${user.uid}`);
+    void set(userPresenceRef, {
+      online: true,
+      updatedAt: Date.now()
+    });
+    void onDisconnect(userPresenceRef).set({
+      online: false,
+      updatedAt: serverTimestamp()
+    });
+
+    const presenceRef = ref(realtimeDb, 'presence');
+    const unsubscribePresence = onValue(presenceRef, (snapshot) => {
+      const data = snapshot.val() as Record<string, { online?: boolean }> | null;
+      setOnlineUserIds(new Set(
+        Object.entries(data || {})
+          .filter(([, presence]) => Boolean(presence?.online))
+          .map(([uid]) => uid)
+      ));
+    });
+
+    return () => {
+      unsubscribePresence();
+      off(presenceRef);
+      void set(userPresenceRef, {
+        online: false,
+        updatedAt: Date.now()
+      });
+    };
+  }, [user]);
 
   useEffect(() => {
     let mounted = true;
@@ -219,6 +264,14 @@ export const useAfriChat = () => {
         const data = snapshot.val() as Record<string, RawThread> | null;
         const nextThreads = Object.entries(data || {})
           .map(([id, thread]) => normalizeThread(id, thread))
+          .map((thread) => {
+            const participantId = getDirectRecipientId(thread, user.uid);
+            if (!participantId) return thread;
+            return {
+              ...thread,
+              participantOnline: onlineUserIds.has(participantId)
+            };
+          })
           .sort((first, second) => getTimestamp(second.lastMessageAt) - getTimestamp(first.lastMessageAt));
         setThreads(nextThreads);
         writeOfflineCache(threadsCacheKey, nextThreads);
@@ -295,7 +348,7 @@ export const useAfriChat = () => {
       off(userContactsRef);
       off(publicVillagesRef);
     };
-  }, [user]);
+  }, [onlineUserIds, user]);
 
   const watchThreadMessages = (threadId: string) => {
     if (!threadId) return () => undefined;
@@ -404,6 +457,8 @@ export const useAfriChat = () => {
       type: thread.type || 'direct',
       lastMessage: trimmedText,
       lastMessageAt: now,
+      lastMessageSenderId: user.uid,
+      lastMessageStatus: offline ? 'queued' : 'sent',
       updatedAt: updatedAtValue,
       unreadCount: 0
     };
@@ -417,6 +472,8 @@ export const useAfriChat = () => {
       [`chatThreads/${thread.id}/type`]: thread.type || 'direct',
       [`chatThreads/${thread.id}/lastMessage`]: trimmedText,
       [`chatThreads/${thread.id}/lastMessageAt`]: now,
+      [`chatThreads/${thread.id}/lastMessageSenderId`]: user.uid,
+      [`chatThreads/${thread.id}/lastMessageStatus`]: offline ? 'queued' : 'sent',
       [`chatThreads/${thread.id}/updatedAt`]: updatedAtValue,
       [`chatThreads/${thread.id}/members/${user.uid}`]: true,
       [`chatThreads/${thread.id}/memberNames/${user.uid}`]: profile?.displayName || user.displayName || 'Utilisateur AfriSell'
@@ -434,6 +491,8 @@ export const useAfriChat = () => {
         status: 'AfriChat',
         lastMessage: trimmedText,
         lastMessageAt: now,
+        lastMessageSenderId: user.uid,
+        lastMessageStatus: 'sent',
         updatedAt: updatedAtValue,
         unreadCount: 1
       };
@@ -577,6 +636,8 @@ export const useAfriChat = () => {
     (messagesByThread[threadId] || []).forEach((message) => {
       if (message.senderId && message.senderId !== user.uid && message.status !== 'read') {
         updates[`chatMessages/${threadId}/${message.id}/status`] = 'read';
+        updates[`userChats/${message.senderId}/${threadId}/lastMessageStatus`] = 'read';
+        updates[`chatThreads/${threadId}/lastMessageStatus`] = 'read';
       }
     });
 

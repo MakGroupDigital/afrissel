@@ -8,7 +8,8 @@ import { isCloudinaryReady, uploadMediaToCloudinary } from '../lib/cloudinary';
 import { realtimeDb } from '../lib/firebase';
 import { cn } from '../lib/utils';
 
-type ChatSpace = 'chat' | 'kialanda' | 'vitrine' | 'village' | 'story';
+type ChatSpace = 'chat' | 'story' | 'village' | 'call';
+type ChatFilter = 'all' | 'unread' | 'read' | 'groups' | 'contacts';
 
 type ContactPickerContact = {
   name?: string[];
@@ -90,10 +91,9 @@ const getThreadParticipantId = (thread: AfriChatThread, currentUserId?: string |
 
 const chatSpaces: Array<{ id: ChatSpace; label: string; icon: AfriSellIconName }> = [
   { id: 'chat', label: 'Chat', icon: 'chat' },
-  { id: 'kialanda', label: 'Kialanda', icon: 'profile' },
-  { id: 'vitrine', label: 'Vitrine', icon: 'market' },
+  { id: 'story', label: 'Story', icon: 'video' },
   { id: 'village', label: 'Village', icon: 'hub' },
-  { id: 'story', label: 'Story', icon: 'video' }
+  { id: 'call', label: 'Appel', icon: 'phone' }
 ];
 
 const getInitials = (value: string) => {
@@ -149,33 +149,21 @@ function EmptyState({ icon, title, body }: { icon: AfriSellIconName; title: stri
 }
 
 function ChatSpaceIcon({ id, icon, active }: { id: ChatSpace; icon: AfriSellIconName; active: boolean }) {
-  const shapeClass = {
-    chat: 'rounded-[1.05rem]',
-    kialanda: 'rounded-full',
-    vitrine: 'rounded-[0.65rem_1.25rem_0.65rem_1.25rem]',
-    village: 'rounded-[1.35rem_0.75rem_1.35rem_0.75rem]',
-    story: 'rounded-full'
-  }[id];
-
   return (
     <span className={cn(
-      'relative flex h-8 w-8 items-center justify-center overflow-hidden border transition-all',
-      shapeClass,
-      active
-        ? 'border-[#15EA3E]/55 bg-[#15EA3E] text-black shadow-[0_8px_20px_rgba(21,234,62,0.24)]'
-        : 'border-white/10 bg-white/[0.055] text-white/55'
+      'relative flex h-8 w-8 items-center justify-center rounded-full transition-all',
+      active ? 'text-[#15EA3E]' : 'text-white/42'
     )}>
-      {id === 'story' && <span className="absolute inset-0 rounded-full border-2 border-[#15EA3E]/35" />}
-      {id === 'village' && <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-[#FFD84D]" />}
-      <AfriSellIcon name={icon} size={14} />
+      <AfriSellIcon name={icon} size={18} />
     </span>
   );
 }
 
-function ThreadRow({ thread, active, onOpen }: { key?: React.Key; thread: AfriChatThread; active: boolean; onOpen: () => void }) {
+function ThreadRow({ thread, active, currentUserId, onOpen }: { key?: React.Key; thread: AfriChatThread; active: boolean; currentUserId?: string; onOpen: () => void }) {
   const unreadCount = Number(thread.unreadCount || 0);
-  const isDirectThread = thread.type === 'direct' || Boolean(thread.participantId);
-  const isConnected = isDirectThread || String(thread.status || '').toLowerCase().includes('connect');
+  const isConnected = Boolean(thread.participantOnline);
+  const isMineLastMessage = Boolean(currentUserId && thread.lastMessageSenderId === currentUserId);
+  const lastMessageStatus = isMineLastMessage ? thread.lastMessageStatus : undefined;
 
   return (
     <button
@@ -210,16 +198,19 @@ function ThreadRow({ thread, active, onOpen }: { key?: React.Key; thread: AfriCh
             <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#15EA3E] px-1.5 text-[10px] font-black text-black">
               {unreadCount}
             </span>
+          ) : lastMessageStatus ? (
+            <span className={cn(
+              'inline-flex shrink-0 items-center gap-1 text-[9px] font-black uppercase tracking-wide',
+              lastMessageStatus === 'read' ? 'text-[#15EA3E]/80' : 'text-white/42'
+            )}>
+              <MessageStatusTicks status={lastMessageStatus} />
+              {lastMessageStatus === 'read' ? 'Lu' : 'Envoyé'}
+            </span>
           ) : thread.lastMessage ? (
-            <span className="inline-flex shrink-0 items-center gap-1 text-[9px] font-black uppercase tracking-wide text-[#15EA3E]/80">
-              <MessageStatusTicks status="read" />
-              Lu
-            </span>
-          ) : (
             <span className="inline-flex shrink-0 items-center gap-1 text-[9px] font-black uppercase tracking-wide text-white/24">
-              <MessageStatusTicks status="sent" />
+              <MessageStatusTicks status={undefined} />
             </span>
-          )}
+          ) : null}
         </div>
       </div>
     </button>
@@ -259,11 +250,19 @@ function MessageStatusTicks({ status }: { status?: AfriChatMessage['status'] }) 
     );
   }
 
-  if (status === 'sent') {
+  if (status === 'delivered') {
     return (
       <span className="relative inline-flex w-4 text-white/48" aria-label="Envoye">
         <AfriSellIcon name="check" size={12} className="absolute left-0" />
         <AfriSellIcon name="check" size={12} className="absolute left-1.5" />
+      </span>
+    );
+  }
+
+  if (status === 'sent') {
+    return (
+      <span aria-label="Envoyé" className="inline-flex text-white/48">
+        <AfriSellIcon name="check" size={12} />
       </span>
     );
   }
@@ -535,12 +534,13 @@ function KissEffectOverlay({ effectKey }: { effectKey: number }) {
   );
 }
 
-function ChatSettingsSheet({ onClose }: { onClose: () => void }) {
+function ChatSettingsSheet({ onClose, onOpenScanner }: { onClose: () => void; onOpenScanner: () => void }) {
   const settings = [
-    { icon: 'notifications' as AfriSellIconName, title: 'Notifications', body: 'Gérer les alertes des chats, Kialanda, vitrines, villages et stories.' },
+    { icon: 'notifications' as AfriSellIconName, title: 'Notifications', body: 'Gérer les alertes des chats, groupes, villages, appels et stories.' },
     { icon: 'shield' as AfriSellIconName, title: 'Confidentialité', body: "Contrôle qui peut te contacter, voir tes stories et t'inviter dans un Village." },
     { icon: 'language' as AfriSellIconName, title: 'Traduction', body: 'Préparer la traduction instantanée des conversations AfriChat.' },
-    { icon: 'offline' as AfriSellIconName, title: 'Mode offline', body: 'Les messages en attente restent visibles avec un seul trait.' }
+    { icon: 'offline' as AfriSellIconName, title: 'Mode offline', body: 'Les messages en attente restent visibles avec un seul trait.' },
+    { icon: 'scan' as AfriSellIconName, title: 'Scanner utilisateur', body: 'Scanner un QR AfriChat depuis les paramètres.', action: onOpenScanner }
   ];
 
   return (
@@ -557,7 +557,15 @@ function ChatSettingsSheet({ onClose }: { onClose: () => void }) {
         </div>
         <div className="grid gap-2">
           {settings.map((item) => (
-            <button key={item.title} type="button" className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left">
+            <button
+              key={item.title}
+              type="button"
+              onClick={() => {
+                item.action?.();
+                if (item.action) onClose();
+              }}
+              className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
+            >
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#15EA3E]/10 text-[#15EA3E]">
                 <AfriSellIcon name={item.icon} size={17} />
               </span>
@@ -628,6 +636,12 @@ export default function ChatRoom() {
   const [villageInviteValue, setVillageInviteValue] = useState('');
   const [villageInviteLoading, setVillageInviteLoading] = useState(false);
   const [recordingVoice, setRecordingVoice] = useState(false);
+  const [voicePaused, setVoicePaused] = useState(false);
+  const [voicePreviewBlob, setVoicePreviewBlob] = useState<Blob | null>(null);
+  const [voicePreviewUrl, setVoicePreviewUrl] = useState('');
+  const [voiceElapsedSeconds, setVoiceElapsedSeconds] = useState(0);
+  const [chatMode, setChatMode] = useState<'social' | 'pro'>('social');
+  const [chatFilter, setChatFilter] = useState<ChatFilter>('all');
   const storyInputRef = useRef<HTMLInputElement | null>(null);
   const chatCameraInputRef = useRef<HTMLInputElement | null>(null);
   const chatGalleryInputRef = useRef<HTMLInputElement | null>(null);
@@ -635,6 +649,7 @@ export default function ChatRoom() {
   const voiceRecorderRef = useRef<MediaRecorder | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
   const voiceStreamRef = useRef<MediaStream | null>(null);
+  const voiceStopModeRef = useRef<'preview' | 'discard'>('preview');
   const viewedStoriesRef = useRef(new Set<string>());
   const qrVideoRef = useRef<HTMLVideoElement | null>(null);
   const qrStreamRef = useRef<MediaStream | null>(null);
@@ -666,6 +681,20 @@ export default function ChatRoom() {
       actionStatusTimerRef.current = null;
     }
     setActionStatus('');
+  };
+
+  const formatVoiceDuration = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const restSeconds = seconds % 60;
+    return `${minutes}:${String(restSeconds).padStart(2, '0')}`;
+  };
+
+  const clearVoicePreview = () => {
+    setVoicePreviewBlob(null);
+    setVoicePreviewUrl((currentUrl) => {
+      if (currentUrl) URL.revokeObjectURL(currentUrl);
+      return '';
+    });
   };
 
   const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
@@ -777,6 +806,13 @@ export default function ChatRoom() {
       (thread.lastMessage || '').toLowerCase().includes(normalizedQuery)
     ));
   }, [normalizedQuery, threads]);
+
+  const visibleChatThreads = useMemo(() => {
+    if (chatFilter === 'unread') return filteredThreads.filter((thread) => Number(thread.unreadCount || 0) > 0);
+    if (chatFilter === 'read') return filteredThreads.filter((thread) => thread.lastMessage && Number(thread.unreadCount || 0) === 0);
+    if (chatFilter === 'groups') return filteredKialandaThreads;
+    return filteredThreads;
+  }, [chatFilter, filteredKialandaThreads, filteredThreads]);
 
   const filteredVillageThreads = useMemo(() => {
     const villageThreads = threads.filter((thread) => thread.type === 'village');
@@ -995,10 +1031,25 @@ export default function ChatRoom() {
   useEffect(() => () => {
     stopQrScanner();
     if (voiceRecorderRef.current && voiceRecorderRef.current.state !== 'inactive') {
+      voiceStopModeRef.current = 'discard';
       voiceRecorderRef.current.stop();
     }
     stopVoiceStream();
   }, []);
+
+  useEffect(() => () => {
+    if (voicePreviewUrl) URL.revokeObjectURL(voicePreviewUrl);
+  }, [voicePreviewUrl]);
+
+  useEffect(() => {
+    if (!recordingVoice || voicePaused) return undefined;
+
+    const timer = window.setInterval(() => {
+      setVoiceElapsedSeconds((current) => current + 1);
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [recordingVoice, voicePaused]);
 
   useEffect(() => {
     if (!activeThreadId) return undefined;
@@ -1010,6 +1061,24 @@ export default function ChatRoom() {
 
     return unsubscribe;
   }, [activeThreadId]);
+
+  useEffect(() => {
+    if (!activeThreadId || !user?.uid) return;
+    const hasUnreadIncomingMessage = messages.some((message) => (
+      message.senderId &&
+      message.senderId !== user.uid &&
+      message.status !== 'read'
+    ));
+    if (!hasUnreadIncomingMessage) return;
+
+    const readTimer = window.setTimeout(() => {
+      markThreadRead(activeThreadId).catch((readError) => {
+        console.error('Marquage lecture AfriChat impossible:', readError);
+      });
+    }, 120);
+
+    return () => window.clearTimeout(readTimer);
+  }, [activeThreadId, messages, user?.uid]);
 
   useEffect(() => {
     const scrollTimer = window.setTimeout(() => {
@@ -1584,15 +1653,7 @@ export default function ChatRoom() {
     }
   };
 
-  const toggleVoiceRecording = async () => {
-    if (recordingVoice) {
-      const recorder = voiceRecorderRef.current;
-      if (recorder && recorder.state !== 'inactive') {
-        recorder.stop();
-      }
-      return;
-    }
-
+  const startVoiceRecording = async () => {
     if (!activeThread || attaching || sending) return;
 
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
@@ -1609,9 +1670,11 @@ export default function ChatRoom() {
           : '';
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
 
+      clearVoicePreview();
       voiceChunksRef.current = [];
       voiceStreamRef.current = stream;
       voiceRecorderRef.current = recorder;
+      voiceStopModeRef.current = 'preview';
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -1625,22 +1688,97 @@ export default function ChatRoom() {
         voiceChunksRef.current = [];
         voiceRecorderRef.current = null;
         setRecordingVoice(false);
+        setVoicePaused(false);
         stopVoiceStream();
-        if (clip.size > 0) {
-          void sendVoiceClip(clip);
-        } else {
-          showActionStatus('Aucun son détecté dans ce message vocal.');
+
+        if (voiceStopModeRef.current === 'discard') {
+          voiceStopModeRef.current = 'preview';
+          return;
         }
+
+        if (!clip.size) {
+          showActionStatus('Aucun son détecté dans ce message vocal.');
+          return;
+        }
+
+        const previewUrl = URL.createObjectURL(clip);
+        setVoicePreviewBlob(clip);
+        setVoicePreviewUrl((currentUrl) => {
+          if (currentUrl) URL.revokeObjectURL(currentUrl);
+          return previewUrl;
+        });
+        showActionStatus('Vocal prêt. Écoute puis choisis envoyer, recommencer ou supprimer.', 'success', true);
       };
 
       recorder.start();
+      setVoiceElapsedSeconds(0);
+      setVoicePaused(false);
       setRecordingVoice(true);
-      showActionStatus('Enregistrement vocal en cours. Appuie encore sur le micro pour envoyer.', 'success');
+      showActionStatus('Enregistrement vocal en cours.', 'success', true);
     } catch (voiceError) {
       setRecordingVoice(false);
+      setVoicePaused(false);
       stopVoiceStream();
       showActionStatus(getChatActionErrorMessage(voiceError, 'Micro inaccessible. Vérifie l’autorisation audio.'));
     }
+  };
+
+  const finishVoiceRecording = () => {
+    const recorder = voiceRecorderRef.current;
+    if (!recorder || recorder.state === 'inactive') return;
+    voiceStopModeRef.current = 'preview';
+    recorder.stop();
+  };
+
+  const toggleVoicePause = () => {
+    const recorder = voiceRecorderRef.current;
+    if (!recorder || recorder.state === 'inactive') return;
+
+    if (recorder.state === 'recording' && typeof recorder.pause === 'function') {
+      recorder.pause();
+      setVoicePaused(true);
+      return;
+    }
+
+    if (recorder.state === 'paused' && typeof recorder.resume === 'function') {
+      recorder.resume();
+      setVoicePaused(false);
+    }
+  };
+
+  const discardVoiceRecording = () => {
+    const recorder = voiceRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      voiceStopModeRef.current = 'discard';
+      recorder.stop();
+    }
+    voiceChunksRef.current = [];
+    setRecordingVoice(false);
+    setVoicePaused(false);
+    setVoiceElapsedSeconds(0);
+    clearVoicePreview();
+    stopVoiceStream();
+  };
+
+  const restartVoiceRecording = async () => {
+    discardVoiceRecording();
+    await startVoiceRecording();
+  };
+
+  const sendVoicePreview = async () => {
+    if (!voicePreviewBlob || attaching || sending) return;
+    await sendVoiceClip(voicePreviewBlob);
+    clearVoicePreview();
+    setVoiceElapsedSeconds(0);
+  };
+
+  const handleVoiceButtonClick = async () => {
+    if (recordingVoice) {
+      finishVoiceRecording();
+      return;
+    }
+
+    await startVoiceRecording();
   };
 
   const sendChatAttachment = async (file: File) => {
@@ -1742,7 +1880,7 @@ export default function ChatRoom() {
       kyaghanda: {
         title: 'Kialanda Business',
         status: 'Groupe privé',
-        nextSpace: 'kialanda' as ChatSpace
+        nextSpace: 'chat' as ChatSpace
       },
       support: {
         title: 'Support AfriSell',
@@ -1765,6 +1903,29 @@ export default function ChatRoom() {
     } finally {
       setCreatingThread('');
     }
+  };
+
+  const handlePrimaryChatAction = () => {
+    if (activeSpace === 'story') {
+      storyInputRef.current?.click();
+      return;
+    }
+
+    if (activeSpace === 'village') {
+      void createThread('village', {
+        title: 'Village privé',
+        status: 'Accès restreint',
+        nextSpace: 'village'
+      });
+      return;
+    }
+
+    if (activeSpace === 'call') {
+      showActionStatus('Appels AfriChat en préparation.', 'success', true);
+      return;
+    }
+
+    setShowAddContactPanel(true);
   };
 
   const handleMessageKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -2042,6 +2203,98 @@ export default function ChatRoom() {
               </button>
             ))}
           </div>
+          {(recordingVoice || voicePreviewUrl) && (
+            <div className={cn(
+              'rounded-2xl border px-3 py-3',
+              recordingVoice ? 'border-red-400/20 bg-red-500/10 text-red-50' : 'border-[#15EA3E]/20 bg-[#071007] text-white'
+            )}>
+              <div className="flex items-center gap-3">
+                <span className={cn(
+                  'h-2 w-2 rounded-full',
+                  recordingVoice && !voicePaused
+                    ? 'bg-red-400 shadow-[0_0_14px_rgba(248,113,113,0.85)]'
+                    : 'bg-[#15EA3E] shadow-[0_0_14px_rgba(21,234,62,0.65)]'
+                )} />
+                <div className="flex h-6 flex-1 items-center gap-1">
+                {Array.from({ length: 22 }).map((_, index) => (
+                  <span
+                    key={index}
+                    className={cn('w-0.5 rounded-full', recordingVoice ? 'bg-red-200/80' : 'bg-[#15EA3E]/70')}
+                    style={{
+                      height: `${8 + ((index * 7) % 18)}px`,
+                      animation: recordingVoice && !voicePaused
+                        ? `voice-wave ${820 + (index % 5) * 90}ms ease-in-out ${index * 24}ms infinite`
+                        : undefined
+                    }}
+                  />
+                ))}
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.12em]">
+                  {recordingVoice ? formatVoiceDuration(voiceElapsedSeconds) : 'Aperçu'}
+                </span>
+              </div>
+              {voicePreviewUrl && (
+                <audio src={voicePreviewUrl} controls className="mt-3 h-8 w-full" />
+              )}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {recordingVoice ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={toggleVoicePause}
+                      className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white"
+                    >
+                      {voicePaused ? 'Continuer' : 'Pause'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={finishVoiceRecording}
+                      className="rounded-full bg-[#15EA3E] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black"
+                    >
+                      Terminer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={discardVoiceRecording}
+                      className="rounded-full border border-red-400/25 bg-red-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-red-100"
+                    >
+                      Supprimer
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => void sendVoicePreview()}
+                      disabled={attaching || sending}
+                      className="rounded-full bg-[#15EA3E] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-black disabled:bg-gray-800 disabled:text-gray-500"
+                    >
+                      Envoyer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void restartVoiceRecording()}
+                      disabled={attaching || sending}
+                      className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white"
+                    >
+                      Recommencer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearVoicePreview();
+                        setVoiceElapsedSeconds(0);
+                      }}
+                      disabled={attaching || sending}
+                      className="rounded-full border border-red-400/25 bg-red-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-red-100"
+                    >
+                      Supprimer
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
           <div className="flex items-end gap-2">
             <div className="flex min-h-[44px] flex-1 items-center overflow-hidden rounded-xl border border-gray-800 bg-[#0A0A0A] px-4 transition-colors focus-within:border-[#15EA3E]/50">
               <textarea
@@ -2055,17 +2308,17 @@ export default function ChatRoom() {
             </div>
             <button
               type="button"
-              onClick={() => void toggleVoiceRecording()}
-              disabled={attaching || sending}
+              onClick={() => void handleVoiceButtonClick()}
+              disabled={attaching || sending || Boolean(voicePreviewUrl)}
               className={cn(
                 'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-45',
                 recordingVoice
                   ? 'border-red-400/50 bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)]'
                   : 'border-white/10 bg-white/[0.055] text-[#15EA3E] hover:border-[#15EA3E]/35'
               )}
-              aria-label={recordingVoice ? 'Arrêter et envoyer le vocal' : 'Enregistrer un message vocal'}
+              aria-label={recordingVoice ? 'Terminer le vocal' : 'Enregistrer un message vocal'}
             >
-              <AfriSellIcon name={recordingVoice ? 'close' : 'mic'} size={18} />
+              <AfriSellIcon name={recordingVoice ? 'check' : 'mic'} size={18} />
             </button>
             <button
               type="submit"
@@ -2163,13 +2416,18 @@ export default function ChatRoom() {
                   className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
                 >
                   <AfriSellIcon name="account" size={17} className="text-[#15EA3E]" />
-                  <span className="text-xs font-black text-white">Parametres AfriChat</span>
+                  <span className="text-xs font-black text-white">Paramètres AfriChat</span>
                 </button>
               </div>
             </section>
           </div>
         )}
-        {showChatSettings && <ChatSettingsSheet onClose={() => setShowChatSettings(false)} />}
+        {showChatSettings && (
+          <ChatSettingsSheet
+            onClose={() => setShowChatSettings(false)}
+            onOpenScanner={() => void startQrScanner()}
+          />
+        )}
         {showAddContactPanel && (
           <div className="absolute inset-0 z-50 flex items-end bg-black/55 backdrop-blur-sm">
             <section className="w-full rounded-t-[2rem] border-t border-white/10 bg-[#050505] p-5 shadow-[0_-24px_60px_rgba(0,0,0,0.5)]">
@@ -2248,16 +2506,29 @@ export default function ChatRoom() {
             <h1 className="mt-1 text-xl font-black tracking-tight text-white">Messages</h1>
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-900 bg-[#050505] text-gray-400" type="button" aria-label="Rechercher">
+            <button
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#15EA3E] text-black shadow-[0_12px_28px_rgba(21,234,62,0.24)]"
+              type="button"
+              onClick={handlePrimaryChatAction}
+              aria-label="Créer dans AfriChat"
+            >
+              <AfriSellIcon name="plus" size={17} />
+            </button>
+            <button
+              className="flex h-10 w-10 items-center justify-center rounded-full text-white/70 transition-colors hover:text-[#15EA3E]"
+              type="button"
+              onClick={() => showActionStatus('Recherche AfriChat accessible depuis les filtres et les discussions.', 'success', true)}
+              aria-label="Rechercher"
+            >
               <AfriSellIcon name="search" size={17} />
             </button>
             <button
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-900 bg-[#050505] text-gray-400"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-white/70 transition-colors hover:text-[#15EA3E]"
               type="button"
               onClick={() => setShowChatSettings(true)}
-              aria-label="Parametres AfriChat"
+              aria-label="Paramètres AfriChat"
             >
-              <AfriSellIcon name="account" size={17} />
+              <AfriSellIcon name="settings" size={18} />
             </button>
           </div>
         </div>
@@ -2265,23 +2536,47 @@ export default function ChatRoom() {
       </div>
 
       <div className="shrink-0 border-b border-gray-900 px-4 py-3">
-        <label className="flex h-11 items-center gap-3 rounded-2xl border border-gray-900 bg-[#050505] px-4 text-gray-500">
-          <AfriSellIcon name="search" size={16} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={
-              activeSpace === 'chat'
-                ? 'Chercher une discussion'
-                : activeSpace === 'kialanda'
-                  ? 'Chercher un Kialanda'
-                  : activeSpace === 'village'
-                    ? 'Chercher un Village'
-                    : 'Chercher dans AfriChat'
-            }
-            className="h-full min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-gray-600"
-          />
-        </label>
+        <div className="grid grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
+          {[
+            { id: 'social' as const, label: 'Mode social' },
+            { id: 'pro' as const, label: 'Mode pro' }
+          ].map((mode) => (
+            <button
+              key={mode.id}
+              type="button"
+              onClick={() => setChatMode(mode.id)}
+              className={cn(
+                'rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] transition-colors',
+                chatMode === mode.id ? 'bg-[#15EA3E] text-black' : 'text-white/45'
+              )}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
+        {activeSpace === 'chat' && (
+          <div className="scrollbar-hide mt-3 flex gap-2 overflow-x-auto">
+            {[
+              { id: 'all' as const, label: 'Tout' },
+              { id: 'unread' as const, label: 'Non lu' },
+              { id: 'read' as const, label: 'Lu' },
+              { id: 'groups' as const, label: 'Groupes' },
+              { id: 'contacts' as const, label: 'Contacts' }
+            ].map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                onClick={() => setChatFilter(filter.id)}
+                className={cn(
+                  'shrink-0 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors',
+                  chatFilter === filter.id ? 'bg-white text-black' : 'bg-white/[0.055] text-white/48'
+                )}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-28 pt-4">
@@ -2298,34 +2593,26 @@ export default function ChatRoom() {
 
         {activeSpace === 'chat' && (
           <div className="space-y-3">
-            <div className="rounded-[1.35rem] border border-white/10 bg-[#050505] p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-                  <AfriSellIcon name="plus" size={18} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black text-white">Ajouter un utilisateur</p>
-                  <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-gray-500">Scanne un QR ou ajoute un email/numéro AfriSell.</p>
-                </div>
+            {chatMode === 'pro' && (
+              <div className="grid grid-cols-4 gap-2 rounded-[1.35rem] border border-[#15EA3E]/18 bg-[#071007] p-3">
+                {[
+                  { label: 'Clients', icon: 'profile' as AfriSellIconName },
+                  { label: 'Commandes', icon: 'order' as AfriSellIconName },
+                  { label: 'Paiement', icon: 'pay' as AfriSellIconName },
+                  { label: 'Réponses', icon: 'chat' as AfriSellIconName }
+                ].map((action) => (
+                  <button
+                    key={action.label}
+                    type="button"
+                    onClick={() => showActionStatus(`${action.label} pro prêt dans AfriChat.`, 'success', true)}
+                    className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl border border-white/10 bg-black/24 px-2 py-3 text-white/62"
+                  >
+                    <AfriSellIcon name={action.icon} size={17} className="text-[#15EA3E]" />
+                    <span className="max-w-full truncate text-[9px] font-black uppercase tracking-[0.08em]">{action.label}</span>
+                  </button>
+                ))}
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => void startQrScanner()}
-                  className="rounded-2xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 py-3 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]"
-                >
-                  Scanner QR
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddContactPanel(true)}
-                  className="rounded-2xl border border-white/10 bg-white/[0.05] py-3 text-[10px] font-black uppercase tracking-wider text-white/70"
-                >
-                  Ajouter manuel
-                </button>
-              </div>
-            </div>
-
+            )}
             {incomingRequests.length > 0 && (
               <div className="space-y-2 rounded-[1.35rem] border border-[#15EA3E]/18 bg-[#071007] p-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Demandes reçues</p>
@@ -2351,70 +2638,42 @@ export default function ChatRoom() {
               </div>
             )}
 
-            <div className="rounded-[1.35rem] border border-[#15EA3E]/18 bg-[#071007] p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/12 text-[#15EA3E]">
-                  <AfriSellIcon name="profile" size={18} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-black text-white">Contacts de l'appareil</p>
-                  <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-gray-500">Invite ou retrouve rapidement une personne.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={importDeviceContacts}
-                  disabled={importingContacts}
-                  className="rounded-xl bg-[#15EA3E] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-black disabled:bg-gray-800 disabled:text-gray-500"
-                >
-                  {importingContacts ? '...' : 'Importer'}
-                </button>
-              </div>
-              {contactsStatus && (
-                <p className="mt-3 rounded-xl border border-white/10 bg-black/30 p-2 text-[10px] font-semibold leading-relaxed text-white/55">
-                  {contactsStatus}
-                </p>
-              )}
-            </div>
             {loading ? (
               <EmptyState icon="chat" title="Chargement" body="Recuperation de tes discussions AfriChat." />
-            ) : filteredThreads.length ? (
-              filteredThreads.map((thread) => (
+            ) : chatFilter === 'contacts' ? (
+              filteredContacts.length > 0 ? (
+                <div className="space-y-2">
+                  {filteredContacts.map((contact) => (
+                    <ContactRow
+                      key={contact.id}
+                      contact={contact}
+                      disabled={String(contact.status || '').toLowerCase().includes('demande')}
+                      onOpen={() => openContact(contact)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState icon="profile" title="Aucun contact" body="Tes contacts AfriChat apparaîtront ici." />
+              )
+            ) : visibleChatThreads.length ? (
+              visibleChatThreads.map((thread) => (
                 <ThreadRow
                   key={thread.id}
                   thread={thread}
                   active={thread.id === activeThreadId}
+                  currentUserId={user?.uid}
                   onOpen={() => openThread(thread)}
                 />
               ))
             ) : (
               <EmptyState icon="chat" title="Aucune discussion" body="Tes conversations apparaîtront ici dès qu'elles seront créées." />
             )}
-            {filteredContacts.length > 0 && (
-              <div className="space-y-2">
-                <p className="px-1 text-[10px] font-black uppercase tracking-[0.2em] text-white/35">Contacts</p>
-                {filteredContacts.slice(0, 4).map((contact) => (
-                  <ContactRow
-                    key={contact.id}
-                    contact={contact}
-                    disabled={String(contact.status || '').toLowerCase().includes('demande')}
-                    onOpen={() => openContact(contact)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeSpace === 'kialanda' && (
-          <div className="space-y-3">
-            <div className="rounded-[1.35rem] border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#15EA3E] text-black">
-                  <AfriSellIcon name="profile" size={18} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-black text-white">Kialanda</p>
-                  <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-white/55">Groupes privés pour echanger comme une vraie table de discussion.</p>
+            {chatFilter === 'all' && (
+              <div className="space-y-2 rounded-[1.35rem] border border-white/10 bg-[#050505] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black text-white">Groupes Kialanda</p>
+                  <p className="mt-0.5 text-[10px] font-semibold text-white/42">Tes groupes apparaissent dans Chat.</p>
                 </div>
                 <button
                   type="button"
@@ -2425,82 +2684,82 @@ export default function ChatRoom() {
                   {creatingThread === 'kyaghanda' ? '...' : 'Créer'}
                 </button>
               </div>
-            </div>
-            {filteredKialandaThreads.length ? (
-              filteredKialandaThreads.map((thread) => (
-                <ThreadRow key={thread.id} thread={thread} active={thread.id === activeThreadId} onOpen={() => openThread(thread)} />
-              ))
-            ) : (
-              <EmptyState icon="profile" title="Aucun Kialanda" body="Cree un groupé pour tes proches, partenaires ou equipes." />
+              {filteredKialandaThreads.length ? (
+                <div className="space-y-2">
+                  {filteredKialandaThreads.map((thread) => (
+                    <ThreadRow key={thread.id} thread={thread} active={thread.id === activeThreadId} currentUserId={user?.uid} onOpen={() => openThread(thread)} />
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-2xl border border-white/10 bg-white/[0.035] p-3 text-[10px] font-semibold leading-relaxed text-white/42">
+                  Aucun groupe pour le moment.
+                </p>
+              )}
+              </div>
             )}
-          </div>
-        )}
-
-        {activeSpace === 'vitrine' && (
-          <div className="space-y-3">
-            <div className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-[#050505]">
-              <div className="relative h-28 bg-[radial-gradient(circle_at_80%_15%,rgba(21,234,62,0.28),transparent_38%),linear-gradient(135deg,#081208,#020202)] p-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-[1rem_1.5rem_1rem_1.5rem] bg-[#15EA3E] text-black">
-                  <AfriSellIcon name="market" size={20} />
-                </div>
-              </div>
-              <div className="p-4">
-                <p className="text-sm font-black text-white">Vitrine AfriChat</p>
-                <p className="mt-1 text-xs font-semibold leading-relaxed text-gray-500">Les chaînes officielles, boutiques, créateurs et services apparaîtront ici.</p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => navigate('/market')} className="rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black">
-                    Voir Market
-                  </button>
-                  <button type="button" onClick={() => navigate('/feed')} className="rounded-2xl border border-white/10 bg-white/[0.05] py-3 text-[10px] font-black uppercase tracking-wider text-white/70">
-                    Voir ABC
-                  </button>
-                </div>
-              </div>
-            </div>
-            <EmptyState icon="market" title="Aucune chaine" body="Les vitrines suivies seront listees ici avec leurs annonces et nouveautes." />
           </div>
         )}
 
         {activeSpace === 'village' && (
           <div className="space-y-3">
-            <div className="grid grid-cols-1 gap-2">
-              {[
-                { label: 'Village privé', status: 'Acces restreint', body: 'Communauté fermee sur invitation.' },
-                { label: 'Village d achat', status: 'Acheteurs groupés', body: 'Cree par les acheteurs pour negocier ensemble.' },
-                { label: 'Village business', status: 'Business restreint', body: 'Entrepreneurs, entreprises, freelances et formateurs.' }
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => void createThread('village', {
-                    title: item.label,
-                    status: item.status,
-                    nextSpace: 'village'
-                  })}
-                  disabled={Boolean(creatingThread)}
-                  className="rounded-[1.35rem] border border-[#15EA3E]/20 bg-[#071007] p-4 text-left disabled:opacity-60"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-[1.2rem_0.75rem_1.2rem_0.75rem] bg-[#15EA3E] text-black">
-                      <AfriSellIcon name="hub" size={18} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-black text-white">{item.label}</p>
-                      <p className="mt-0.5 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">{item.status}</p>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-xs font-semibold leading-relaxed text-white/52">{item.body}</p>
-                </button>
-              ))}
-            </div>
             {filteredVillageThreads.length ? (
               <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3 rounded-[1.35rem] border border-[#15EA3E]/18 bg-[#071007] p-3">
+                  <div>
+                    <p className="text-sm font-black text-white">Tes Villages</p>
+                    <p className="mt-0.5 text-[10px] font-semibold text-white/45">Communautés, achats groupés et espaces business.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void createThread('village', { title: 'Village privé', status: 'Accès restreint', nextSpace: 'village' })}
+                    disabled={Boolean(creatingThread)}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black disabled:bg-gray-800 disabled:text-gray-500"
+                    aria-label="Créer un Village"
+                  >
+                    <AfriSellIcon name="plus" size={16} />
+                  </button>
+                </div>
                 {filteredVillageThreads.map((thread) => (
-                  <ThreadRow key={thread.id} thread={thread} active={thread.id === activeThreadId} onOpen={() => openThread(thread)} />
+                  <ThreadRow key={thread.id} thread={thread} active={thread.id === activeThreadId} currentUserId={user?.uid} onOpen={() => openThread(thread)} />
                 ))}
               </div>
             ) : (
-              <EmptyState icon="hub" title="Aucun Village" body="Tes communautés privées, achats groupés et villages business apparaîtront ici." />
+              <div className="space-y-3">
+                <div className="rounded-[1.6rem] border border-[#15EA3E]/20 bg-[#071007] p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-[1.2rem_0.75rem_1.2rem_0.75rem] bg-[#15EA3E] text-black">
+                      <AfriSellIcon name="hub" size={19} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-black text-white">Créer ton premier Village</p>
+                      <p className="mt-1 text-xs font-semibold leading-relaxed text-white/52">Un Village peut être privé, lié à un achat groupé ou réservé à une activité business.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { label: 'Village privé', status: 'Accès restreint', body: 'Communauté fermée sur invitation.' },
+                    { label: "Village d'achat", status: 'Acheteurs groupés', body: 'Créé par les acheteurs pour négocier ensemble.' },
+                    { label: 'Village business', status: 'Business restreint', body: 'Entrepreneurs, entreprises, freelances et formateurs.' }
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => void createThread('village', {
+                        title: item.label,
+                        status: item.status,
+                        nextSpace: 'village'
+                      })}
+                      disabled={Boolean(creatingThread)}
+                      className="rounded-[1.35rem] border border-white/10 bg-[#050505] p-4 text-left disabled:opacity-60"
+                    >
+                      <p className="text-sm font-black text-white">{item.label}</p>
+                      <p className="mt-0.5 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">{item.status}</p>
+                      <p className="mt-3 text-xs font-semibold leading-relaxed text-white/52">{item.body}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -2585,10 +2844,35 @@ export default function ChatRoom() {
             )}
           </div>
         )}
+
+        {activeSpace === 'call' && (
+          <div className="space-y-3">
+            <div className="rounded-[1.6rem] border border-[#15EA3E]/20 bg-[#071007] p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-[0.8rem_1.35rem_0.8rem_1.35rem] bg-[#15EA3E] text-black">
+                  <AfriSellIcon name="phone" size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-black text-white">Appels AfriChat</p>
+                  <p className="mt-1 text-xs font-semibold leading-relaxed text-white/52">Les appels audio et vidéo seront reliés à tes contacts acceptés.</p>
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => showActionStatus('Appel audio en préparation.', 'success', true)} className="rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black">
+                  Audio
+                </button>
+                <button type="button" onClick={() => showActionStatus('Appel vidéo en préparation.', 'success', true)} className="rounded-2xl border border-white/10 bg-white/[0.05] py-3 text-[10px] font-black uppercase tracking-wider text-white/70">
+                  Vidéo
+                </button>
+              </div>
+            </div>
+            <EmptyState icon="phone" title="Aucun appel" body="L'historique des appels AfriChat apparaîtra ici." />
+          </div>
+        )}
       </div>
 
-      <nav className="sticky bottom-0 z-30 shrink-0 border-t border-white/10 bg-black/78 px-3 pb-3 pt-2 backdrop-blur-2xl">
-        <div className="grid grid-cols-5 gap-1 rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-1.5 shadow-[0_-14px_36px_rgba(0,0,0,0.42)]">
+      <nav className="pointer-events-none absolute inset-x-0 bottom-2 z-30 px-4">
+        <div className="grid grid-cols-4 gap-1 bg-transparent">
           {chatSpaces.map((space) => {
             const active = activeSpace === space.id;
 
@@ -2598,8 +2882,8 @@ export default function ChatRoom() {
                 type="button"
                 onClick={() => setActiveSpace(space.id)}
                 className={cn(
-                  'flex min-w-0 flex-col items-center gap-1 rounded-[1.25rem] px-1.5 py-1.5 transition-colors',
-                  active ? 'bg-black/45 text-white' : 'text-white/45'
+                  'pointer-events-auto relative flex min-w-0 flex-col items-center gap-0.5 px-1.5 py-1 transition-colors',
+                  active ? 'text-[#15EA3E]' : 'text-white/45'
                 )}
               >
                 <ChatSpaceIcon id={space.id} icon={space.icon} active={active} />
@@ -2867,7 +3151,12 @@ export default function ChatRoom() {
           </section>
         </div>
       )}
-      {showChatSettings && <ChatSettingsSheet onClose={() => setShowChatSettings(false)} />}
+      {showChatSettings && (
+        <ChatSettingsSheet
+          onClose={() => setShowChatSettings(false)}
+          onOpenScanner={() => void startQrScanner()}
+        />
+      )}
     </div>
   );
 }
