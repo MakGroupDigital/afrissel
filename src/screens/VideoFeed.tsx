@@ -18,8 +18,11 @@ import type { AfriSellUserProfile } from '../hooks/useFirebaseAuth';
 type QuickPanel = 'cart' | 'orders' | 'following' | null;
 type FeedFilter = 'live' | 'for-you' | 'following' | 'paid' | 'friends';
 const ABC_SOUND_PREF_KEY = 'afrisell:abc-sound-enabled';
+const ABC_FAVORITES_KEY = 'afrisell:abc-favorites';
 const MARKET_BUSINESS_CATEGORY_IDS = new Set(['commerce']);
 const MARKET_BUSINESS_SERVICE_IDS = new Set(['store', 'supplier', 'producer']);
+
+const getFavoriteStorageKey = (uid?: string) => `${ABC_FAVORITES_KEY}:${uid || 'guest'}`;
 
 const hasMarketBusinessAccount = (profile?: AfriSellUserProfile | null) => {
   if (!profile) return false;
@@ -204,6 +207,7 @@ function FeedItem({
   isOwnContent,
   isFollowed,
   isLiked,
+  isFavorited,
   isActive,
   soundEnabled,
   likeBurstActive,
@@ -215,6 +219,7 @@ function FeedItem({
   onLike,
   onComment,
   onShare,
+  onFavorite,
   onToggleSound,
   onToggleChrome,
   onVisible
@@ -225,6 +230,7 @@ function FeedItem({
   isOwnContent: boolean;
   isFollowed: boolean;
   isLiked: boolean;
+  isFavorited: boolean;
   isActive: boolean;
   soundEnabled: boolean;
   likeBurstActive: boolean;
@@ -236,6 +242,7 @@ function FeedItem({
   onLike: () => void;
   onComment: () => void;
   onShare: () => void;
+  onFavorite: () => void;
   onToggleSound: () => void;
   onToggleChrome: () => void;
   onVisible: () => void;
@@ -478,6 +485,28 @@ function FeedItem({
             >
               <AfriSellIcon name="share" size={25} className="text-gray-400 transition-colors group-hover:text-white" />
               <span className="text-[10px] font-mono text-gray-400">{content.sharesCount || 0}</span>
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                stopControlClick(event);
+                onFavorite();
+              }}
+              className="group flex flex-col items-center gap-1"
+              aria-label={content.linkedProductId ? 'Ajouter au panier' : 'Ajouter aux favoris'}
+              title={content.linkedProductId ? 'Ajouter au panier' : 'Favori'}
+            >
+              <AfriSellIcon
+                name={content.linkedProductId ? 'cart' : 'star'}
+                size={25}
+                className={cn(
+                  'transition-all duration-300',
+                  isFavorited ? 'scale-110 text-[#15EA3E] drop-shadow-[0_0_12px_rgba(21,234,62,0.72)]' : 'text-gray-400 group-hover:text-white'
+                )}
+              />
+              <span className={cn('text-[10px] font-mono', isFavorited ? 'text-[#15EA3E]' : 'text-gray-400')}>
+                {content.linkedProductId ? 'Panier' : 'Favori'}
+              </span>
             </button>
           </div>
         </div>
@@ -900,6 +929,13 @@ export default function VideoFeed() {
   const [feedStatus, setFeedStatus] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [favoriteContentIds, setFavoriteContentIds] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem(getFavoriteStorageKey()) || '{}') as Record<string, boolean>;
+    } catch {
+      return {};
+    }
+  });
   const followedCount = Object.keys(followedAuthors).length;
   const canAssociateProduct = hasMarketBusinessAccount(profile);
   const ownedMarketProducts = useMemo(
@@ -1007,6 +1043,15 @@ export default function VideoFeed() {
   }, [isSoundEnabled]);
 
   useEffect(() => {
+    try {
+      const storedFavorites = JSON.parse(window.localStorage.getItem(getFavoriteStorageKey(user?.uid)) || '{}') as Record<string, boolean>;
+      setFavoriteContentIds(storedFavorites);
+    } catch {
+      setFavoriteContentIds({});
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
     if (!feedStatus) return undefined;
     const timer = window.setTimeout(() => setFeedStatus(''), 3200);
     return () => window.clearTimeout(timer);
@@ -1076,16 +1121,39 @@ export default function VideoFeed() {
       window.setTimeout(() => {
         setLikeBurstContentId((current) => current === content.id ? '' : current);
       }, 1350);
-
-      if (content.linkedProductId) {
-        const linkedProduct = content.linkedProductId ? marketProductsById[content.linkedProductId] : undefined;
-        if (linkedProduct) {
-          addToCart(toCheckoutProduct(linkedProduct));
-        }
-      }
     }
 
     await toggleLike(content);
+  };
+
+  const handleFavorite = (content: AfriMarketContent) => {
+    if (!user) {
+      navigate('/login', { state: { next: `/feed?post=${content.id}` } });
+      return;
+    }
+
+    if (content.linkedProductId) {
+      const linkedProduct = marketProductsById[content.linkedProductId];
+      if (!linkedProduct) {
+        setFeedStatus('Produit ou offre associé introuvable.');
+        return;
+      }
+      addToCart(toCheckoutProduct(linkedProduct));
+      setQuickPanel('cart');
+      setFeedStatus(linkedProduct.target === 'offer' ? 'Offre ajoutée au panier.' : 'Produit ajouté au panier.');
+      return;
+    }
+
+    setFavoriteContentIds((current) => {
+      const next = {
+        ...current,
+        [content.id]: !current[content.id]
+      };
+      if (!next[content.id]) delete next[content.id];
+      window.localStorage.setItem(getFavoriteStorageKey(user.uid), JSON.stringify(next));
+      return next;
+    });
+    setFeedStatus(favoriteContentIds[content.id] ? 'Publication retirée des favoris.' : 'Publication ajoutée aux favoris.');
   };
 
   return (
@@ -1250,6 +1318,7 @@ export default function VideoFeed() {
               isOwnContent={content.authorId === user?.uid}
               isFollowed={Boolean(followedAuthors[content.authorId])}
               isLiked={Boolean(likedContents[content.id])}
+              isFavorited={Boolean(content.linkedProductId ? cart.some((item) => item.id === content.linkedProductId) : favoriteContentIds[content.id])}
               isActive={!isPlaybackBlocked && activeContentId === content.id}
               soundEnabled={isSoundEnabled}
               likeBurstActive={likeBurstContentId === content.id}
@@ -1268,6 +1337,7 @@ export default function VideoFeed() {
               onLike={() => handleLike(content)}
               onComment={() => setCommentContent(content)}
               onShare={() => handleShare(content)}
+              onFavorite={() => handleFavorite(content)}
               onToggleSound={() => setIsSoundEnabled((current) => !current)}
               onToggleChrome={() => setIsFeedChromeHidden((current) => !current)}
               onVisible={() => setActiveContentId(content.id)}

@@ -119,6 +119,14 @@ const getLatestKycRequestStatus = (value: unknown): KycStatus => {
   return normalizeKycStatus(latestRequest?.status);
 };
 
+const getTimeGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return 'Bon matin';
+  if (hour >= 12 && hour < 18) return 'Bon après-midi';
+  if (hour >= 18 && hour < 22) return 'Bonsoir';
+  return 'Bonne nuit';
+};
+
 const formatCompactCount = (value: number) => {
   if (value >= 1000000) return `${(value / 1000000).toFixed(value >= 10000000 ? 0 : 1)}M`;
   if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}K`;
@@ -280,6 +288,7 @@ export default function EcosystemHome() {
   const { abcContents, marketProducts } = useAfriMarket();
   const { balance, currency, accountLabel, loading: walletLoading } = useAfriSpayWallet();
   const firstName = (profile?.displayName || user?.displayName || 'Utilisateur').split(' ')[0];
+  const timeGreeting = getTimeGreeting();
   const walletLabel = user
     ? walletLoading
       ? '...'
@@ -643,7 +652,7 @@ export default function EcosystemHome() {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <img src="/logo du haut de page d'acceuil.png" alt="AfriSell" className="h-10 w-auto max-w-[156px] object-contain" />
-              <h1 className="truncate text-[11px] font-black text-white/78">Bonjour {firstName}</h1>
+              <h1 className="truncate text-[11px] font-black text-white/78">{timeGreeting} {firstName}</h1>
             </div>
           </div>
           <div className="flex shrink-0 items-center">
