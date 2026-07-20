@@ -258,20 +258,17 @@ function FeedItem({
       return;
     }
 
-    if (!isVideo) {
-      onToggleChrome();
-      return;
-    }
-
     if (clickTimerRef.current) {
       window.clearTimeout(clickTimerRef.current);
       clickTimerRef.current = null;
-      setIsPausedByUser((current) => !current);
+      onToggleChrome();
       return;
     }
 
     clickTimerRef.current = window.setTimeout(() => {
-      onToggleChrome();
+      if (isVideo) {
+        setIsPausedByUser((current) => !current);
+      }
       clickTimerRef.current = null;
     }, 240);
   };
@@ -352,36 +349,6 @@ function FeedItem({
         <div className="mb-0 flex items-end justify-between gap-4">
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="pointer-events-auto flex items-center gap-2" data-feed-control="true">
-              <div className="relative shrink-0">
-                <Link
-                  to={`/u/${content.authorId}`}
-                  onClick={stopControlClick}
-                  className="block active:scale-95"
-                  aria-label={`Voir le profil de ${content.authorName}`}
-                >
-                  <CreatorAvatar content={content} />
-                </Link>
-                {!isOwnContent && (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      stopControlClick(event);
-                      onFollow();
-                    }}
-                    disabled={isFollowed}
-                    className={cn(
-                      'pointer-events-auto absolute -right-1.5 top-1/2 flex h-[18px] w-[18px] -translate-y-1/2 items-center justify-center rounded-full border text-[11px] font-black leading-none shadow-[0_0_10px_rgba(0,0,0,0.42)] transition-transform active:scale-90',
-                      isFollowed
-                        ? 'border-[#15EA3E]/70 bg-[#15EA3E] text-black'
-                        : 'border-black/60 bg-white text-black'
-                    )}
-                    aria-label={isFollowed ? 'Utilisateur suivi' : 'Suivre cet utilisateur'}
-                    title={isFollowed ? 'Utilisateur suivi' : 'Suivre'}
-                  >
-                    +
-                  </button>
-                )}
-              </div>
               <div className="min-w-0">
                 <Link
                   to={`/u/${content.authorId}`}
@@ -440,6 +407,36 @@ function FeedItem({
           </div>
 
           <div className="pointer-events-auto flex flex-col items-center gap-5">
+            <div className="relative" data-feed-control="true">
+              <Link
+                to={`/u/${content.authorId}`}
+                onClick={stopControlClick}
+                className="block active:scale-95"
+                aria-label={`Voir le profil de ${content.authorName}`}
+              >
+                <CreatorAvatar content={content} />
+              </Link>
+              {!isOwnContent && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    stopControlClick(event);
+                    onFollow();
+                  }}
+                  disabled={isFollowed}
+                  className={cn(
+                    'absolute -bottom-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full border text-[11px] font-black leading-none shadow-[0_0_10px_rgba(0,0,0,0.42)] transition-transform active:scale-90',
+                    isFollowed
+                      ? 'border-[#15EA3E]/70 bg-[#15EA3E] text-black'
+                      : 'border-black/60 bg-white text-black'
+                  )}
+                  aria-label={isFollowed ? 'Utilisateur suivi' : 'Suivre cet utilisateur'}
+                  title={isFollowed ? 'Utilisateur suivi' : 'Suivre'}
+                >
+                  +
+                </button>
+              )}
+            </div>
             <button
               type="button"
               onClick={(event) => {
