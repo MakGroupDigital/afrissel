@@ -11,6 +11,36 @@ import { cn } from '../lib/utils';
 type ChatSpace = 'chat' | 'story' | 'village' | 'call';
 type ChatFilter = 'all' | 'unread' | 'read' | 'groups' | 'contacts';
 
+const translateAfriChatText = (value: string) => {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return '';
+
+  const translated = trimmedValue
+    .replace(/\bhello\b/gi, 'bonjour')
+    .replace(/\bhi\b/gi, 'salut')
+    .replace(/\bthanks\b/gi, 'merci')
+    .replace(/\bthank you\b/gi, 'merci')
+    .replace(/\bprice\b/gi, 'prix')
+    .replace(/\bdelivery\b/gi, 'livraison')
+    .replace(/\bpayment\b/gi, 'paiement')
+    .replace(/\bproduct\b/gi, 'produit')
+    .replace(/\border\b/gi, 'commande')
+    .replace(/\bmarket\b/gi, 'marché')
+    .replace(/\bshop\b/gi, 'boutique')
+    .replace(/\bbonjour\b/gi, 'hello')
+    .replace(/\bsalut\b/gi, 'hi')
+    .replace(/\bmerci\b/gi, 'thanks')
+    .replace(/\bprix\b/gi, 'price')
+    .replace(/\blivraison\b/gi, 'delivery')
+    .replace(/\bpaiement\b/gi, 'payment')
+    .replace(/\bproduit\b/gi, 'product')
+    .replace(/\bcommande\b/gi, 'order')
+    .replace(/\bmarché\b/gi, 'market')
+    .replace(/\bboutique\b/gi, 'shop');
+
+  return translated === trimmedValue ? `[Traduction AfriChat]\n${trimmedValue}` : translated;
+};
+
 type ContactPickerContact = {
   name?: string[];
   tel?: string[];
@@ -379,6 +409,9 @@ function MessageBubble({
   isMine: boolean;
   onOpenKiss?: () => void;
 }) {
+  const [showTranslation, setShowTranslation] = useState(false);
+  const canTranslate = Boolean(message.text?.trim()) && !['audio', 'kiss'].includes(message.type || 'text');
+  const translatedText = canTranslate ? translateAfriChatText(message.text) : '';
   const messageBadge = message.type && message.type !== 'text' && message.type !== 'audio'
     ? {
       order: 'Commande',
@@ -494,6 +527,17 @@ function MessageBubble({
               <span className="mt-0.5 block truncate text-[10px] font-semibold text-white/45">Ouvrir la carte</span>
             </span>
           </a>
+        ) : showTranslation && translatedText ? (
+          <div className="space-y-2">
+            <div className="rounded-xl border border-white/10 bg-black/16 p-2">
+              <p className="mb-1 text-[9px] font-black uppercase tracking-[0.16em] text-white/35">Original</p>
+              <MessageText text={message.text} />
+            </div>
+            <div className="rounded-xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-2">
+              <p className="mb-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#15EA3E]">Traduction</p>
+              <MessageText text={translatedText} />
+            </div>
+          </div>
         ) : (
           <MessageText text={message.text} />
         )}
@@ -502,7 +546,17 @@ function MessageBubble({
             Produit: {message.productId}
           </p>
         )}
-        <div className={cn('mt-2 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide', isMine ? 'justify-end text-[#15EA3E]/70' : 'text-gray-600')}>
+        <div className={cn('mt-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide', isMine ? 'justify-end text-[#15EA3E]/70' : 'text-gray-600')}>
+          {canTranslate && (
+            <button
+              type="button"
+              onClick={() => setShowTranslation((current) => !current)}
+              className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/18 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-white/55"
+            >
+              <AfriSellIcon name="language" size={11} />
+              {showTranslation ? 'Masquer' : 'Traduire'}
+            </button>
+          )}
           <span>{formatChatTime(message.createdAt)}</span>
           {isMine && <MessageStatusTicks status={message.status} />}
         </div>
@@ -605,6 +659,8 @@ export default function ChatRoom() {
   const [sending, setSending] = useState(false);
   const [attaching, setAttaching] = useState(false);
   const [translationEnabled, setTranslationEnabled] = useState(false);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [draftTranslation, setDraftTranslation] = useState('');
   const [creatingThread, setCreatingThread] = useState('');
   const [actionStatus, setActionStatus] = useState('');
   const [actionStatusKind, setActionStatusKind] = useState<'error' | 'success'>('error');
@@ -710,30 +766,19 @@ export default function ChatRoom() {
   };
 
   const translateDraft = () => {
-    setTranslationEnabled((current) => !current);
     if (!draft.trim()) {
       showActionStatus(
-        translationEnabled ? 'Traduction désactivée.' : 'Traduction activée. Écris un message puis appuie encore pour préparer la traduction.',
+        translationEnabled ? 'Traduction désactivée.' : 'Écris un message puis appuie sur traduire.',
         'success',
         true
       );
+      setTranslationEnabled((current) => !current);
       return;
     }
 
-    const translated = draft
-      .replace(/\bhello\b/gi, 'bonjour')
-      .replace(/\bthanks\b/gi, 'merci')
-      .replace(/\bprice\b/gi, 'prix')
-      .replace(/\bdelivery\b/gi, 'livraison')
-      .replace(/\bpayment\b/gi, 'paiement')
-      .replace(/\bproduct\b/gi, 'produit')
-      .replace(/\bcommande\b/gi, 'order')
-      .replace(/\bprix\b/gi, 'price')
-      .replace(/\blivraison\b/gi, 'delivery')
-      .replace(/\bpaiement\b/gi, 'payment');
-
-    setDraft(translated === draft ? `[Traduction AfriChat]\n${draft}` : translated);
-    showActionStatus('Traduction préparée dans le champ message.', 'success', true);
+    setTranslationEnabled(true);
+    setDraftTranslation(translateAfriChatText(draft));
+    showActionStatus('Traduction prête. Choisis Original ou Traduit avant envoi.', 'success', true);
   };
 
   const activeThread = useMemo(
@@ -1602,6 +1647,8 @@ export default function ChatRoom() {
     try {
       await sendMessage(activeThread, draft);
       setDraft('');
+      setDraftTranslation('');
+      setTranslationEnabled(false);
     } catch (messageError) {
       showActionStatus(getChatActionErrorMessage(messageError, 'Envoi du message impossible.'));
     } finally {
@@ -2183,26 +2230,70 @@ export default function ChatRoom() {
               {attaching ? 'Envoi en cours...' : 'AfriChat'}
             </span>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {[
-              { label: 'Caméra', icon: 'camera' as AfriSellIconName, onClick: () => chatCameraInputRef.current?.click() },
-              { label: 'Galerie', icon: 'gallery' as AfriSellIconName, onClick: () => chatGalleryInputRef.current?.click() },
-              { label: 'Fichier', icon: 'file' as AfriSellIconName, onClick: () => chatFileInputRef.current?.click() },
-              { label: 'Contact', icon: 'contact' as AfriSellIconName, onClick: () => setShowAddContactPanel(true) },
-              { label: 'Position', icon: 'location' as AfriSellIconName, onClick: () => void shareCurrentLocation() }
-            ].map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                onClick={action.onClick}
-                disabled={attaching}
-                className="flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black text-white/70 transition-colors hover:border-[#15EA3E]/30 hover:text-[#15EA3E] disabled:opacity-45"
-              >
-                <AfriSellIcon name={action.icon} size={14} />
-                {action.label}
-              </button>
-            ))}
-          </div>
+          {showAttachmentMenu && (
+            <div className="grid grid-cols-5 gap-2 rounded-2xl border border-white/10 bg-white/[0.035] p-2">
+              {[
+                { label: 'Caméra', icon: 'camera' as AfriSellIconName, onClick: () => chatCameraInputRef.current?.click() },
+                { label: 'Galerie', icon: 'gallery' as AfriSellIconName, onClick: () => chatGalleryInputRef.current?.click() },
+                { label: 'Fichier', icon: 'file' as AfriSellIconName, onClick: () => chatFileInputRef.current?.click() },
+                { label: 'Contact', icon: 'contact' as AfriSellIconName, onClick: () => setShowAddContactPanel(true) },
+                { label: 'Position', icon: 'location' as AfriSellIconName, onClick: () => void shareCurrentLocation() }
+              ].map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={() => {
+                    action.onClick();
+                    setShowAttachmentMenu(false);
+                  }}
+                  disabled={attaching}
+                  className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl px-1 py-2 text-white/65 transition-colors hover:text-[#15EA3E] disabled:opacity-45"
+                >
+                  <AfriSellIcon name={action.icon} size={18} />
+                  <span className="max-w-full truncate text-[8px] font-black uppercase tracking-[0.06em]">{action.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {translationEnabled && draftTranslation && (
+            <div className="rounded-2xl border border-[#15EA3E]/20 bg-[#071007] p-3">
+              <div className="grid gap-2">
+                <div className="rounded-xl border border-white/10 bg-black/18 p-2">
+                  <p className="mb-1 text-[9px] font-black uppercase tracking-[0.16em] text-white/35">Original</p>
+                  <p className="text-xs font-semibold leading-relaxed text-white/72">{draft}</p>
+                </div>
+                <div className="rounded-xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-2">
+                  <p className="mb-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#15EA3E]">Traduit</p>
+                  <p className="text-xs font-semibold leading-relaxed text-white">{draftTranslation}</p>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraftTranslation('');
+                    setTranslationEnabled(false);
+                    showActionStatus('Version originale conservée.', 'success', true);
+                  }}
+                  className="rounded-xl border border-white/10 bg-white/[0.05] py-2 text-[10px] font-black uppercase tracking-wider text-white/70"
+                >
+                  Original
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(draftTranslation);
+                    setDraftTranslation('');
+                    setTranslationEnabled(false);
+                    showActionStatus('Version traduite prête à envoyer.', 'success', true);
+                  }}
+                  className="rounded-xl bg-[#15EA3E] py-2 text-[10px] font-black uppercase tracking-wider text-black"
+                >
+                  Traduit
+                </button>
+              </div>
+            </div>
+          )}
           {(recordingVoice || voicePreviewUrl) && (
             <div className={cn(
               'rounded-2xl border px-3 py-3',
@@ -2296,10 +2387,28 @@ export default function ChatRoom() {
             </div>
           )}
           <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAttachmentMenu((current) => !current)}
+              disabled={attaching || sending}
+              className={cn(
+                'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-45',
+                showAttachmentMenu ? 'border-[#15EA3E]/50 bg-[#15EA3E] text-black' : 'border-white/10 bg-white/[0.055] text-white/70 hover:border-[#15EA3E]/35 hover:text-[#15EA3E]'
+              )}
+              aria-label="Actions AfriChat"
+            >
+              <AfriSellIcon name="plus" size={18} />
+            </button>
             <div className="flex min-h-[44px] flex-1 items-center overflow-hidden rounded-xl border border-gray-800 bg-[#0A0A0A] px-4 transition-colors focus-within:border-[#15EA3E]/50">
               <textarea
                 value={draft}
-                onChange={(event) => setDraft(event.target.value)}
+                onChange={(event) => {
+                  setDraft(event.target.value);
+                  if (draftTranslation) {
+                    setDraftTranslation('');
+                    setTranslationEnabled(false);
+                  }
+                }}
                 onKeyDown={handleMessageKeyDown}
                 placeholder="Message..."
                 className="max-h-[96px] w-full resize-none border-none bg-transparent py-3 text-xs text-[#e0e0e0] outline-none placeholder:text-gray-600"
