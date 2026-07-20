@@ -39,6 +39,11 @@ export type AfriMarketContent = {
   followsCount?: number;
   isLive?: boolean;
   liveStatus?: 'scheduled' | 'live' | 'ended' | string;
+  target?: 'abc' | 'text' | 'market' | 'offer' | string;
+  offerModule?: string;
+  stock?: number;
+  location?: string;
+  textStyle?: string;
   createdAt?: number | string | { seconds?: number };
   updatedAt?: number | string | { seconds?: number };
   status?: 'active' | 'hidden' | 'deleted' | string;
@@ -58,13 +63,18 @@ export type AfriMarketPostInput = {
   title: string;
   description: string;
   category: string;
-  files: File[];
+  files?: File[];
   isSellable: boolean;
   linkedProductId?: string;
   price?: number;
   villagePrice?: number;
   buyersNeeded?: number;
   currency?: string;
+  target?: 'abc' | 'text' | 'market' | 'offer';
+  stock?: number;
+  location?: string;
+  offerModule?: string;
+  textStyle?: string;
 };
 
 type RawContent = Omit<AfriMarketContent, 'id'> & {
@@ -211,6 +221,11 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     followsCount: toNumber(content.followsCount),
     isLive: Boolean(content.isLive),
     liveStatus: content.liveStatus || '',
+    target: content.target || '',
+    offerModule: content.offerModule || '',
+    stock: content.stock !== undefined ? toNumber(content.stock) : undefined,
+    location: content.location || '',
+    textStyle: content.textStyle || '',
     createdAt: content.createdAt,
     updatedAt: content.updatedAt,
     status: content.status || 'active'
@@ -456,21 +471,29 @@ export const useAfriMarket = () => {
 
     const title = input.title.trim();
     const description = input.description.trim();
-    const files = input.files.filter(Boolean);
+    const files = (input.files || []).filter(Boolean);
     const hasVideo = files.some((file) => file.type.startsWith('video/'));
     const hasImage = files.some((file) => file.type.startsWith('image/'));
+    const isTextPost = input.target === 'text';
+    const isDirectMarketItem = input.target === 'market' || input.target === 'offer';
 
     if (!title) throw new Error('Ajoute un titre.');
     if (!description) throw new Error('Ajoute une description.');
-    if (!files.length) throw new Error('Ajoute une video ou des photos.');
+    if (!files.length && !isTextPost) throw new Error('Ajoute une video ou des photos.');
+    if (files.filter((file) => file.type.startsWith('image/')).length > 7) {
+      throw new Error('Un poste photo accepte maximum 7 photos.');
+    }
     if (hasVideo && (files.length > 1 || hasImage)) {
       throw new Error('Choisis une seule video ou plusieurs photos.');
+    }
+    if (isDirectMarketItem && hasVideo) {
+      throw new Error('Un produit ou une offre doit utiliser des photos, pas une video.');
     }
     const postRef = push(ref(realtimeDb, 'abcPosts'));
     const postId = postRef.key;
     if (!postId) throw new Error('Publication impossible pour le moment.');
 
-    const uploads = await Promise.all(files.map((file) => uploadMediaToCloudinary(file, user.uid)));
+    const uploads = files.length ? await Promise.all(files.map((file) => uploadMediaToCloudinary(file, user.uid))) : [];
     const media: AfriMarketMedia[] = uploads.map((upload, index) => ({
       ...upload,
       id: `${postId}_${index}`
@@ -482,7 +505,8 @@ export const useAfriMarket = () => {
     const linkedProduct = input.linkedProductId
       ? marketProducts.find((product) => product.id === input.linkedProductId)
       : undefined;
-    const isSellable = Boolean(linkedProduct);
+    const isSellable = Boolean(linkedProduct || isDirectMarketItem || input.isSellable);
+    const format = isTextPost ? 'article' : isVideo ? 'video' : media.length > 1 ? 'gallery' : 'article';
 
     const payload: AfriMarketContent = {
       id: postId,
@@ -492,7 +516,7 @@ export const useAfriMarket = () => {
       title,
       description,
       category: input.category || 'Partage',
-      format: isVideo ? 'video' : 'gallery',
+      format,
       media,
       coverURL: media[0]?.secureUrl || media[0]?.mediaUrl || '',
       isSellable,
@@ -502,28 +526,48 @@ export const useAfriMarket = () => {
       linkedProductPrice: linkedProduct?.price,
       linkedProductVillagePrice: linkedProduct?.villagePrice,
       linkedProductCurrency: linkedProduct?.currency,
-      price: undefined,
-      villagePrice: undefined,
+      price: isDirectMarketItem ? input.price : undefined,
+      villagePrice: isDirectMarketItem ? input.villagePrice : undefined,
       currency: linkedProduct?.currency || input.currency || 'USD',
       buyersCount: 0,
-      buyersNeeded: 0,
+      buyersNeeded: input.buyersNeeded || 0,
       likesCount: 0,
       commentsCount: 0,
       sharesCount: 0,
       followsCount: 0,
+      target: input.target || '',
+      offerModule: input.offerModule || '',
+      textStyle: input.textStyle || '',
       createdAt: now,
       updatedAt: now,
       status: 'active'
     };
 
     const updates: Record<string, unknown> = {
-      [`abcPosts/${postId}`]: payload,
       [`userPosts/${user.uid}/${postId}`]: {
         id: postId,
         createdAt: now,
-        type: payload.format
+        type: input.target || payload.format
       }
     };
+
+    if (isDirectMarketItem) {
+      updates[`marketProducts/${postId}`] = {
+        ...payload,
+        stock: input.stock || 0,
+        location: input.location || '',
+        offerModule: input.offerModule || '',
+        textStyle: input.textStyle || '',
+        target: input.target
+      };
+      updates[`userProducts/${user.uid}/${postId}`] = {
+        id: postId,
+        createdAt: now,
+        type: input.target
+      };
+    } else {
+      updates[`abcPosts/${postId}`] = payload;
+    }
 
     media.forEach((item) => {
       updates[`users/${user.uid}/media/${item.id}`] = {

@@ -8,6 +8,7 @@ import {
   onAuthStateChanged,
   RecaptchaVerifier,
   setPersistence,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPhoneNumber,
   signInWithPopup,
@@ -701,6 +702,14 @@ export const useFirebaseAuth = () => {
       await setPersistence(firebaseAuth, browserLocalPersistence);
       const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
       await syncCurrentUser(credential.user);
+    },
+    resetPassword: async (email: string) => {
+      updateAuthStore({ authError: '' });
+      const cleanEmail = email.trim();
+      if (!cleanEmail) {
+        throw new Error('auth/missing-email');
+      }
+      await sendPasswordResetEmail(firebaseAuth, cleanEmail);
     },
     registerWithEmail: async (name: string, email: string, password: string) => {
       updateAuthStore({ authError: '' });

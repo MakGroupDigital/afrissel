@@ -16,10 +16,12 @@ import AppsDirectoryScreen from './screens/AppsDirectoryScreen';
 import SafariServicesScreen from './screens/SafariServicesScreen';
 import ModuleSuiteScreen, { ModuleActionScreen } from './screens/ModuleSuiteScreen';
 import VideoFeed from './screens/VideoFeed';
+import CreateHubScreen from './screens/CreateHubScreen';
 import CreatePostScreen from './screens/CreatePostScreen';
 import AfriAiTalkScreen from './screens/AfriAiTalkScreen';
 import QuickActionOffersScreen from './screens/QuickActionOffersScreen';
 import ZandofyMarketplaceScreen from './screens/ZandofyMarketplaceScreen';
+import PromotionsScreen from './screens/PromotionsScreen';
 import MarketHome from './screens/MarketHome';
 import ProductDetailScreen from './screens/ProductDetailScreen';
 import MarketOrdersScreen from './screens/MarketOrdersScreen';
@@ -131,6 +133,7 @@ function AppRoutes() {
         <Route path="/ecosystem" element={<EcosystemHome />} />
         <Route path="/offers/:sectionId" element={<QuickActionOffersScreen />} />
         <Route path="/zandofy" element={<ZandofyMarketplaceScreen />} />
+        <Route path="/promos" element={<PromotionsScreen />} />
         <Route path="/apps" element={<AppsDirectoryScreen />} />
         <Route path="/safari" element={<SafariServicesScreen />} />
         <Route path="/safari/:serviceId" element={<SafariServicesScreen />} />
@@ -148,6 +151,7 @@ function AppRoutes() {
         <Route path="/fpp" element={<ModuleSuiteScreen moduleId="fpp" />} />
         <Route path="/fpp/:actionId" element={<ModuleActionScreen moduleId="fpp" />} />
         <Route path="/feed" element={<VideoFeed />} />
+        <Route path="/create/hub" element={<RequireAuth><CreateHubScreen /></RequireAuth>} />
         <Route path="/create" element={<RequireAuth><CreatePostScreen /></RequireAuth>} />
         <Route path="/market" element={<MarketHome />} />
         <Route path="/market/orders" element={<MarketOrdersScreen />} />

@@ -28,10 +28,10 @@ export default function BottomNavigation() {
 
   const openCreatePage = () => {
     if (!user) {
-      navigate('/login', { state: { next: '/create' } });
+      navigate('/login', { state: { next: '/create/hub' } });
       return;
     }
-    navigate('/create');
+    navigate('/create/hub');
   };
 
   return (

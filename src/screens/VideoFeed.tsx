@@ -41,6 +41,32 @@ const getLinkedProductPrice = (content: AfriMarketContent, product?: AfriMarketC
     : formatMarketPrice(content.linkedProductVillagePrice || content.linkedProductPrice, content.linkedProductCurrency || content.currency)
 );
 
+const getLinkedActionLabel = (content: AfriMarketContent, product?: AfriMarketContent) => {
+  const source = product || content;
+  const text = [
+    source.target,
+    source.offerModule,
+    source.category,
+    source.title
+  ].join(' ').toLowerCase();
+
+  if (text.includes('event') || text.includes('événement') || text.includes('evenement') || text.includes('immobilier') || text.includes('hotel') || text.includes('hôtel')) {
+    return 'Réserver';
+  }
+  if (source.target === 'offer' || text.includes('service') || text.includes('freelance') || text.includes('safari') || text.includes('restauration')) {
+    return 'Commander';
+  }
+  return 'Acheter';
+};
+
+const textFeedStyles: Record<string, string> = {
+  emerald: 'bg-[radial-gradient(circle_at_80%_10%,rgba(21,234,62,0.34),transparent_34%),linear-gradient(135deg,#061107,#102815)] text-white',
+  lime: 'bg-[linear-gradient(135deg,#15EA3E,#D7FF4F)] text-black',
+  graphite: 'bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.16),transparent_26%),linear-gradient(135deg,#050505,#1D1F1D)] text-white',
+  sunset: 'bg-[linear-gradient(135deg,#FF7A1A,#151006)] text-white',
+  clean: 'bg-[linear-gradient(135deg,#F8FFF9,#DDF8E4)] text-[#071007]'
+};
+
 function CreatorAvatar({ content }: { content: AfriMarketContent }) {
   const initials = content.authorName
     .trim()
@@ -162,8 +188,12 @@ function FeedMedia({
   }
 
   return (
-    <div className="flex h-full w-full items-center justify-center bg-[#070707] text-gray-700">
-      <AfriSellIcon name="video" size={42} />
+    <div className={cn('flex h-full w-full items-center justify-center px-8 text-center', textFeedStyles[content.textStyle || 'emerald'] || textFeedStyles.emerald)}>
+      <div className="max-w-[300px]">
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] opacity-55">ABC Texte</p>
+        <h2 className="mt-5 text-3xl font-black leading-tight">{content.title}</h2>
+        <p className="mt-4 text-base font-semibold leading-relaxed opacity-78">{content.description}</p>
+      </div>
     </div>
   );
 }
@@ -217,6 +247,7 @@ function FeedItem({
   const hasLinkedProduct = Boolean(content.linkedProductId);
   const productTitle = linkedProduct?.title || content.linkedProductTitle || 'Produit associe';
   const productPrice = getLinkedProductPrice(content, linkedProduct);
+  const linkedActionLabel = getLinkedActionLabel(content, linkedProduct);
   const stopControlClick = (event: React.MouseEvent) => {
     event.stopPropagation();
   };
@@ -382,7 +413,7 @@ function FeedItem({
                   }}
                   className="rounded-full bg-[#15EA3E] px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-black active:scale-95"
                 >
-                  Acheter
+                  {linkedActionLabel}
                 </button>
                 <button
                   type="button"
@@ -870,6 +901,8 @@ export default function VideoFeed() {
   const [activeContentId, setActiveContentId] = useState('');
   const [feedFilter, setFeedFilter] = useState<FeedFilter>('for-you');
   const [feedStatus, setFeedStatus] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const followedCount = Object.keys(followedAuthors).length;
   const canAssociateProduct = hasMarketBusinessAccount(profile);
   const ownedMarketProducts = useMemo(
@@ -901,6 +934,66 @@ export default function VideoFeed() {
     if (!sharedPost) return nextContents;
     return [sharedPost, ...nextContents.filter((content) => content.id !== postIdFromUrl)];
   }, [abcContents, feedFilter, followedAuthors, mutualAuthors, postIdFromUrl]);
+
+  const searchResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+
+    const contentResults = abcContents
+      .filter((content) => [
+        content.title,
+        content.description,
+        content.authorName,
+        content.category,
+        content.offerModule
+      ].join(' ').toLowerCase().includes(query))
+      .slice(0, 8)
+      .map((content) => ({
+        id: `post-${content.id}`,
+        title: content.title,
+        meta: `${content.authorName} - ${content.category || 'ABC'}`,
+        image: content.coverURL || content.authorAvatar || '',
+        route: `/feed?post=${content.id}`,
+        type: content.linkedProductId ? 'Pub liée' : 'Publication'
+      }));
+
+    const authorResults = Array.from(
+      new Map<string, AfriMarketContent>(
+        abcContents
+          .filter((content) => [content.authorName, content.description].join(' ').toLowerCase().includes(query))
+          .map((content) => [content.authorId, content])
+      ).values()
+    )
+      .slice(0, 5)
+      .map((content) => ({
+        id: `author-${content.authorId}`,
+        title: content.authorName,
+        meta: 'Utilisateur ABC',
+        image: content.authorAvatar || '',
+        route: `/u/${content.authorId}`,
+        type: 'Profil'
+      }));
+
+    const productResults = marketProducts
+      .filter((product) => [
+        product.title,
+        product.description,
+        product.authorName,
+        product.category,
+        product.offerModule
+      ].join(' ').toLowerCase().includes(query))
+      .slice(0, 8)
+      .map((product) => ({
+        id: `product-${product.id}`,
+        title: product.title,
+        meta: `${product.target === 'offer' ? 'Offre' : 'Produit'} - ${formatMarketPrice(product.villagePrice || product.price, product.currency) || product.category}`,
+        image: product.coverURL || '',
+        route: `/market/${product.id}`,
+        type: product.target === 'offer' ? 'Offre' : 'Produit'
+      }));
+
+    return [...authorResults, ...contentResults, ...productResults].slice(0, 14);
+  }, [abcContents, marketProducts, searchQuery]);
 
   useEffect(() => {
     const wantsPublish = new URLSearchParams(location.search).get('publish') === '1';
@@ -1026,6 +1119,14 @@ export default function VideoFeed() {
             ))}
           <button
             type="button"
+            onClick={() => setIsSearchOpen(true)}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[#15EA3E] transition-colors active:bg-white/10"
+            aria-label="Rechercher dans ABC"
+          >
+            <AfriSellIcon name="search" size={16} />
+          </button>
+          <button
+            type="button"
             onClick={() => {
               if (!user) {
                 navigate('/login', { state: { next: '/feed' } });
@@ -1040,6 +1141,80 @@ export default function VideoFeed() {
           </button>
           </div>
       </div>
+      )}
+
+      {isSearchOpen && (
+        <div className="absolute inset-0 z-50 bg-black/82 px-4 pt-5 backdrop-blur-xl">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const firstResult = searchResults[0];
+              if (!firstResult) return;
+              setIsSearchOpen(false);
+              setSearchQuery('');
+              navigate(firstResult.route);
+            }}
+            className="rounded-[1.35rem] border border-[#15EA3E]/24 bg-[#050705] p-3 shadow-[0_18px_42px_rgba(0,0,0,0.48)]"
+          >
+            <div className="flex items-center gap-2">
+              <AfriSellIcon name="search" size={17} className="text-[#15EA3E]" />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                autoFocus
+                placeholder="Rechercher contenu, utilisateur, produit..."
+                className="h-10 min-w-0 flex-1 bg-transparent text-xs font-bold text-white outline-none placeholder:text-white/35"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSearchOpen(false);
+                  setSearchQuery('');
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/62"
+                aria-label="Fermer la recherche"
+              >
+                <AfriSellIcon name="close" size={14} />
+              </button>
+            </div>
+          </form>
+
+          <section className="mt-3 max-h-[calc(100%-5.5rem)] overflow-y-auto rounded-[1.35rem] border border-white/10 bg-[#050705]/94 p-2 scrollbar-hide">
+            {searchQuery.trim() && searchResults.length ? (
+              <div className="grid gap-1.5">
+                {searchResults.map((result) => (
+                  <button
+                    key={result.id}
+                    type="button"
+                    onClick={() => {
+                      setIsSearchOpen(false);
+                      setSearchQuery('');
+                      navigate(result.route);
+                    }}
+                    className="flex items-center gap-3 rounded-2xl p-2.5 text-left active:bg-white/[0.06]"
+                  >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.05] text-[#15EA3E]">
+                      {result.image ? <img src={result.image} alt="" className="h-full w-full object-cover" /> : <AfriSellIcon name="search" size={16} />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-black text-white">{result.title}</span>
+                      <span className="mt-0.5 block truncate text-[10px] font-bold text-white/42">{result.type} - {result.meta}</span>
+                    </span>
+                    <AfriSellIcon name="arrow" size={13} className="text-[#15EA3E]" />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex min-h-[180px] flex-col items-center justify-center text-center">
+                <AfriSellIcon name="search" size={28} className="text-white/20" />
+                <p className="mt-3 text-sm font-black text-white">{searchQuery.trim() ? 'Aucun résultat' : 'Recherche ABC'}</p>
+                <p className="mt-1 max-w-[240px] text-xs font-semibold leading-relaxed text-white/42">
+                  Trouve une publication, un utilisateur, une publicité, un produit ou une offre.
+                </p>
+              </div>
+            )}
+          </section>
+        </div>
       )}
 
       {error && (

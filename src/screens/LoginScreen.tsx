@@ -18,6 +18,7 @@ export default function LoginScreen() {
     setAuthError,
     signInWithGoogle,
     signInWithEmail,
+    resetPassword,
     registerWithEmail,
     sendPhoneCode,
     confirmPhoneCode
@@ -33,6 +34,7 @@ export default function LoginScreen() {
   const [phoneCode, setPhoneCode] = useState('');
   const [phoneCodeSent, setPhoneCodeSent] = useState(false);
   const [attemptedAuth, setAttemptedAuth] = useState(false);
+  const [resetStatus, setResetStatus] = useState('');
   const [socialProviderOpening, setSocialProviderOpening] = useState<'google' | null>(null);
   const [busy, setBusy] = useState(false);
   const selectedPhoneCountry = AFRICAN_COUNTRIES_BY_PRIORITY.find((country) => country.code === phoneCountryCode) || getDefaultCountry();
@@ -94,6 +96,15 @@ export default function LoginScreen() {
       setSocialProviderOpening(null);
       setBusy(false);
     }
+  };
+
+  const handlePasswordReset = () => {
+    setAttemptedAuth(true);
+    setResetStatus('');
+    void runAuth(async () => {
+      await resetPassword(email);
+      setResetStatus('Lien de réinitialisation envoyé par email.');
+    });
   };
 
   const runSocialAuth = (provider: 'google', action: () => Promise<void>) => {
@@ -270,6 +281,16 @@ export default function LoginScreen() {
                   <AfriSellIcon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
                 </button>
               </label>
+              {flow === 'login' && (
+                <button
+                  type="button"
+                  onClick={handlePasswordReset}
+                  disabled={busy || loading}
+                  className="-mt-1 self-end text-[10px] font-black text-[#15EA3E] disabled:text-white/30"
+                >
+                  Mot de passe oublié ?
+                </button>
+              )}
             </>
           ) : (
             <>
@@ -323,6 +344,12 @@ export default function LoginScreen() {
           {visibleAuthError && (
             <p className="line-clamp-2 rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-[10px] font-semibold leading-snug text-red-100">
               {visibleAuthError}
+            </p>
+          )}
+
+          {resetStatus && (
+            <p className="rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 px-3 py-2 text-[10px] font-semibold leading-snug text-[#15EA3E]">
+              {resetStatus}
             </p>
           )}
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent, UIEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { onValue, ref, remove, set } from 'firebase/database';
+import { get, onValue, ref, remove, set } from 'firebase/database';
 import { Building2, CalendarDays, UtensilsCrossed } from 'lucide-react';
 import { ecosystemModules } from '../data/ecosystem';
 import { AfriSellIcon } from '../components/AfriSellIcon';
@@ -39,6 +39,13 @@ type FreelanceEngagement = {
 };
 
 type KycStatus = 'none' | 'pending' | 'verified' | 'rejected';
+
+type WalletSecuritySettings = {
+  pinEnabled: boolean;
+  pinHash?: string;
+  biometricEnabled: boolean;
+  biometricCredentialId?: string;
+};
 
 const quickActions: QuickAction[] = [
   { label: 'Restauration', route: '/offers/restauration', visual: 'restaurant' },
@@ -228,6 +235,25 @@ const normalizeSupplier = (uid: string, rawProfile: Record<string, unknown>): Su
 const getContentRoute = (content: AfriMarketContent) =>
   content.isSellable ? `/market/${content.id}` : '/feed';
 
+const settingsKey = (uid?: string) => `afrissel:settings:${uid || 'guest'}`;
+const credentialKey = (uid?: string) => `afrissel:wallet-biometric:${uid || 'guest'}`;
+
+const hashPin = async (pin: string) => {
+  const encoded = new TextEncoder().encode(pin);
+  const digest = await crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+};
+
+const base64UrlToArrayBuffer = (value: string) => {
+  const padded = `${value}${'='.repeat((4 - value.length % 4) % 4)}`.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = window.atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes.buffer;
+};
+
 export default function EcosystemHome() {
   const navigate = useNavigate();
   const [freelanceFeedback, setFreelanceFeedback] = useState<Record<string, string>>({});
@@ -240,6 +266,13 @@ export default function EcosystemHome() {
   const [isHomeChromeVisible, setIsHomeChromeVisible] = useState(true);
   const [liveKycStatus, setLiveKycStatus] = useState<KycStatus>('none');
   const [latestRequestKycStatus, setLatestRequestKycStatus] = useState<KycStatus>('none');
+  const [showWalletBalance, setShowWalletBalance] = useState(false);
+  const [walletPinInput, setWalletPinInput] = useState('');
+  const [walletSecurityStatus, setWalletSecurityStatus] = useState('');
+  const [walletSecuritySettings, setWalletSecuritySettings] = useState<WalletSecuritySettings>({
+    pinEnabled: false,
+    biometricEnabled: false
+  });
   const lastHomeScrollTopRef = useRef(0);
   const homeScrollDirectionRef = useRef<'up' | 'down' | null>(null);
   const homeChromeLockUntilRef = useRef(0);
@@ -252,9 +285,12 @@ export default function EcosystemHome() {
       ? '...'
       : formatMarketPrice(balance, currency) || `${balance.toLocaleString('fr-FR')} ${currency}`
     : 'Wallet';
+  const protectedWalletLabel = showWalletBalance ? walletLabel : '••••••';
   const profileKycStatus = normalizeKycStatus(profile?.kycStatus);
   const userKycStatus = normalizeKycStatus(liveKycStatus || profileKycStatus);
   const isAfriSpayActive = latestRequestKycStatus === 'verified' || userKycStatus === 'verified';
+  const hasWalletPin = Boolean(walletSecuritySettings.pinEnabled && walletSecuritySettings.pinHash);
+  const canUseBiometric = Boolean(walletSecuritySettings.biometricEnabled && walletSecuritySettings.biometricCredentialId);
   const promoProducts = [...marketProducts, ...abcContents].slice(0, 8);
   const promoItems = promoProducts.length
     ? promoProducts.map((item) => ({
@@ -476,6 +512,7 @@ export default function EcosystemHome() {
     if (!user) {
       setLiveKycStatus('none');
       setLatestRequestKycStatus('none');
+      setShowWalletBalance(false);
       return undefined;
     }
 
@@ -492,6 +529,102 @@ export default function EcosystemHome() {
     };
   }, [user]);
 
+  useEffect(() => {
+    setShowWalletBalance(false);
+    setWalletPinInput('');
+    setWalletSecurityStatus('');
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const savedSettings = window.localStorage.getItem(settingsKey(user.uid));
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings) as { account?: WalletSecuritySettings };
+        setWalletSecuritySettings({
+          pinEnabled: Boolean(parsed.account?.pinEnabled),
+          pinHash: parsed.account?.pinHash,
+          biometricEnabled: Boolean(parsed.account?.biometricEnabled),
+          biometricCredentialId: parsed.account?.biometricCredentialId || window.localStorage.getItem(credentialKey(user.uid)) || undefined
+        });
+      } catch {
+        // Remote settings remain the fallback.
+      }
+    }
+
+    void get(ref(realtimeDb, `userSettings/${user.uid}`)).then((snapshot) => {
+      if (!snapshot.exists()) return;
+      const remote = snapshot.val() as { account?: WalletSecuritySettings };
+      setWalletSecuritySettings((current) => ({
+        ...current,
+        pinEnabled: Boolean(remote.account?.pinEnabled),
+        pinHash: remote.account?.pinHash,
+        biometricEnabled: Boolean(remote.account?.biometricEnabled),
+        biometricCredentialId: remote.account?.biometricCredentialId || current.biometricCredentialId
+      }));
+    }).catch(() => undefined);
+  }, [user]);
+
+  const requestWalletUnlock = () => {
+    if (!user) {
+      navigate('/login', { state: { next: '/ecosystem' } });
+      return;
+    }
+    if (!isAfriSpayActive) {
+      navigate('/wallet');
+      return;
+    }
+    if (showWalletBalance) {
+      setShowWalletBalance(false);
+      setWalletSecurityStatus('');
+      return;
+    }
+    setWalletSecurityStatus(hasWalletPin ? 'Entre ton PIN ou utilise la biométrie.' : 'Définis ton PIN dans AfriSpay pour afficher le solde ici.');
+  };
+
+  const unlockWalletWithPin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!walletSecuritySettings.pinHash) {
+      setWalletSecurityStatus('PIN AfriSpay non configuré.');
+      return;
+    }
+    const pinHash = await hashPin(walletPinInput);
+    if (pinHash !== walletSecuritySettings.pinHash) {
+      setWalletSecurityStatus('PIN incorrect.');
+      return;
+    }
+    setWalletPinInput('');
+    setShowWalletBalance(true);
+    setWalletSecurityStatus('');
+  };
+
+  const unlockWalletWithBiometric = async () => {
+    if (!walletSecuritySettings.biometricCredentialId || !navigator.credentials?.get) {
+      setWalletSecurityStatus('Biométrie non configurée.');
+      return;
+    }
+
+    try {
+      const credential = await navigator.credentials.get({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          allowCredentials: [{
+            id: base64UrlToArrayBuffer(walletSecuritySettings.biometricCredentialId),
+            type: 'public-key'
+          }],
+          userVerification: 'required',
+          timeout: 60000
+        }
+      });
+      if (!credential) throw new Error('Biométrie refusée.');
+      setShowWalletBalance(true);
+      setWalletSecurityStatus('');
+    } catch {
+      setWalletSecurityStatus('Vérification biométrie annulée ou refusée.');
+    }
+  };
+
   return (
         <main className={`flex h-full min-h-0 flex-col overflow-hidden bg-[#050705] text-white ${isLightMode ? 'ecosystem-light' : ''}`}>
       <div data-home-chrome className={`relative z-40 shrink-0 transition-[max-height,opacity,transform] duration-300 ease-out ${
@@ -503,8 +636,7 @@ export default function EcosystemHome() {
         <div className="flex items-center justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <img src={AFRISELL_MAIN_LOGO} alt="AfriSell" className="h-6 w-6 rounded-lg object-cover" />
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriSell</p>
+              <img src="/logo du haut de page d'acceuil.png" alt="AfriSell" className="h-10 w-auto max-w-[156px] object-contain" />
               <h1 className="truncate text-[11px] font-black text-white/78">Bonjour {firstName}</h1>
             </div>
           </div>
@@ -614,27 +746,58 @@ export default function EcosystemHome() {
             </div>
           </div>
 
-          <Link
-            to={user ? '/wallet' : '/login'}
-            state={!user ? { next: '/wallet' } : undefined}
-            className="relative z-10 mt-2.5 flex items-end justify-between gap-3"
-          >
+          <div className="relative z-10 mt-2.5 flex items-end justify-between gap-3">
             <div className="min-w-0">
               <p className="mb-1 truncate font-mono text-[9px] tracking-[0.2em] text-gray-400 opacity-80">
                 {isAfriSpayActive ? accountLabel || 'Compte AfriSpay' : 'ID/KYC requis'}
               </p>
-              <p className={cn(
-                'truncate font-mono text-xl font-black tracking-tight',
-                isAfriSpayActive ? 'text-white' : 'text-white/45'
-              )}>
-                {isAfriSpayActive ? walletLabel : '••••••'}
-              </p>
+              <div className="flex min-w-0 items-center gap-2">
+                <p className={cn(
+                  'truncate font-mono text-xl font-black tracking-tight',
+                  isAfriSpayActive ? 'text-white' : 'text-white/45'
+                )}>
+                  {isAfriSpayActive ? protectedWalletLabel : '••••••'}
+                </p>
+                {isAfriSpayActive && (
+                  <button
+                    type="button"
+                    onClick={requestWalletUnlock}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.055] text-[#15EA3E]"
+                    aria-label={showWalletBalance ? 'Masquer le solde' : 'Afficher le solde'}
+                  >
+                    <AfriSellIcon name={showWalletBalance ? 'eyeOff' : 'eye'} size={13} />
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex flex-col items-end">
               <span className="text-lg font-black italic leading-none tracking-tighter text-[#15EA3E]">SPAY.</span>
               <span className="text-[8px] font-bold uppercase tracking-widest text-gray-500">Virtual</span>
             </div>
-          </Link>
+          </div>
+
+          {isAfriSpayActive && walletSecurityStatus && !showWalletBalance && (
+            <form onSubmit={unlockWalletWithPin} className="relative z-10 mt-2 flex items-center gap-1.5">
+              <input
+                value={walletPinInput}
+                onChange={(event) => setWalletPinInput(event.target.value.replace(/[^\d]/g, '').slice(0, 8))}
+                inputMode="numeric"
+                type="password"
+                placeholder="PIN"
+                className="h-8 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/50 px-3 text-[11px] font-bold text-white outline-none placeholder:text-white/28 focus:border-[#15EA3E]/50"
+              />
+              <button type="submit" disabled={!hasWalletPin} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black disabled:bg-white/10 disabled:text-white/30">
+                <AfriSellIcon name="check" size={13} />
+              </button>
+              <button type="button" onClick={unlockWalletWithBiometric} disabled={!canUseBiometric} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.055] text-[#15EA3E] disabled:text-white/25">
+                <AfriSellIcon name="shield" size={13} />
+              </button>
+            </form>
+          )}
+
+          {isAfriSpayActive && walletSecurityStatus && !showWalletBalance && (
+            <p className="relative z-10 mt-1 text-[9px] font-semibold text-white/40">{walletSecurityStatus}</p>
+          )}
 
           <div className="relative z-10 mt-2 flex items-center justify-between gap-1.5">
             {afriSpayHomeActions.map((action) => (
@@ -679,6 +842,34 @@ export default function EcosystemHome() {
 
       <div data-home-scroll onScroll={handleHomeScroll} className="min-h-0 flex-1 overflow-y-auto pb-7 pt-1 scrollbar-hide">
       <section className="px-4">
+        <Link
+          to="/promos"
+          className="relative mt-3 block overflow-hidden rounded-[1.45rem] border border-[#15EA3E]/22 bg-[#071007] p-3 shadow-[0_16px_38px_rgba(0,0,0,0.32)] active:scale-[0.99]"
+        >
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_86%_12%,rgba(21,234,62,0.26),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.075),transparent_44%)]" />
+          <div className="absolute -right-5 bottom-0 flex -space-x-5 opacity-95">
+            <img src="/portrait-woman-working-dried-flowers-shop.jpg" alt="" className="h-24 w-20 rotate-[-7deg] rounded-[1.3rem] border border-white/10 object-cover shadow-2xl" />
+            <img src="/afrimarket.jpeg" alt="" className="h-24 w-20 rotate-[7deg] rounded-[1.3rem] border border-white/10 object-cover shadow-2xl" />
+          </div>
+          <div className="relative z-10 flex items-center justify-between gap-3">
+            <div className="min-w-0 max-w-[68%]">
+              <div className="flex items-center gap-1.5">
+                <span className="rounded-full bg-[#15EA3E] px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-black">Promo</span>
+                <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-white/55">Tout module</span>
+              </div>
+              <h2 className="mt-2 truncate text-lg font-black leading-tight text-white">Offres en réduction</h2>
+              <p className="mt-1 line-clamp-2 text-[10px] font-semibold leading-snug text-white/48">
+                Produits, services, cours, santé, transport et vitrines en promotion.
+              </p>
+            </div>
+            <span className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black shadow-[0_10px_22px_rgba(21,234,62,0.25)]">
+              <AfriSellIcon name="arrow" size={16} />
+            </span>
+          </div>
+        </Link>
+      </section>
+
+      <section className="px-4">
         <div className="relative mt-4 overflow-hidden rounded-[1.6rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.34)]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_20%,rgba(21,234,62,0.18),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.07),transparent_42%)]" />
           <div className="relative z-10">
@@ -712,34 +903,6 @@ export default function EcosystemHome() {
                 ))}
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-4">
-        <div className="relative -mx-1 mt-6 overflow-hidden rounded-[1.7rem] rounded-br-[3rem] border border-[#15EA3E]/20 bg-[#0A0F0A] px-5 pb-7 pt-5 shadow-[0_18px_42px_rgba(0,0,0,0.34),0_0_34px_rgba(21,234,62,0.12)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_18%,rgba(21,234,62,0.2),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.06),transparent_45%)]" />
-          <div className="absolute -bottom-14 right-8 h-24 w-44 rounded-[999px] bg-[#050705]" />
-          <div className="absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[#15EA3E]/12 blur-2xl" />
-          <div className="absolute -right-8 bottom-2 h-24 w-24 rounded-full border border-[#15EA3E]/20" />
-          <img src={AFRISELL_MAIN_LOGO} alt="" className="absolute -right-7 top-8 h-28 w-28 rotate-6 rounded-[2rem] object-cover opacity-20" />
-          <div className="absolute left-5 top-0 h-px w-28 bg-[#15EA3E]/50" />
-
-          <div className="relative z-10 max-w-[240px]">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#15EA3E]/20 bg-[#15EA3E]/10 px-3 py-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#15EA3E]" />
-              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Tout-en-un</p>
-            </div>
-            <h2 className="mt-4 text-2xl font-black leading-tight tracking-normal">
-              La super app africaine.
-            </h2>
-            <p className="mt-2 text-xs font-semibold leading-relaxed text-white/50">
-              Commerce, paiement et services reliés.
-            </p>
-            <Link to="/apps" className="mt-4 flex w-max items-center gap-2 rounded-full bg-white/[0.06] px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white/70 active:scale-[0.98]">
-              Découvrir
-              <AfriSellIcon name="arrow" size={13} className="text-[#15EA3E]" />
-            </Link>
           </div>
         </div>
       </section>
