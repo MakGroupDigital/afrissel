@@ -626,7 +626,13 @@ export default function EcosystemHome() {
   };
 
   return (
-        <main className={`flex h-full min-h-0 flex-col overflow-hidden bg-[#050705] text-white ${isLightMode ? 'ecosystem-light' : ''}`}>
+    <main className={`flex h-full min-h-0 flex-col overflow-hidden bg-[#050705] text-white ${isLightMode ? 'ecosystem-light' : ''}`}>
+      <div
+        data-home-scroll
+        onScroll={handleHomeScroll}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-7 pt-2 scrollbar-hide"
+        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+      >
       <div data-home-chrome className={`relative z-40 shrink-0 transition-[max-height,opacity,transform] duration-300 ease-out ${
         isHomeChromeVisible
           ? 'max-h-[320px] translate-y-0 overflow-visible pb-1 pt-2 opacity-100'
@@ -840,7 +846,6 @@ export default function EcosystemHome() {
       </section>
       </div>
 
-      <div data-home-scroll onScroll={handleHomeScroll} className="min-h-0 flex-1 overflow-y-auto pb-7 pt-1 scrollbar-hide">
       <section className="px-4">
         <Link
           to="/promos"
