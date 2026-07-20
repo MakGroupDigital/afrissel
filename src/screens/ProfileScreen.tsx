@@ -955,6 +955,12 @@ export default function ProfileScreen() {
     void persistSettings(nextSettings, message);
   };
 
+  const updateThemeMode = (checked: boolean) => {
+    window.localStorage.setItem('afrisell:ecosystem-theme', checked ? 'light' : 'dark');
+    window.dispatchEvent(new Event('afrisell-theme-change'));
+    updateSettings('app', { lightMode: checked }, checked ? 'Mode clair activé.' : 'Mode sombre activé.');
+  };
+
   return (
     <div className="relative min-h-full overflow-y-auto bg-black pb-8 text-white scrollbar-hide">
       {isSettingsPage ? (
@@ -1109,12 +1115,12 @@ export default function ProfileScreen() {
         )}
 
         <section className="mt-5 grid grid-cols-2 gap-3">
-          <Link to="/feed" className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
+          <Link to="/profile/contents" className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
             <AfriSellIcon name="video" size={20} className="text-[#15EA3E]" />
             <p className="mt-3 text-sm font-black">Mes contenus</p>
             <p className="mt-1 text-[11px] font-semibold text-white/42">ABC, posts et vidéos.</p>
           </Link>
-          <Link to="/market" className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
+          <Link to="/profile/storefronts" className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
             <AfriSellIcon name="market" size={20} className="text-[#15EA3E]" />
             <p className="mt-3 text-sm font-black">Mes vitrines</p>
             <p className="mt-1 text-[11px] font-semibold text-white/42">Produits et services.</p>
@@ -1481,7 +1487,7 @@ export default function ProfileScreen() {
               <option value="sw">Swahili</option>
               <option value="en">English</option>
             </select>
-            <ToggleRow title="Mode léger" description="Interface plus simple pour les petits téléphones." checked={settings.app.lightMode} onChange={(checked) => updateSettings('app', { lightMode: checked }, 'Mode léger mis à jour.')} />
+            <ToggleRow title="Mode clair" description="Basculer entre le thème clair et le thème sombre." checked={settings.app.lightMode} onChange={updateThemeMode} />
             <ToggleRow title="Economiser les données" description="Limiter les médias lourds quand c'est possible." checked={settings.app.lowDataMode} onChange={(checked) => updateSettings('app', { lowDataMode: checked }, 'Mode données mis à jour.')} />
             <ToggleRow title="Données hors ligne" description="Garder les infos utiles disponibles sans réseau." checked={settings.app.offlineData} onChange={(checked) => updateSettings('app', { offlineData: checked }, 'Hors ligne mis à jour.')} />
             <button type="button" onClick={clearLocalCache} className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.04] text-xs font-black uppercase tracking-widest text-white">

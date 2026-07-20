@@ -30,6 +30,7 @@ import KycVerificationScreen from './screens/KycVerificationScreen';
 import ChatRoom from './screens/ChatRoom';
 import ScannerScreen from './screens/ScannerScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import ProfileContentManagerScreen from './screens/ProfileContentManagerScreen';
 import PublicProfileScreen from './screens/PublicProfileScreen';
 import BusinessDashboardScreen from './screens/BusinessDashboardScreen';
 import { useFirebaseAuth } from './hooks/useFirebaseAuth';
@@ -159,6 +160,8 @@ function AppRoutes() {
         <Route path="/scan" element={<RequireAuth><ScannerScreen /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><ProfileScreen /></RequireAuth>} />
         <Route path="/settings" element={<RequireAuth><ProfileScreen /></RequireAuth>} />
+        <Route path="/profile/contents" element={<RequireAuth><ProfileContentManagerScreen kind="contents" /></RequireAuth>} />
+        <Route path="/profile/storefronts" element={<RequireAuth><ProfileContentManagerScreen kind="storefronts" /></RequireAuth>} />
         <Route path="/u/:userId" element={<PublicProfileScreen />} />
         <Route path="/business" element={<RequireAuth><BusinessDashboardScreen /></RequireAuth>} />
       </Routes>

@@ -38,6 +38,8 @@ type FreelanceEngagement = {
   ratings?: Record<string, number>;
 };
 
+type KycStatus = 'none' | 'pending' | 'verified' | 'rejected';
+
 const quickActions: QuickAction[] = [
   { label: 'Restauration', route: '/offers/restauration', visual: 'restaurant' },
   { label: 'Event', route: '/offers/event', visual: 'event' },
@@ -92,6 +94,23 @@ const freelanceSubtypes = new Set(['freelancer', 'creative', 'tech_service', 'lo
 const supplierSubtypes = new Set(['supplier', 'b2b_supplier', 'b2c_supplier', 'importer', 'local_distributor']);
 
 const getProfileText = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
+
+const normalizeKycStatus = (value?: unknown): KycStatus => {
+  const normalized = String(value || 'none').trim().toLowerCase();
+  if (['verified', 'approved', 'approve', 'approuve', 'approuvé', 'validated', 'validé'].includes(normalized)) return 'verified';
+  if (['pending', 'pending_operator', 'review', 'in_review', 'en_attente'].includes(normalized)) return 'pending';
+  if (['rejected', 'refused', 'refusé', 'refuse'].includes(normalized)) return 'rejected';
+  return 'none';
+};
+
+const getLatestKycRequestStatus = (value: unknown): KycStatus => {
+  if (!value || typeof value !== 'object') return 'none';
+  const requests = Object.values(value as Record<string, { status?: unknown; updatedAt?: number; createdAt?: number }>);
+  const latestRequest = requests
+    .filter(Boolean)
+    .sort((first, second) => Number(second.updatedAt || second.createdAt || 0) - Number(first.updatedAt || first.createdAt || 0))[0];
+  return normalizeKycStatus(latestRequest?.status);
+};
 
 const formatCompactCount = (value: number) => {
   if (value >= 1000000) return `${(value / 1000000).toFixed(value >= 10000000 ? 0 : 1)}M`;
@@ -219,6 +238,8 @@ export default function EcosystemHome() {
   const [isLightMode, setIsLightMode] = useState(() => window.localStorage.getItem('afrisell:ecosystem-theme') === 'light');
   const [searchQuery, setSearchQuery] = useState('');
   const [isHomeChromeVisible, setIsHomeChromeVisible] = useState(true);
+  const [liveKycStatus, setLiveKycStatus] = useState<KycStatus>('none');
+  const [latestRequestKycStatus, setLatestRequestKycStatus] = useState<KycStatus>('none');
   const lastHomeScrollTopRef = useRef(0);
   const homeScrollDirectionRef = useRef<'up' | 'down' | null>(null);
   const homeChromeLockUntilRef = useRef(0);
@@ -231,7 +252,9 @@ export default function EcosystemHome() {
       ? '...'
       : formatMarketPrice(balance, currency) || `${balance.toLocaleString('fr-FR')} ${currency}`
     : 'Wallet';
-  const isAfriSpayActive = profile?.kycStatus === 'verified';
+  const profileKycStatus = normalizeKycStatus(profile?.kycStatus);
+  const userKycStatus = normalizeKycStatus(liveKycStatus || profileKycStatus);
+  const isAfriSpayActive = latestRequestKycStatus === 'verified' || userKycStatus === 'verified';
   const promoProducts = [...marketProducts, ...abcContents].slice(0, 8);
   const promoItems = promoProducts.length
     ? promoProducts.map((item) => ({
@@ -445,6 +468,30 @@ export default function EcosystemHome() {
     window.dispatchEvent(new Event('afrisell-theme-change'));
   }, [isLightMode]);
 
+  useEffect(() => {
+    setLiveKycStatus(normalizeKycStatus(profile?.kycStatus));
+  }, [profile?.kycStatus]);
+
+  useEffect(() => {
+    if (!user) {
+      setLiveKycStatus('none');
+      setLatestRequestKycStatus('none');
+      return undefined;
+    }
+
+    const unsubscribeUserKyc = onValue(ref(realtimeDb, `users/${user.uid}/kycStatus`), (snapshot) => {
+      setLiveKycStatus(normalizeKycStatus(snapshot.val()));
+    });
+    const unsubscribeRequests = onValue(ref(realtimeDb, `kycRequests/${user.uid}`), (snapshot) => {
+      setLatestRequestKycStatus(getLatestKycRequestStatus(snapshot.val()));
+    });
+
+    return () => {
+      unsubscribeUserKyc();
+      unsubscribeRequests();
+    };
+  }, [user]);
+
   return (
         <main className={`flex h-full min-h-0 flex-col overflow-hidden bg-[#050705] text-white ${isLightMode ? 'ecosystem-light' : ''}`}>
       <div data-home-chrome className={`relative z-40 shrink-0 transition-[max-height,opacity,transform] duration-300 ease-out ${
@@ -461,35 +508,7 @@ export default function EcosystemHome() {
               <h1 className="truncate text-[11px] font-black text-white/78">Bonjour {firstName}</h1>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Link
-              to={user ? '/wallet' : '/login'}
-              state={!user ? { next: '/wallet' } : undefined}
-              className="flex h-10 max-w-[104px] shrink-0 items-center gap-2 rounded-2xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-3 text-[#15EA3E]"
-              aria-label="Wallet AfriSpay"
-            >
-              <img src="/afrispay.jpeg" alt="" className="h-5 w-5 rounded-md object-cover" />
-              <span className="truncate text-[10px] font-black">{walletLabel}</span>
-            </Link>
-            <button
-              type="button"
-              onClick={() => setIsLightMode((current) => !current)}
-              className={`relative h-10 w-[58px] rounded-2xl border p-1 transition-colors ${
-                isLightMode ? 'border-[#15EA3E]/45 bg-[#15EA3E]/20' : 'border-white/10 bg-white/[0.04]'
-              }`}
-              aria-label={isLightMode ? 'Activer le mode sombre' : 'Activer le mode clair'}
-              aria-pressed={isLightMode}
-            >
-              <span className={`absolute top-1 flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
-                isLightMode ? 'left-[22px] bg-[#15EA3E] text-black' : 'left-1 bg-white/[0.08] text-[#15EA3E]'
-              }`}>
-                {isLightMode ? (
-                  <span className="relative h-4 w-4 rounded-full bg-black before:absolute before:-left-0.5 before:top-0 before:h-4 before:w-4 before:rounded-full before:bg-[#15EA3E]" />
-                ) : (
-                  <span className="relative h-4 w-4 rounded-full border-2 border-[#15EA3E] after:absolute after:left-1/2 after:top-1/2 after:h-1.5 after:w-1.5 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:bg-[#15EA3E]" />
-                )}
-              </span>
-            </button>
+          <div className="flex shrink-0 items-center">
             <Link to="/profile" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Profil">
               <AfriSellIcon name="profile" size={19} />
             </Link>
