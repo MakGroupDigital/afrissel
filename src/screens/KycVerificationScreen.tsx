@@ -18,12 +18,23 @@ import { isCloudinaryReady, uploadMediaToCloudinary } from '../lib/cloudinary';
 import { realtimeDb } from '../lib/firebase';
 
 type KycFileKey = 'front' | 'back' | 'selfie';
+type KycUploadedFileRecord = {
+  url?: string;
+  publicId?: string;
+  resourceType?: string;
+  fileName: string;
+  bytes: number;
+  mimeType?: string;
+  pendingUpload?: boolean;
+  uploadError?: string;
+  lastTriedAt?: number;
+};
 type FaceDetectorConstructor = new (options?: { fastMode?: boolean; maxDetectedFaces?: number }) => {
   detect: (source: CanvasImageSource) => Promise<Array<unknown>>;
 };
 type WindowWithFaceDetector = Window & { FaceDetector?: FaceDetectorConstructor };
 
-const MAX_UPLOAD_BYTES = 9_800_000;
+const MAX_UPLOAD_BYTES = 7_500_000;
 
 const documentTypes = [
   { id: 'national_id', label: 'Carte nationale ID' },
@@ -45,8 +56,42 @@ const arrayBufferToBase64Url = (buffer: ArrayBuffer) => {
   return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 };
 
+const formatBytes = (bytes: number) => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 Mo';
+  return `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
+};
+
+const canvasToJpegBlob = async (canvas: HTMLCanvasElement, quality: number) => {
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+  if (blob) return blob;
+
+  const dataUrl = canvas.toDataURL('image/jpeg', quality);
+  const response = await fetch(dataUrl);
+  return response.blob();
+};
+
+const getKycSubmitErrorMessage = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (message.includes('permission_denied') || message.includes('PERMISSION_DENIED')) {
+    return 'La base refuse la soumission KYC. Vérifie les règles Realtime Database.';
+  }
+
+  if (message.includes('network') || message.includes('Failed to fetch') || message.includes('NetworkError')) {
+    return 'Réseau instable pendant la soumission. Le dossier n’a pas pu être envoyé, réessaie avec une connexion plus stable.';
+  }
+
+  if (message.includes('Cloudinary') || message.includes('File size too large') || message.includes('Upload')) {
+    return 'Les documents sont trop lourds ou difficiles à envoyer depuis cet appareil. Réessaie avec des photos plus légères ou une meilleure connexion.';
+  }
+
+  return message || 'Envoi vérification impossible.';
+};
+
 const imageToCompressedFile = async (file: File, targetBytes = MAX_UPLOAD_BYTES): Promise<File> => {
-  if (!file.type.startsWith('image/') || file.size <= targetBytes) return file;
+  const isImage = file.type.startsWith('image/') || /\.(heic|heif|jpg|jpeg|png|webp)$/i.test(file.name);
+  if (!isImage) return file;
+  if (file.size <= targetBytes && /^image\/(jpe?g|png|webp)$/i.test(file.type)) return file;
 
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -62,10 +107,10 @@ const imageToCompressedFile = async (file: File, targetBytes = MAX_UPLOAD_BYTES)
     img.src = url;
   });
 
-  let maxSide = Math.min(1800, Math.max(image.width, image.height));
-  let quality = 0.82;
+  let maxSide = Math.min(1600, Math.max(image.width, image.height));
+  let quality = 0.8;
 
-  for (let attempt = 0; attempt < 8; attempt += 1) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
     const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(image.width * scale));
@@ -74,15 +119,15 @@ const imageToCompressedFile = async (file: File, targetBytes = MAX_UPLOAD_BYTES)
     if (!context) break;
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    const blob = await canvasToJpegBlob(canvas, quality);
     if (blob && blob.size <= targetBytes) {
       return new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
     }
-    maxSide *= 0.78;
-    quality = Math.max(0.55, quality - 0.08);
+    maxSide *= 0.72;
+    quality = Math.max(0.42, quality - 0.08);
   }
 
-  throw new Error('Fichier trop lourd. Choisis une image plus légère ou recadre-la.');
+  throw new Error(`Fichier trop lourd (${formatBytes(file.size)}). Choisis une image plus légère ou recadre-la.`);
 };
 
 export default function KycVerificationScreen() {
@@ -303,6 +348,39 @@ export default function KycVerificationScreen() {
     }
   };
 
+  const prepareAndUploadKycFile = async (key: KycFileKey, file: File): Promise<KycUploadedFileRecord> => {
+    setStatus(`Envoi ${key === 'front' ? 'du recto' : key === 'back' ? 'du verso' : 'du selfie'}...`);
+    let safeFile = file;
+
+    try {
+      safeFile = await imageToCompressedFile(file);
+    } catch (error) {
+      console.warn('Compression KYC impossible:', error);
+    }
+
+    try {
+      const upload = await uploadMediaToCloudinary(safeFile, user?.uid || 'anonymous');
+      return {
+        url: upload.secureUrl || upload.mediaUrl,
+        publicId: upload.publicId,
+        resourceType: upload.resourceType,
+        fileName: safeFile.name,
+        bytes: safeFile.size,
+        mimeType: safeFile.type
+      };
+    } catch (error) {
+      console.warn('Upload KYC Cloudinary impossible:', error);
+      return {
+        fileName: safeFile.name || file.name,
+        bytes: safeFile.size || file.size,
+        mimeType: safeFile.type || file.type,
+        pendingUpload: true,
+        uploadError: getKycSubmitErrorMessage(error),
+        lastTriedAt: Date.now()
+      };
+    }
+  };
+
   const submitKyc = async (event: FormEvent) => {
     event.preventDefault();
     if (!user) return;
@@ -327,26 +405,35 @@ export default function KycVerificationScreen() {
     setStatus('Preparation KYC...');
     try {
       const requestRef = push(ref(realtimeDb, `kycRequests/${user.uid}`));
-      const uploadedFiles: Record<string, unknown> = {};
+      const uploadedFiles: Record<KycFileKey, KycUploadedFileRecord | undefined> = {
+        front: undefined,
+        back: undefined,
+        selfie: undefined
+      };
 
       if (isCloudinaryReady()) {
         const entries = Object.entries(files) as Array<[KycFileKey, File]>;
         for (const [key, file] of entries) {
-          const safeFile = await imageToCompressedFile(file);
-          const upload = await uploadMediaToCloudinary(safeFile, user.uid);
-          uploadedFiles[key] = {
-            url: upload.secureUrl || upload.mediaUrl,
-            publicId: upload.publicId,
-            resourceType: upload.resourceType,
-            fileName: safeFile.name,
-            bytes: safeFile.size
-          };
+          uploadedFiles[key] = await prepareAndUploadKycFile(key, file);
         }
       } else {
         (Object.entries(files) as Array<[KycFileKey, File | undefined]>).forEach(([key, file]) => {
-          uploadedFiles[key] = { fileName: file?.name, bytes: file?.size, pendingUpload: true };
+          if (!file) return;
+          uploadedFiles[key] = {
+            fileName: file.name,
+            bytes: file.size,
+            mimeType: file.type,
+            pendingUpload: true,
+            uploadError: 'Cloudinary non configuré sur cet environnement.',
+            lastTriedAt: Date.now()
+          };
         });
       }
+
+      const cleanUploadedFiles = Object.fromEntries(
+        Object.entries(uploadedFiles).filter(([, value]) => Boolean(value))
+      );
+      const hasPendingUpload = Object.values(uploadedFiles).some((file) => file?.pendingUpload);
 
       const pinHash = await hashPin(pin);
       const savedSettings = window.localStorage.getItem(settingsKey(user.uid));
@@ -378,8 +465,10 @@ export default function KycVerificationScreen() {
           address: address.trim(),
           documentType,
           documentNumber: documentNumber.trim(),
-          files: uploadedFiles,
+          files: cleanUploadedFiles,
           status: 'pending',
+          uploadStatus: hasPendingUpload ? 'partial' : 'complete',
+          reviewMode: hasPendingUpload ? 'manual_media_review' : 'standard',
           createdAt: Date.now(),
           updatedAt: serverTimestamp()
         },
@@ -401,10 +490,13 @@ export default function KycVerificationScreen() {
       });
 
       await refreshProfile();
-      setStatus('Vérification envoyée. Ce KYC servira pour tous les modules AfriSell qui exigent une vérification.');
+      setStatus(hasPendingUpload
+        ? 'Vérification envoyée. Certains fichiers seront revérifiés manuellement à cause de l’envoi instable sur cet appareil.'
+        : 'Vérification envoyée. Ce KYC servira pour tous les modules AfriSell qui exigent une vérification.');
       window.setTimeout(() => navigate('/wallet'), 1400);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Envoi vérification impossible.');
+      console.error('Soumission KYC impossible:', error);
+      setStatus(getKycSubmitErrorMessage(error));
     } finally {
       setBusy(false);
     }
