@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "582531352090",
+    "firebase_url": "https://afrisellapp-default-rtdb.firebaseio.com",
+    "project_id": "afrisellapp",
+    "storage_bucket": "afrisellapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:582531352090:android:9ee6aa177e5217acf7f3a3",
+        "android_client_info": {
+          "package_name": "com.makgroupdigital.afrissel"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "582531352090-jnbb847t1k5n7vnp5v6gai3bfs3333hv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBcTK7tRt4P6zEn4oEMQJF1-lcxlW5MHf4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "582531352090-jnbb847t1k5n7vnp5v6gai3bfs3333hv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
