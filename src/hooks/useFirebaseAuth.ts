@@ -4,12 +4,14 @@ import {
   createUserWithEmailAndPassword,
   browserLocalPersistence,
   ConfirmationResult,
+  GoogleAuthProvider,
   getRedirectResult,
   onAuthStateChanged,
   RecaptchaVerifier,
   setPersistence,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
+  signInWithCredential,
   signInWithPhoneNumber,
   signInWithPopup,
   signInWithRedirect,
@@ -29,6 +31,7 @@ import { appleProvider, firebaseAuth, googleProvider, realtimeDb } from '../lib/
 import { CloudinaryUploadResult } from '../lib/cloudinary';
 import { AccountRole } from '../lib/accountTypes';
 import { isOfflineNow, offlineCacheKey, readOfflineCache, readOfflineCacheAsync, writeOfflineCache } from '../lib/offlineCache';
+import { isTauriAndroid, signInWithNativeGoogle } from '../lib/nativePlatform';
 
 export interface AfriSellUserProfile {
   uid: string;
@@ -573,16 +576,6 @@ const signInWithSocialProvider = async (provider: typeof googleProvider | typeof
   await setPersistence(firebaseAuth, browserLocalPersistence);
 
   if (isMobileOrStandalone()) {
-    try {
-      const credential = await signInWithPopup(firebaseAuth, provider);
-      await syncCurrentUser(credential.user);
-      return;
-    } catch (error) {
-      if (!shouldFallbackToRedirect(error)) {
-        throw error;
-      }
-    }
-
     setPendingGoogleRedirect();
     try {
       await signInWithRedirect(firebaseAuth, provider);
@@ -705,17 +698,14 @@ export const useFirebaseAuth = () => {
       updateAuthStore({ authError: '' });
       await setPersistence(firebaseAuth, browserLocalPersistence);
 
-      if (isMobileOrStandalone()) {
-        try {
-          const credential = await signInWithPopup(firebaseAuth, googleProvider);
-          await syncCurrentUser(credential.user);
-          return;
-        } catch (error) {
-          if (!shouldFallbackToRedirect(error)) {
-            throw error;
-          }
-        }
+      if (isTauriAndroid()) {
+        const idToken = await signInWithNativeGoogle();
+        const credential = await signInWithCredential(firebaseAuth, GoogleAuthProvider.credential(idToken));
+        await syncCurrentUser(credential.user);
+        return;
+      }
 
+      if (isMobileOrStandalone()) {
         setPendingGoogleRedirect();
         try {
           await signInWithRedirect(firebaseAuth, googleProvider);

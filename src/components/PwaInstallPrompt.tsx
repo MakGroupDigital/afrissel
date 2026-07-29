@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AfriSellIcon } from './AfriSellIcon';
 import { cn } from '../lib/utils';
+import { isTauriNative } from '../lib/nativePlatform';
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -39,6 +40,8 @@ export default function PwaInstallPrompt() {
   const notificationsUnsupported = notificationPermission === 'unsupported';
 
   useEffect(() => {
+    if (isTauriNative()) return;
+
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event as BeforeInstallPromptEvent);
@@ -115,7 +118,7 @@ export default function PwaInstallPrompt() {
     setVisible(false);
   };
 
-  if (!visible || (installed && notificationsEnabled)) {
+  if (isTauriNative() || !visible || (installed && notificationsEnabled)) {
     return null;
   }
 
