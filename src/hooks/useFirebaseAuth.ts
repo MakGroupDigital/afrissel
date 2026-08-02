@@ -113,6 +113,7 @@ type AuthStoreState = {
 
 const DATABASE_TIMEOUT_MS = 6000;
 const GOOGLE_REDIRECT_PENDING_KEY = 'afrisell:google-redirect-pending';
+const GOOGLE_REDIRECT_STARTED_AT_KEY = 'afrisell:google-redirect-started-at';
 const authListeners = new Set<() => void>();
 
 let authStore: AuthStoreState = {
@@ -142,17 +143,27 @@ const updateAuthStore = (patch: Partial<AuthStoreState>) => {
 
 const hasPendingGoogleRedirect = () => (
   typeof window !== 'undefined' &&
-  window.sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) === '1'
+  (
+    window.sessionStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) === '1' ||
+    window.localStorage.getItem(GOOGLE_REDIRECT_PENDING_KEY) === '1'
+  )
 );
 
 const setPendingGoogleRedirect = () => {
   if (typeof window === 'undefined') return;
+  const now = String(Date.now());
   window.sessionStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1');
+  window.sessionStorage.setItem(GOOGLE_REDIRECT_STARTED_AT_KEY, now);
+  window.localStorage.setItem(GOOGLE_REDIRECT_PENDING_KEY, '1');
+  window.localStorage.setItem(GOOGLE_REDIRECT_STARTED_AT_KEY, now);
 };
 
 const clearPendingGoogleRedirect = () => {
   if (typeof window === 'undefined') return;
   window.sessionStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
+  window.sessionStorage.removeItem(GOOGLE_REDIRECT_STARTED_AT_KEY);
+  window.localStorage.removeItem(GOOGLE_REDIRECT_PENDING_KEY);
+  window.localStorage.removeItem(GOOGLE_REDIRECT_STARTED_AT_KEY);
 };
 
 const profileCacheKey = (uid: string) => offlineCacheKey('profile', uid);
@@ -604,7 +615,7 @@ const signInWithSocialProvider = async (provider: typeof googleProvider | typeof
   }
 };
 
-const waitForRedirectRestoredUser = (timeoutMs = 12000) => new Promise<User | null>((resolve) => {
+const waitForRedirectRestoredUser = (timeoutMs = 30000) => new Promise<User | null>((resolve) => {
   if (firebaseAuth.currentUser) {
     resolve(firebaseAuth.currentUser);
     return;
@@ -646,6 +657,10 @@ const consumeGoogleRedirectResult = async () => {
     }
 
     await setPersistence(firebaseAuth, browserLocalPersistence);
+    if ('authStateReady' in firebaseAuth && typeof firebaseAuth.authStateReady === 'function') {
+      await firebaseAuth.authStateReady().catch(() => undefined);
+    }
+
     const credential = await getRedirectResult(firebaseAuth);
     const redirectedUser = credential?.user || firebaseAuth.currentUser;
 
@@ -666,12 +681,19 @@ const consumeGoogleRedirectResult = async () => {
 
       updateAuthStore({
         loading: false,
-        authError: 'Connexion Google non finalisée. Appuie encore sur Continuer avec Google.'
+        authError: ''
       });
     }
   } catch (error) {
     console.error('Retour Google AfriSell impossible:', error);
+    const restoredUser = wasPendingRedirect ? await waitForRedirectRestoredUser() : null;
     clearPendingGoogleRedirect();
+
+    if (restoredUser) {
+      await syncCurrentUser(restoredUser);
+      return;
+    }
+
     updateAuthStore({
       loading: false,
       authError: isSilentRedirectError(error) ? '' : getAfriSellAuthErrorMessage(error)
