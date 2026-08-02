@@ -1,4 +1,5 @@
 import { apiRequest } from '../domains/shared/apiClient';
+import { isTauriNative } from './nativePlatform';
 
 export type CloudinaryResourceType = 'image' | 'video';
 
@@ -28,8 +29,24 @@ interface SignedUploadPayload {
 }
 
 const configuredCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
+const DEFAULT_NATIVE_SIGNING_BASE_URL = 'https://afrissel.vercel.app';
 
 export const isCloudinaryReady = () => Boolean(configuredCloudName);
+
+const getCloudinarySignUploadEndpoint = () => {
+  const explicitEndpoint = (import.meta.env.VITE_CLOUDINARY_SIGN_UPLOAD_URL as string | undefined)?.trim();
+
+  if (!isTauriNative()) return '/api/cloudinary/sign-upload';
+  if (explicitEndpoint) return explicitEndpoint;
+
+  const nativeBaseUrl = (
+    (import.meta.env.VITE_AFRISELL_MEDIA_API_URL as string | undefined) ||
+    (import.meta.env.VITE_AFRISELL_API_BASE_URL as string | undefined) ||
+    DEFAULT_NATIVE_SIGNING_BASE_URL
+  ).trim().replace(/\/$/, '');
+
+  return `${nativeBaseUrl}/api/cloudinary/sign-upload`;
+};
 
 const getResourceType = (file: File): CloudinaryResourceType => {
   if (file.type.startsWith('image/')) return 'image';
@@ -129,7 +146,7 @@ export async function uploadMediaToCloudinary(file: File, ownerId: string): Prom
 
   const safeFile = await compressImageForCloudinary(file);
   const resourceType = getResourceType(safeFile);
-  const signedUpload = await apiRequest<SignedUploadPayload>('/api/cloudinary/sign-upload', {
+  const signedUpload = await apiRequest<SignedUploadPayload>(getCloudinarySignUploadEndpoint(), {
     service: 'media',
     method: 'POST',
     body: JSON.stringify({ ownerId, resourceType })

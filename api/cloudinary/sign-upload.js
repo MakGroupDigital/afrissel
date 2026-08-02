@@ -49,7 +49,29 @@ const parseBody = async (req) => {
   return rawBody ? JSON.parse(rawBody) : {};
 };
 
+const setCorsHeaders = (req, res) => {
+  const allowedOrigins = (process.env.CLOUDINARY_SIGN_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const requestOrigin = req.headers.origin;
+  const origin = allowedOrigins.length === 0 || allowedOrigins.includes(requestOrigin)
+    ? requestOrigin || '*'
+    : allowedOrigins[0];
+
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Vary', 'Origin');
+};
+
 export default async function handler(req, res) {
+  setCorsHeaders(req, res);
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
