@@ -3,6 +3,11 @@ import { create } from 'zustand';
 export type Product = {
   id: string;
   sellerId?: string;
+  module?: string;
+  storeId?: string;
+  storeSlug?: string;
+  storeName?: string;
+  isDigital?: boolean;
   name: string;
   seller: string;
   description: string;

@@ -20,7 +20,7 @@ import CreateHubScreen from './screens/CreateHubScreen';
 import CreatePostScreen from './screens/CreatePostScreen';
 import AfriAiTalkScreen from './screens/AfriAiTalkScreen';
 import QuickActionOffersScreen from './screens/QuickActionOffersScreen';
-import ZandofyMarketplaceScreen from './screens/ZandofyMarketplaceScreen';
+import ZandofyMarketplaceScreen, { ZandofyClientsScreen, ZandofyCreateProductScreen, ZandofyCreateStoreScreen, ZandofyDashboardScreen, ZandofyDomainScreen, ZandofyProductsScreen, ZandofyPublicStoreScreen, ZandofyStatsScreen } from './screens/ZandofyMarketplaceScreen';
 import PromotionsScreen from './screens/PromotionsScreen';
 import MarketHome from './screens/MarketHome';
 import ProductDetailScreen from './screens/ProductDetailScreen';
@@ -133,6 +133,15 @@ function AppRoutes() {
         <Route path="/ecosystem" element={<EcosystemHome />} />
         <Route path="/offers/:sectionId" element={<QuickActionOffersScreen />} />
         <Route path="/zandofy" element={<ZandofyMarketplaceScreen />} />
+        <Route path="/zandofy/create" element={<RequireAuth><ZandofyCreateStoreScreen /></RequireAuth>} />
+        <Route path="/zandofy/dashboard" element={<RequireAuth><ZandofyDashboardScreen /></RequireAuth>} />
+        <Route path="/zandofy/domain" element={<RequireAuth><ZandofyDomainScreen /></RequireAuth>} />
+        <Route path="/zandofy/stats" element={<RequireAuth><ZandofyStatsScreen /></RequireAuth>} />
+        <Route path="/zandofy/clients" element={<RequireAuth><ZandofyClientsScreen /></RequireAuth>} />
+        <Route path="/zandofy/products" element={<RequireAuth><ZandofyProductsScreen /></RequireAuth>} />
+        <Route path="/zandofy/products/new" element={<RequireAuth><ZandofyCreateProductScreen /></RequireAuth>} />
+        <Route path="/zandofy/product/:productId" element={<ProductDetailScreen />} />
+        <Route path="/zandofy/:slug" element={<ZandofyPublicStoreScreen />} />
         <Route path="/promos" element={<PromotionsScreen />} />
         <Route path="/apps" element={<AppsDirectoryScreen />} />
         <Route path="/safari" element={<SafariServicesScreen />} />

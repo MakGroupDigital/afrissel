@@ -41,6 +41,18 @@ export type AfriMarketContent = {
   liveStatus?: 'scheduled' | 'live' | 'ended' | string;
   target?: 'abc' | 'text' | 'market' | 'offer' | string;
   offerModule?: string;
+  isDigital?: boolean;
+  digitalType?: string;
+  collection?: string;
+  storeId?: string;
+  storeSlug?: string;
+  storeName?: string;
+  deliveryMode?: 'file' | 'link' | string;
+  deliveryURL?: string;
+  deliveryFile?: Record<string, unknown> | null;
+  deliveryFiles?: Record<string, unknown>[];
+  accessNote?: string;
+  productSpec?: Record<string, unknown>;
   stock?: number;
   location?: string;
   textStyle?: string;
@@ -223,6 +235,18 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     liveStatus: content.liveStatus || '',
     target: content.target || '',
     offerModule: content.offerModule || '',
+    isDigital: Boolean(content.isDigital),
+    digitalType: content.digitalType || '',
+    collection: content.collection || '',
+    storeId: content.storeId || '',
+    storeSlug: content.storeSlug || '',
+    storeName: content.storeName || '',
+    deliveryMode: content.deliveryMode || '',
+    deliveryURL: content.deliveryURL || '',
+    deliveryFile: content.deliveryFile || null,
+    deliveryFiles: Array.isArray(content.deliveryFiles) ? content.deliveryFiles : [],
+    accessNote: content.accessNote || '',
+    productSpec: content.productSpec || {},
     stock: content.stock !== undefined ? toNumber(content.stock) : undefined,
     location: content.location || '',
     textStyle: content.textStyle || '',
@@ -267,6 +291,11 @@ export const formatMarketTime = (value?: AfriMarketContent['createdAt']) => {
 export const toCheckoutProduct = (content: AfriMarketContent): Product => ({
   id: content.id,
   sellerId: content.authorId,
+  module: content.offerModule || content.category || '',
+  storeId: content.storeId || '',
+  storeSlug: content.storeSlug || '',
+  storeName: content.storeName || '',
+  isDigital: Boolean(content.isDigital),
   name: content.title,
   seller: content.authorName,
   description: content.description,

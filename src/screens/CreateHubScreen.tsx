@@ -169,7 +169,7 @@ const creationOptions: CreationOption[] = [
 const moduleScopes = [
   { label: 'ABC', route: '/create?intent=media&module=abc', icon: 'video' as const },
   { label: 'Marché', route: '/create?intent=product&module=market', icon: 'market' as const, requiredAccount: 'commerce' },
-  { label: 'Zandofy', route: '/create?intent=product&module=zandofy', icon: 'app' as const, requiredAccount: 'commerce' },
+  { label: 'Zandofy', route: '/zandofy/products/new', icon: 'app' as const, requiredAccount: 'commerce' },
   { label: 'Safari', route: '/create?intent=offer&module=Safari', icon: 'send' as const, requiredAccount: 'services' },
   { label: 'A-Freelance', route: '/create?intent=offer&module=A-Freelance', icon: 'work' as const, requiredAccount: 'services' },
   { label: 'AfriSchool', route: '/create?intent=offer&module=AfriSchool', icon: 'school' as const, requiredAccount: 'services' }

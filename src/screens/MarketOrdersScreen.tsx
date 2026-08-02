@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { onValue, ref } from 'firebase/database';
 import { AfriSellIcon } from '../components/AfriSellIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
@@ -11,6 +11,7 @@ type MarketOrder = {
   productId: string;
   productName: string;
   productImage?: string;
+  productCategory?: string;
   sellerId: string;
   sellerName: string;
   buyerId: string;
@@ -21,12 +22,19 @@ type MarketOrder = {
   documentType?: 'receipt' | 'invoice';
   deliveryStatus?: string;
   villageStatus?: string;
+  module?: string;
+  storeId?: string;
+  storeName?: string;
+  isDigital?: boolean;
   createdAt?: number;
 };
 
 export default function MarketOrdersScreen() {
   const { user } = useFirebaseAuth();
+  const location = useLocation();
   const [orders, setOrders] = useState<MarketOrder[]>([]);
+  const moduleFilter = new URLSearchParams(location.search).get('module');
+  const isZandofyMode = moduleFilter === 'zandofy';
 
   useEffect(() => {
     if (!user) {
@@ -40,12 +48,13 @@ export default function MarketOrdersScreen() {
       const nextOrders = Object.entries(data || {})
         .map(([id, order]) => ({ ...order, id: order.id || id }))
         .filter((order) => order.buyerId === user.uid || order.sellerId === user.uid)
+        .filter((order) => !isZandofyMode || order.module === 'zandofy' || order.isDigital || order.productCategory === 'Zandofy')
         .sort((first, second) => Number(second.createdAt || 0) - Number(first.createdAt || 0));
       setOrders(nextOrders);
     });
 
     return unsubscribe;
-  }, [user]);
+  }, [isZandofyMode, user]);
 
   const stats = useMemo(() => ({
     paid: orders.filter((order) => order.status === 'paid').length,
@@ -58,8 +67,8 @@ export default function MarketOrdersScreen() {
       <main className="min-h-full bg-black px-4 pb-8 pt-4 text-center text-white">
         <AfriSellIcon name="order" size={34} className="mx-auto mt-16 text-[#15EA3E]" />
         <h1 className="mt-4 text-xl font-black">Connexion requise</h1>
-        <p className="mt-2 text-sm font-semibold text-white/45">Connecte-toi pour voir tes commandes Market.</p>
-        <Link to="/login" state={{ next: '/market/orders' }} className="mt-5 inline-flex rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">
+        <p className="mt-2 text-sm font-semibold text-white/45">Connecte-toi pour voir tes commandes {isZandofyMode ? 'Zandofy' : 'Market'}.</p>
+        <Link to="/login" state={{ next: isZandofyMode ? '/market/orders?module=zandofy' : '/market/orders' }} className="mt-5 inline-flex rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">
           Se connectér
         </Link>
       </main>
@@ -69,11 +78,11 @@ export default function MarketOrdersScreen() {
   return (
     <main className="min-h-full bg-black px-4 pb-24 pt-4 text-white">
       <header className="flex items-center justify-between">
-        <Link to="/market" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Retour">
+        <Link to={isZandofyMode ? '/zandofy/dashboard' : '/market'} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Retour">
           <AfriSellIcon name="arrow" size={18} className="rotate-180" />
         </Link>
         <div className="text-right">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Market</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{isZandofyMode ? 'Zandofy' : 'Market'}</p>
           <h1 className="mt-1 text-xl font-black">Mes commandes</h1>
         </div>
       </header>
@@ -99,7 +108,7 @@ export default function MarketOrdersScreen() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-black">{order.productName}</p>
                 <p className="mt-1 text-[10px] font-bold text-white/42">
-                  {order.buyerId === user.uid ? `Stand: ${order.sellerName}` : `Client: ${order.buyerName}`}
+                {order.buyerId === user.uid ? `${isZandofyMode ? 'Boutique' : 'Stand'}: ${order.storeName || order.sellerName}` : `Client: ${order.buyerName}`}
                 </p>
                 <p className="mt-2 text-sm font-black text-[#15EA3E]">{formatMarketPrice(order.totalAmount, order.currency)}</p>
               </div>
@@ -108,7 +117,7 @@ export default function MarketOrdersScreen() {
               </span>
             </div>
             <div className="mt-3 grid grid-cols-4 gap-2">
-              <Link to={`/market/${order.productId}`} className="rounded-xl border border-white/10 bg-black/20 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-white/62">
+              <Link to={order.module === 'zandofy' || order.isDigital ? `/zandofy/product/${order.productId}` : `/market/${order.productId}`} className="rounded-xl border border-white/10 bg-black/20 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-white/62">
                 Produit
               </Link>
               <Link to="/safari" className="rounded-xl border border-white/10 bg-black/20 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-white/62">
@@ -124,8 +133,8 @@ export default function MarketOrdersScreen() {
           </article>
         )) : (
           <div className="rounded-[1.3rem] border border-white/10 bg-white/[0.04] p-6 text-center">
-            <p className="text-sm font-black">Aucune commande Market</p>
-            <p className="mt-2 text-xs font-semibold text-white/45">Tes achats et ventes apparaîtront ici.</p>
+            <p className="text-sm font-black">Aucune commande {isZandofyMode ? 'Zandofy' : 'Market'}</p>
+            <p className="mt-2 text-xs font-semibold text-white/45">Tes achats et ventes {isZandofyMode ? 'de produits digitaux' : ''} apparaîtront ici.</p>
           </div>
         )}
       </section>

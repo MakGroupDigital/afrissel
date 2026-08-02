@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { get, onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { AfriMarketContent, formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { CheckoutDelivery, useAppStore } from '../store/useAppStore';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
@@ -60,6 +60,68 @@ type PurchaseVillage = {
 };
 
 const normalizeContactValue = (value: string) => value.trim().toLowerCase().replace(/\s+/g, '');
+
+const digitalDetailMeta: Record<string, {
+  label: string;
+  icon: AfriSellIconName;
+  promise: string;
+  steps: string[];
+}> = {
+  Formation: {
+    label: 'Formation digitale',
+    icon: 'school',
+    promise: 'Accès progressif aux modules, supports et ressources après paiement.',
+    steps: ['Paiement AfriSpay', 'Déblocage de l’accès', 'Suivi apprenant']
+  },
+  'E-book': {
+    label: 'Livre digital',
+    icon: 'file',
+    promise: 'Téléchargement sécurisé du livre ou accès au document livré.',
+    steps: ['Achat confirmé', 'Fichier livré', 'Lecture disponible']
+  },
+  Template: {
+    label: 'Template',
+    icon: 'app',
+    promise: 'Pack modifiable livré avec les fichiers sources et notes du créateur.',
+    steps: ['Pack validé', 'Fichiers reçus', 'Utilisation libre']
+  },
+  Audio: {
+    label: 'Audio',
+    icon: 'mic',
+    promise: 'Pistes, podcast ou pack sonore accessibles immédiatement après paiement.',
+    steps: ['Paiement', 'Audio livré', 'Écoute ou téléchargement']
+  },
+  Vidéo: {
+    label: 'Vidéo digitale',
+    icon: 'video',
+    promise: 'Vidéo, masterclass ou série courte accessible dans ton espace AfriSell.',
+    steps: ['Achat', 'Accès vidéo', 'Support vendeur']
+  },
+  Licence: {
+    label: 'Licence',
+    icon: 'lock',
+    promise: 'Clé, preuve ou instruction d’activation fournie de façon sécurisée.',
+    steps: ['Paiement', 'Clé générée', 'Activation']
+  },
+  Billet: {
+    label: 'Billet digital',
+    icon: 'scan',
+    promise: 'Billet personnalisé avec QR, code-barres et référence unique.',
+    steps: ['Achat', 'Billet généré', 'Contrôle par scan']
+  },
+  'Pack digital': {
+    label: 'Pack digital',
+    icon: 'order',
+    promise: 'Bundle de fichiers, bonus ou accès groupés livrés ensemble.',
+    steps: ['Paiement', 'Pack débloqué', 'Bonus accessibles']
+  }
+};
+
+const getDigitalMeta = (product: AfriMarketContent) => (
+  digitalDetailMeta[product.digitalType || ''] || digitalDetailMeta['Pack digital']
+);
+
+const getZandofyProductURL = (product: AfriMarketContent) => `${window.location.origin}/zandofy/product/${product.id}`;
 
 function ProductGallery({ product }: { product: AfriMarketContent }) {
   const media = product.media.length ? product.media : [{
@@ -228,6 +290,12 @@ export default function ProductDetailScreen() {
     return <EmptyDetail />;
   }
 
+  const isZandofyDigital = Boolean(product.isDigital || product.offerModule === 'Zandofy' || product.category === 'Zandofy');
+  const productDetailPath = isZandofyDigital ? `/zandofy/product/${product.id}` : `/market/${product.id}`;
+  const digitalMeta = getDigitalMeta(product);
+  const productSpec = product.productSpec || {};
+  const productShareURL = isZandofyDigital ? getZandofyProductURL(product) : `${window.location.origin}/market/${product.id}`;
+
   const handleAddToCart = () => {
     addToCart(checkoutProduct);
     setStatus(alreadyInCart ? 'Article déjà dans le panier.' : 'Article ajoute au panier.');
@@ -235,15 +303,34 @@ export default function ProductDetailScreen() {
 
   const handleBuy = () => {
     if (!user) {
-      navigate('/login', { state: { next: `/market/${product.id}` } });
+      navigate('/login', { state: { next: productDetailPath } });
       return;
     }
     openCheckout(checkoutProduct, selectedDelivery);
   };
 
+  const handleShareProduct = async () => {
+    setStatus('');
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: product.title,
+          text: `${product.title} sur AfriSell`,
+          url: productShareURL
+        });
+      } else {
+        await navigator.clipboard?.writeText(productShareURL);
+        setStatus('Lien du produit copié.');
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setStatus('Partage indisponible. Le lien peut être copié depuis cette page.');
+    }
+  };
+
   const handleVillageShare = async () => {
     if (!user) {
-      navigate('/login', { state: { next: `/market/${product.id}` } });
+      navigate('/login', { state: { next: productDetailPath } });
       return;
     }
 
@@ -267,7 +354,7 @@ export default function ProductDetailScreen() {
 
   const createPurchaseVillage = async (payAfterCreation = false) => {
     if (!user) {
-      navigate('/login', { state: { next: `/market/${product.id}` } });
+      navigate('/login', { state: { next: productDetailPath } });
       return;
     }
 
@@ -476,7 +563,7 @@ export default function ProductDetailScreen() {
     event.preventDefault();
     if (!product) return;
     if (!user) {
-      navigate('/login', { state: { next: `/market/${product.id}` } });
+      navigate('/login', { state: { next: productDetailPath } });
       return;
     }
 
@@ -506,6 +593,219 @@ export default function ProductDetailScreen() {
       setReviewSubmitting(false);
     }
   };
+
+  if (isZandofyDigital) {
+    const visibleSpec = Object.entries(productSpec)
+      .filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '')
+      .slice(0, 4);
+    const deliveryLabel = product.deliveryMode === 'link' ? 'Accès par lien sécurisé' : 'Fichier livré après paiement';
+    const storePath = product.storeSlug ? `/zandofy/${product.storeSlug}` : `/market/stand/${product.authorId}`;
+    const relatedDigitalProducts = relatedProducts.filter((item) => item.isDigital || item.offerModule === 'Zandofy' || item.category === 'Zandofy');
+
+    return (
+      <div className="relative min-h-full bg-[#030604] pb-36 text-white">
+        <header className="sticky top-0 z-30 border-b border-white/10 bg-[#030604]/92 px-4 py-3 backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white/72"
+              aria-label="Retour"
+            >
+              <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+            </button>
+            <div className="min-w-0 text-center">
+              <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#15EA3E]">Zandofy</p>
+              <p className="truncate text-xs font-black text-white/70">Produit digital</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleShareProduct()}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 text-[#15EA3E]"
+              aria-label="Partager"
+            >
+              <AfriSellIcon name="share" size={18} />
+            </button>
+          </div>
+        </header>
+
+        <main className="px-4 pt-4">
+          <section className="relative overflow-hidden rounded-[2rem] border border-[#15EA3E]/18 bg-[radial-gradient(circle_at_18%_10%,rgba(21,234,62,0.22),transparent_34%),linear-gradient(145deg,#071007,#020402_64%,#0d170f)] shadow-[0_24px_70px_rgba(0,0,0,0.38)]">
+            <img src={product.coverURL || '/zandofyiconeapp.png'} alt={product.title} className="h-[300px] w-full object-cover opacity-88" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/18 to-transparent" />
+            <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-white/12 bg-black/45 px-3 py-2 backdrop-blur">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#15EA3E] text-black">
+                <AfriSellIcon name={digitalMeta.icon} size={14} />
+              </span>
+              <span className="text-[9px] font-black uppercase tracking-wider text-white">{digitalMeta.label}</span>
+            </div>
+            <div className="absolute inset-x-0 bottom-0 p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{product.collection || 'Collection Zandofy'}</p>
+              <h1 className="mt-2 text-2xl font-black leading-tight">{product.title}</h1>
+              <p className="mt-2 line-clamp-3 text-sm font-semibold leading-relaxed text-white/64">{product.description}</p>
+            </div>
+          </section>
+
+          <section className="mt-4 rounded-[1.6rem] border border-[#15EA3E]/18 bg-[#15EA3E]/10 p-4">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Prix digital</p>
+                <p className="mt-1 text-3xl font-black">{formatMarketPrice(product.price || product.villagePrice, product.currency)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleBuy}
+                className="rounded-2xl bg-[#15EA3E] px-4 py-3 text-[10px] font-black uppercase tracking-wider text-black"
+              >
+                Acheter
+              </button>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {([
+                { label: 'Livraison', value: product.deliveryMode === 'link' ? 'Lien' : 'Fichier', icon: product.deliveryMode === 'link' ? 'lock' : 'file' },
+                { label: 'Boutique', value: product.storeName || product.authorName, icon: 'market' as const },
+                { label: 'Support', value: 'AfriChat', icon: 'chat' as const }
+              ] as Array<{ label: string; value: string; icon: AfriSellIconName }>).map((item) => (
+                <div key={item.label} className="rounded-2xl border border-white/10 bg-black/24 p-3 text-center">
+                  <AfriSellIcon name={item.icon} size={16} className="mx-auto text-[#15EA3E]" />
+                  <p className="mt-2 truncate text-[10px] font-black text-white">{item.value}</p>
+                  <p className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-white/36">{item.label}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
+                <AfriSellIcon name={digitalMeta.icon} size={21} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-black leading-tight">Expérience {digitalMeta.label.toLowerCase()}</h2>
+                <p className="mt-1 text-xs font-semibold leading-relaxed text-white/50">{digitalMeta.promise}</p>
+              </div>
+            </div>
+            <div className="mt-4 space-y-2">
+              {digitalMeta.steps.map((step, index) => (
+                <div key={step} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-xs font-black text-black">{index + 1}</span>
+                  <span className="text-xs font-black text-white/70">{step}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-[1.45rem] border border-white/10 bg-white/[0.045] p-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/38">Accès</p>
+              <h3 className="mt-2 text-sm font-black">{deliveryLabel}</h3>
+              <p className="mt-2 text-[11px] font-semibold leading-relaxed text-white/45">
+                {product.accessNote || 'Les informations d’accès sont visibles après paiement confirmé.'}
+              </p>
+            </div>
+            <div className="rounded-[1.45rem] border border-white/10 bg-white/[0.045] p-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/38">Lien public</p>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=8&data=${encodeURIComponent(productShareURL)}`}
+                alt="QR produit Zandofy"
+                className="mt-2 h-20 w-20 rounded-2xl bg-white p-1"
+              />
+              <button type="button" onClick={() => void handleShareProduct()} className="mt-3 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">
+                Partager le lien
+              </button>
+            </div>
+          </section>
+
+          {visibleSpec.length > 0 && (
+            <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-4">
+              <h2 className="text-sm font-black">Détails du produit</h2>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {visibleSpec.map(([key, value]) => (
+                  <div key={key} className="rounded-2xl border border-white/10 bg-black/22 p-3">
+                    <p className="text-[8px] font-black uppercase tracking-wider text-white/34">{key.replace(/([A-Z])/g, ' $1')}</p>
+                    <p className="mt-1 truncate text-xs font-black text-white/72">{String(value)}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <Link to={storePath} className="mt-4 flex items-center gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.045] p-4 active:scale-[0.99]">
+            <img src={product.authorAvatar || '/zandofyiconeapp.png'} alt="" className="h-12 w-12 rounded-2xl object-cover" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-black">{product.storeName || product.authorName}</p>
+              <p className="mt-0.5 text-[11px] font-semibold text-white/42">Boutique Zandofy, support client et catalogue digital.</p>
+            </div>
+            <AfriSellIcon name="arrow" size={16} className="text-[#15EA3E]" />
+          </Link>
+
+          <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-4">
+            <h2 className="text-sm font-black">Achat sécurisé</h2>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {[
+                { label: 'AfriSpay', icon: 'pay' as const },
+                { label: 'Reçu', icon: 'order' as const },
+                { label: 'Support', icon: 'shield' as const }
+              ].map((item) => (
+                <div key={item.label} className="rounded-2xl border border-white/10 bg-black/20 p-3 text-center">
+                  <AfriSellIcon name={item.icon} size={17} className="mx-auto text-[#15EA3E]" />
+                  <p className="mt-2 text-[10px] font-black text-white/58">{item.label}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {relatedDigitalProducts.length > 0 && (
+            <section className="mt-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Autres produits digitaux</h2>
+                <Link to="/zandofy/products" className="text-[10px] font-black text-[#15EA3E]">Zandofy</Link>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+                {relatedDigitalProducts.map((item) => (
+                  <Link key={item.id} to={`/zandofy/product/${item.id}`} className="w-[140px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+                    <img src={item.coverURL || '/zandofyiconeapp.png'} alt={item.title} className="h-24 w-full object-cover" />
+                    <div className="p-2.5">
+                      <p className="line-clamp-2 text-[11px] font-black leading-tight">{item.title}</p>
+                      <p className="mt-1 text-[10px] font-black text-[#15EA3E]">{formatMarketPrice(item.price || item.villagePrice, item.currency)}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {status && (
+            <p className="mt-4 rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-3 text-xs font-bold text-[#15EA3E]">
+              {status}
+            </p>
+          )}
+        </main>
+
+        <div className="fixed inset-x-0 bottom-20 z-30 mx-auto border-t border-white/10 bg-[#030604]/96 px-4 py-3 backdrop-blur-md md:left-1/2 md:w-[340px] md:-translate-x-1/2">
+          <div className="grid grid-cols-[1fr_1.2fr] gap-2">
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              className={cn(
+                'h-12 rounded-2xl border text-xs font-black uppercase tracking-widest',
+                alreadyInCart ? 'border-[#15EA3E]/40 bg-[#15EA3E]/10 text-[#15EA3E]' : 'border-white/10 bg-white/[0.04] text-white'
+              )}
+            >
+              {alreadyInCart ? 'Dans panier' : 'Ajouter'}
+            </button>
+            <button
+              type="button"
+              onClick={handleBuy}
+              className="h-12 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-widest text-black"
+            >
+              Payer AfriSpay
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-full bg-black pb-36 text-white">
