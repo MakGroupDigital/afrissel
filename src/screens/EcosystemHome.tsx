@@ -97,6 +97,8 @@ const afriSpayHomeActions = [
   { label: 'Payer', icon: 'pay' as const, route: '/wallet' }
 ];
 
+const isLightThemePreferred = () => window.localStorage.getItem('afrisell:ecosystem-theme') !== 'dark';
+
 const freelanceSubtypes = new Set(['freelancer', 'creative', 'tech_service', 'local_service']);
 const supplierSubtypes = new Set(['supplier', 'b2b_supplier', 'b2c_supplier', 'importer', 'local_distributor']);
 
@@ -269,7 +271,7 @@ export default function EcosystemHome() {
   const [topFreelancers, setTopFreelancers] = useState<TopFreelancer[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierProfile[]>([]);
   const [activeFreelanceIndex, setActiveFreelanceIndex] = useState(0);
-  const [isLightMode, setIsLightMode] = useState(() => window.localStorage.getItem('afrisell:ecosystem-theme') === 'light');
+  const [isLightMode, setIsLightMode] = useState(isLightThemePreferred);
   const [searchQuery, setSearchQuery] = useState('');
   const [isHomeChromeVisible, setIsHomeChromeVisible] = useState(true);
   const [liveKycStatus, setLiveKycStatus] = useState<KycStatus>('none');
@@ -848,14 +850,14 @@ export default function EcosystemHome() {
               <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-[#15EA3E]/18 bg-black shadow-[0_10px_24px_rgba(0,0,0,0.24)]">
                 <QuickActionArtwork visual={action.visual} />
               </span>
-              <span className="min-h-5 w-full text-center text-[9px] font-black leading-tight text-white/66">{action.label}</span>
+              <span className="quick-action-label min-h-5 w-full rounded-full px-1.5 py-0.5 text-center text-[9px] font-black leading-tight text-white/66">{action.label}</span>
             </Link>
           ))}
         </div>
       </section>
       </div>
 
-      <section className="px-4">
+      <section className="px-4 pt-4">
         <Link
           to="/promos"
           className="relative mt-3 block overflow-hidden rounded-[1.45rem] border border-[#15EA3E]/22 bg-[#071007] p-3 shadow-[0_16px_38px_rgba(0,0,0,0.32)] active:scale-[0.99]"

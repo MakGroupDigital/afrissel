@@ -12,16 +12,18 @@ interface PhoneWrapperProps {
   children: React.ReactNode;
 }
 
+const isLightThemePreferred = () => window.localStorage.getItem('afrisell:ecosystem-theme') !== 'dark';
+
 export default function PhoneWrapper({ children }: PhoneWrapperProps) {
   const location = useLocation();
   const immersivePaths = ['/', '/onboarding', '/login', '/identity-setup', '/scan', '/create', '/afriai/talk'];
   const isImmersive = immersivePaths.includes(location.pathname);
   const isFeed = location.pathname === '/feed';
-  const [isLightMode, setIsLightMode] = useState(() => window.localStorage.getItem('afrisell:ecosystem-theme') === 'light');
+  const [isLightMode, setIsLightMode] = useState(isLightThemePreferred);
 
   useEffect(() => {
     const syncTheme = () => {
-      setIsLightMode(window.localStorage.getItem('afrisell:ecosystem-theme') === 'light');
+      setIsLightMode(isLightThemePreferred());
     };
 
     window.addEventListener('storage', syncTheme);

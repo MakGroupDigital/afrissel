@@ -301,7 +301,7 @@ const defaultSettings: UserSettings = {
   },
   app: {
     language: 'fr',
-    lightMode: false,
+    lightMode: true,
     lowDataMode: false,
     offlineData: true
   },
@@ -401,6 +401,18 @@ const settingsSections: ProfileAction[] = [
 
 const storageKey = (uid?: string) => `afrissel:settings:${uid || 'guest'}`;
 const rememberedAccountsKey = 'afrissel:remembered-accounts';
+const isLightThemePreferred = () => window.localStorage.getItem('afrisell:ecosystem-theme') !== 'dark';
+
+const mergeUserSettings = (settings?: Partial<UserSettings>): UserSettings => ({
+  account: { ...defaultSettings.account, ...settings?.account },
+  app: {
+    ...defaultSettings.app,
+    ...settings?.app,
+    lightMode: settings?.app?.lightMode ?? isLightThemePreferred()
+  },
+  notifications: { ...defaultSettings.notifications, ...settings?.notifications },
+  privacy: { ...defaultSettings.privacy, ...settings?.privacy }
+});
 
 const readRememberedAccounts = (): RememberedAccount[] => {
   try {
@@ -634,9 +646,9 @@ export default function ProfileScreen() {
     const savedLocalSettings = window.localStorage.getItem(storageKey(user.uid));
     if (savedLocalSettings) {
       try {
-        setSettings({ ...defaultSettings, ...JSON.parse(savedLocalSettings) });
+        setSettings(mergeUserSettings(JSON.parse(savedLocalSettings) as Partial<UserSettings>));
       } catch {
-        setSettings(defaultSettings);
+        setSettings(mergeUserSettings());
       }
     }
 
@@ -644,12 +656,7 @@ export default function ProfileScreen() {
       .then((snapshot) => {
         if (!snapshot.exists()) return;
         const remoteSettings = snapshot.val() as Partial<UserSettings>;
-        setSettings({
-          account: { ...defaultSettings.account, ...remoteSettings.account },
-          app: { ...defaultSettings.app, ...remoteSettings.app },
-          notifications: { ...defaultSettings.notifications, ...remoteSettings.notifications },
-          privacy: { ...defaultSettings.privacy, ...remoteSettings.privacy }
-        });
+        setSettings(mergeUserSettings(remoteSettings));
       })
       .catch((error) => {
         console.error('Chargement réglages profil impossible:', error);
