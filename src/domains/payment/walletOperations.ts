@@ -177,7 +177,7 @@ const finalizeWonyaPayResponse = async (
 
 export async function executeWalletOperation(input: WalletOperationInput) {
   const amount = normalizeAmount(input.amount);
-  const currency = normalizeCurrency(input.currency);
+  const currency = input.type === 'transfer' ? input.currency.trim().toUpperCase() || 'USD' : normalizeCurrency(input.currency);
   const recipient = input.phoneOrRecipient.trim();
   if (!recipient) throw new Error('Numéro ou bénéficiaire requis.');
 

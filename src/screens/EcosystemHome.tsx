@@ -644,6 +644,7 @@ export default function EcosystemHome() {
     if (!homeWalletAction?.type || !user) return;
 
     const amount = Number(homeWalletAmount);
+    const operationCurrency = homeWalletAction.type === 'transfer' ? currency : (currency === 'USD' || currency === 'CDF' ? currency : 'CDF');
     if (homeWalletStep === 'amount') {
       if (!Number.isFinite(amount) || amount <= 0) {
         setHomeWalletStatus('Montant invalide.');
@@ -673,7 +674,7 @@ export default function EcosystemHome() {
         user,
         type: homeWalletAction.type,
         amount,
-        currency,
+        currency: operationCurrency,
         phoneOrRecipient: homeWalletRecipient,
         accountNumber: wallet?.accountNumber,
         note: internalRef
@@ -1295,7 +1296,9 @@ export default function EcosystemHome() {
                     placeholder="0"
                     className="min-w-0 flex-1 bg-transparent text-xl font-black text-white outline-none placeholder:text-white/20"
                   />
-                  <span className="rounded-xl bg-[#15EA3E]/10 px-2.5 py-1 text-xs font-black text-[#15EA3E]">{currency}</span>
+                  <span className="rounded-xl bg-[#15EA3E]/10 px-2.5 py-1 text-xs font-black text-[#15EA3E]">
+                    {homeWalletAction.type === 'transfer' ? currency : (currency === 'USD' || currency === 'CDF' ? currency : 'CDF')}
+                  </span>
                 </div>
               </label>
             )}
@@ -1322,7 +1325,9 @@ export default function EcosystemHome() {
               <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-3">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-[10px] font-bold text-white/42">Montant</span>
-                  <span className="font-mono text-sm font-black text-white">{formatMarketPrice(Number(homeWalletAmount || 0), currency)}</span>
+                  <span className="font-mono text-sm font-black text-white">
+                    {formatMarketPrice(Number(homeWalletAmount || 0), homeWalletAction.type === 'transfer' ? currency : (currency === 'USD' || currency === 'CDF' ? currency : 'CDF'))}
+                  </span>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <span className="text-[10px] font-bold text-white/42">{homeWalletAction.type === 'transfer' ? 'Wallet' : 'Mobile Money'}</span>

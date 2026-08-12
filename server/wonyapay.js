@@ -126,6 +126,32 @@ export const setCorsHeaders = (req, res) => {
   res.setHeader('Vary', 'Origin');
 };
 
+export const extractWonyaPayErrorMessage = (payload, fallback = 'Erreur Wonyapay') => {
+  if (!payload) return fallback;
+  if (typeof payload === 'string') return payload;
+  if (typeof payload !== 'object') return String(payload);
+
+  const candidates = [
+    payload.message,
+    payload.error,
+    payload.detail,
+    payload.data?.message,
+    payload.data?.error,
+    payload.data?.detail,
+    payload.errors?.[0]?.message,
+    payload.errors?.[0]
+  ];
+
+  const direct = candidates.find((value) => typeof value === 'string' && value.trim());
+  if (direct) return direct;
+
+  try {
+    return JSON.stringify(payload);
+  } catch {
+    return fallback;
+  }
+};
+
 export const processWonyaPayPayment = async ({
   action,
   amount,
@@ -193,7 +219,7 @@ export const processWonyaPayPayment = async ({
     break;
   }
 
-  const message = lastPayload?.message || lastPayload?.error || `Erreur Wonyapay (${lastStatus || 'inconnue'})`;
+  const message = extractWonyaPayErrorMessage(lastPayload, `Erreur Wonyapay (${lastStatus || 'inconnue'})`);
   const error = new Error(message);
   error.status = lastStatus || 500;
   error.payload = lastPayload;
@@ -214,7 +240,7 @@ export const getWonyaPayTransactionStatus = async (refTransa) => {
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    const message = payload?.message || payload?.error || `Statut Wonyapay indisponible (${response.status})`;
+    const message = extractWonyaPayErrorMessage(payload, `Statut Wonyapay indisponible (${response.status})`);
     const error = new Error(message);
     error.status = response.status;
     error.payload = payload;
@@ -231,4 +257,3 @@ export const getWonyaPayTransactionStatus = async (refTransa) => {
     rawResponse: payload
   };
 };
-

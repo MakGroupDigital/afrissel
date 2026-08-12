@@ -12,6 +12,12 @@ type ApiRequestOptions = RequestInit & {
   service?: AfriSellServiceName;
 };
 
+type ApiErrorPayload = {
+  error?: unknown;
+  detail?: unknown;
+  message?: unknown;
+};
+
 const serviceEnvKeys: Record<AfriSellServiceName, string> = {
   identity: 'VITE_AFRISELL_IDENTITY_API_URL',
   commerce: 'VITE_AFRISELL_COMMERCE_API_URL',
@@ -37,6 +43,31 @@ const buildApiUrl = (path: string, service?: AfriSellServiceName) => {
   return `${baseUrl}${normalizedPath}`;
 };
 
+const getPayloadMessage = (value: unknown): string => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (value instanceof Error) return value.message;
+  if (typeof value !== 'object') return String(value);
+
+  const record = value as Record<string, unknown>;
+  const candidates = [
+    record.message,
+    record.error,
+    record.detail,
+    record.title,
+    record.description,
+    record.code
+  ];
+  const direct = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim());
+  if (direct) return direct as string;
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '';
+  }
+};
+
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const { service, headers, ...requestOptions } = options;
   const response = await fetch(buildApiUrl(path, service), {
@@ -47,10 +78,10 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     }
   });
 
-  const payload = await response.json().catch(() => null) as T & { error?: string; detail?: string } | null;
+  const payload = await response.json().catch(() => null) as (T & ApiErrorPayload) | null;
 
   if (!response.ok) {
-    const message = payload?.detail || payload?.error || `API AfriSell indisponible (${response.status})`;
+    const message = getPayloadMessage(payload?.error) || getPayloadMessage(payload?.detail) || getPayloadMessage(payload?.message) || `API AfriSell indisponible (${response.status})`;
     throw new Error(message);
   }
 
