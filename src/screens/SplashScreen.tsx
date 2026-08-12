@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { AfriSellIcon } from '../components/AfriSellIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
-import { AFRISELL_MAIN_LOGO, AFRISELL_WORDMARK_LOGO } from '../lib/branding';
+import { AFRISELL_MAIN_LOGO } from '../lib/branding';
 
 interface SplashScreenProps {
   autoNavigate?: boolean;
@@ -41,17 +41,6 @@ export default function SplashScreen({ autoNavigate = true, showAction = true }:
             <img src={AFRISELL_MAIN_LOGO} alt="AfriSell" className="h-full w-full object-cover" />
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.6 }}
-            className="mt-8 flex flex-col items-center text-center"
-          >
-            <img src={AFRISELL_WORDMARK_LOGO} alt="AfriSell" className="h-14 w-auto max-w-[220px] object-contain" />
-            <p className="mt-4 text-sm font-semibold leading-relaxed text-white/60">
-              La super app africaine, tout-en-un.
-            </p>
-          </motion.div>
         </div>
 
         {showAction && (

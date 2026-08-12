@@ -12,6 +12,7 @@ import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
 import { realtimeDb } from '../lib/firebase';
 import { AFRISELL_MAIN_LOGO } from '../lib/branding';
 import { cn } from '../lib/utils';
+import { executeWalletOperation, WalletOperationType } from '../domains/payment';
 
 type QuickAction = {
   label: string;
@@ -45,6 +46,12 @@ type WalletSecuritySettings = {
   pinHash?: string;
   biometricEnabled: boolean;
   biometricCredentialId?: string;
+};
+
+type HomeWalletAction = {
+  label: string;
+  icon: 'deposit' | 'withdraw' | 'send' | 'scan' | 'pay';
+  type?: WalletOperationType;
 };
 
 const quickActions: QuickAction[] = [
@@ -89,12 +96,12 @@ const fallbackAbc = [
   }
 ];
 
-const afriSpayHomeActions = [
-  { label: 'Dépôt', icon: 'deposit' as const, route: '/wallet?action=deposit' },
-  { label: 'Retrait', icon: 'withdraw' as const, route: '/wallet?action=withdraw' },
-  { label: 'Envoyer', icon: 'send' as const, route: '/wallet?action=transfer' },
-  { label: 'Scanner', icon: 'scan' as const, route: '/wallet?action=scan' },
-  { label: 'Payer', icon: 'pay' as const, route: '/wallet' }
+const afriSpayHomeActions: HomeWalletAction[] = [
+  { label: 'Dépôt', icon: 'deposit', type: 'deposit' },
+  { label: 'Retrait', icon: 'withdraw', type: 'withdraw' },
+  { label: 'Envoyer', icon: 'send', type: 'transfer' },
+  { label: 'Scanner', icon: 'scan' },
+  { label: 'Payer', icon: 'pay' }
 ];
 
 const isLightThemePreferred = () => window.localStorage.getItem('afrisell:ecosystem-theme') !== 'dark';
@@ -283,12 +290,18 @@ export default function EcosystemHome() {
     pinEnabled: false,
     biometricEnabled: false
   });
+  const [homeWalletAction, setHomeWalletAction] = useState<HomeWalletAction | null>(null);
+  const [homeWalletStep, setHomeWalletStep] = useState<'amount' | 'recipient' | 'confirm'>('amount');
+  const [homeWalletAmount, setHomeWalletAmount] = useState('');
+  const [homeWalletRecipient, setHomeWalletRecipient] = useState('');
+  const [homeWalletStatus, setHomeWalletStatus] = useState('');
+  const [homeWalletBusy, setHomeWalletBusy] = useState(false);
   const lastHomeScrollTopRef = useRef(0);
   const homeScrollDirectionRef = useRef<'up' | 'down' | null>(null);
   const homeChromeLockUntilRef = useRef(0);
   const { profile, user } = useFirebaseAuth();
   const { abcContents, marketProducts } = useAfriMarket();
-  const { balance, currency, accountLabel, loading: walletLoading } = useAfriSpayWallet();
+  const { wallet, balance, currency, accountLabel, loading: walletLoading } = useAfriSpayWallet();
   const firstName = (profile?.displayName || user?.displayName || 'Utilisateur').split(' ')[0];
   const timeGreeting = getTimeGreeting();
   const walletLabel = user
@@ -594,6 +607,95 @@ export default function EcosystemHome() {
     setWalletSecurityStatus(hasWalletPin ? 'Entre ton PIN ou utilise la biométrie.' : 'Définis ton PIN dans AfriSpay pour afficher le solde ici.');
   };
 
+  const resetHomeWalletSheet = () => {
+    setHomeWalletAction(null);
+    setHomeWalletStep('amount');
+    setHomeWalletAmount('');
+    setHomeWalletRecipient('');
+    setHomeWalletStatus('');
+    setHomeWalletBusy(false);
+  };
+
+  const openHomeWalletAction = (action: HomeWalletAction) => {
+    if (!user) {
+      navigate('/login', { state: { next: '/ecosystem' } });
+      return;
+    }
+
+    if (!isAfriSpayActive) {
+      navigate('/wallet');
+      return;
+    }
+
+    if (!action.type) {
+      navigate(action.icon === 'scan' ? '/scan' : '/wallet');
+      return;
+    }
+
+    setHomeWalletAction(action);
+    setHomeWalletStep('amount');
+    setHomeWalletAmount('');
+    setHomeWalletRecipient('');
+    setHomeWalletStatus('');
+  };
+
+  const submitHomeWalletStep = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!homeWalletAction?.type || !user) return;
+
+    const amount = Number(homeWalletAmount);
+    if (homeWalletStep === 'amount') {
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setHomeWalletStatus('Montant invalide.');
+        return;
+      }
+      setHomeWalletStatus('');
+      setHomeWalletStep('recipient');
+      return;
+    }
+
+    if (homeWalletStep === 'recipient') {
+      if (!homeWalletRecipient.trim()) {
+        setHomeWalletStatus(homeWalletAction.type === 'transfer' ? 'Wallet bénéficiaire requis.' : 'Numéro Mobile Money requis.');
+        return;
+      }
+      setHomeWalletStatus('');
+      setHomeWalletStep('confirm');
+      return;
+    }
+
+    setHomeWalletBusy(true);
+    setHomeWalletStatus('');
+
+    try {
+      const internalRef = `AFRISPAY-${homeWalletAction.type.toUpperCase()}-${user.uid.slice(0, 6)}-${Date.now()}`;
+      const result = await executeWalletOperation({
+        user,
+        type: homeWalletAction.type,
+        amount,
+        currency,
+        phoneOrRecipient: homeWalletRecipient,
+        accountNumber: wallet?.accountNumber,
+        note: internalRef
+      });
+
+      setHomeWalletStatus(
+        result.status === 'pending_operator'
+          ? 'Demande envoyée. Confirmation opérateur en attente.'
+          : result.status === 'confirmed'
+            ? 'Opération confirmée.'
+            : result.status === 'refunded'
+              ? 'Opération refusée. Montant remboursé.'
+              : 'Opération refusée.'
+      );
+      window.setTimeout(resetHomeWalletSheet, result.status === 'pending_operator' ? 1800 : 1400);
+    } catch (operationError) {
+      setHomeWalletStatus(operationError instanceof Error ? operationError.message : 'Opération AfriSpay impossible.');
+    } finally {
+      setHomeWalletBusy(false);
+    }
+  };
+
   const unlockWalletWithPin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!walletSecuritySettings.pinHash) {
@@ -818,10 +920,10 @@ export default function EcosystemHome() {
 
           <div className="relative z-10 mt-2 flex items-center justify-between gap-1.5">
             {afriSpayHomeActions.map((action) => (
-              <Link
+              <button
                 key={action.label}
-                to={user ? action.route : '/login'}
-                state={!user ? { next: action.route } : undefined}
+                type="button"
+                onClick={() => openHomeWalletAction(action)}
                 className={cn(
                   'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl border py-1 active:scale-95',
                   isAfriSpayActive
@@ -832,7 +934,7 @@ export default function EcosystemHome() {
               >
                 <AfriSellIcon name={action.icon} size={12} />
                 <span className="max-w-full truncate text-[7px] font-black leading-none">{action.label}</span>
-              </Link>
+              </button>
             ))}
           </div>
         </div>
@@ -1146,6 +1248,131 @@ export default function EcosystemHome() {
         </section>
       )}
       </div>
+
+      {homeWalletAction?.type && (
+        <div className="absolute inset-0 z-[80] flex items-end bg-black/54 px-3 pb-4 backdrop-blur-sm" onClick={resetHomeWalletSheet}>
+          <form
+            onSubmit={submitHomeWalletStep}
+            onClick={(event) => event.stopPropagation()}
+            className="w-full overflow-hidden rounded-[1.65rem] border border-[#15EA3E]/24 bg-[#050805] p-4 text-white shadow-[0_-18px_56px_rgba(0,0,0,0.55)]"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriSpay</p>
+                <h2 className="mt-1 text-lg font-black">{homeWalletAction.label}</h2>
+                <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/45">
+                  {homeWalletStep === 'amount'
+                    ? 'Entre le montant de l’opération.'
+                    : homeWalletStep === 'recipient'
+                      ? homeWalletAction.type === 'transfer'
+                        ? 'Entre le wallet interne au format uid:bénéficiaire.'
+                        : 'Entre le numéro Mobile Money.'
+                      : 'Vérifie puis confirme l’opération.'}
+                </p>
+              </div>
+              <button type="button" onClick={resetHomeWalletSheet} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] text-white/55" aria-label="Fermer">
+                <AfriSellIcon name="close" size={16} />
+              </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {['amount', 'recipient', 'confirm'].map((step, index) => (
+                <div key={step} className={cn(
+                  'h-1.5 rounded-full',
+                  ['amount', 'recipient', 'confirm'].indexOf(homeWalletStep) >= index ? 'bg-[#15EA3E]' : 'bg-white/10'
+                )} />
+              ))}
+            </div>
+
+            {homeWalletStep === 'amount' && (
+              <label className="mt-4 block">
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">Montant</span>
+                <div className="mt-2 flex h-14 items-center gap-2 rounded-2xl border border-white/10 bg-black px-4 focus-within:border-[#15EA3E]/50">
+                  <input
+                    value={homeWalletAmount}
+                    onChange={(event) => setHomeWalletAmount(event.target.value)}
+                    inputMode="decimal"
+                    placeholder="0"
+                    className="min-w-0 flex-1 bg-transparent text-xl font-black text-white outline-none placeholder:text-white/20"
+                  />
+                  <span className="rounded-xl bg-[#15EA3E]/10 px-2.5 py-1 text-xs font-black text-[#15EA3E]">{currency}</span>
+                </div>
+              </label>
+            )}
+
+            {homeWalletStep === 'recipient' && (
+              <label className="mt-4 block">
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-white/40">
+                  {homeWalletAction.type === 'transfer' ? 'Wallet bénéficiaire' : 'Numéro Mobile Money'}
+                </span>
+                <div className="mt-2 flex h-14 items-center gap-2 rounded-2xl border border-white/10 bg-black px-4 focus-within:border-[#15EA3E]/50">
+                  <AfriSellIcon name={homeWalletAction.type === 'transfer' ? 'profile' : 'phone'} size={17} className="text-[#15EA3E]" />
+                  <input
+                    value={homeWalletRecipient}
+                    onChange={(event) => setHomeWalletRecipient(event.target.value)}
+                    inputMode={homeWalletAction.type === 'transfer' ? 'text' : 'tel'}
+                    placeholder={homeWalletAction.type === 'transfer' ? 'uid:bénéficiaire' : '0997654321'}
+                    className="min-w-0 flex-1 bg-transparent text-sm font-bold text-white outline-none placeholder:text-white/24"
+                  />
+                </div>
+              </label>
+            )}
+
+            {homeWalletStep === 'confirm' && (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.045] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-bold text-white/42">Montant</span>
+                  <span className="font-mono text-sm font-black text-white">{formatMarketPrice(Number(homeWalletAmount || 0), currency)}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-bold text-white/42">{homeWalletAction.type === 'transfer' ? 'Wallet' : 'Mobile Money'}</span>
+                  <span className="truncate text-right text-xs font-black text-white/75">{homeWalletRecipient}</span>
+                </div>
+                <p className="mt-3 rounded-xl bg-[#15EA3E]/10 px-3 py-2 text-[10px] font-semibold leading-relaxed text-[#15EA3E]">
+                  La référence interne est générée automatiquement par AfriSpay.
+                </p>
+              </div>
+            )}
+
+            {homeWalletStatus && (
+              <p className={cn(
+                'mt-3 rounded-xl border px-3 py-2 text-[11px] font-bold leading-relaxed',
+                homeWalletStatus.includes('invalid') || homeWalletStatus.includes('invalide') || homeWalletStatus.includes('impossible') || homeWalletStatus.includes('refus') || homeWalletStatus.includes('requis')
+                  ? 'border-red-500/25 bg-red-500/10 text-red-100'
+                  : 'border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]'
+              )}>
+                {homeWalletStatus}
+              </p>
+            )}
+
+            <div className="mt-4 grid grid-cols-[0.45fr_1fr] gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (homeWalletStep === 'amount') {
+                    resetHomeWalletSheet();
+                    return;
+                  }
+                  setHomeWalletStatus('');
+                  setHomeWalletStep(homeWalletStep === 'confirm' ? 'recipient' : 'amount');
+                }}
+                disabled={homeWalletBusy}
+                className="h-12 rounded-2xl border border-white/10 bg-white/[0.055] text-[10px] font-black uppercase tracking-wider text-white/60 disabled:opacity-50"
+              >
+                Retour
+              </button>
+              <button
+                type="submit"
+                disabled={homeWalletBusy}
+                className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-[11px] font-black uppercase tracking-[0.14em] text-black disabled:opacity-60"
+              >
+                {homeWalletBusy ? 'Traitement...' : homeWalletStep === 'confirm' ? 'Confirmer' : 'Continuer'}
+                <AfriSellIcon name="arrow" size={15} />
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <button
         type="button"
