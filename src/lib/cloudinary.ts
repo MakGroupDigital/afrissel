@@ -29,7 +29,7 @@ interface SignedUploadPayload {
 }
 
 const configuredCloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || '';
-const DEFAULT_NATIVE_SIGNING_BASE_URL = 'https://afrissel.vercel.app';
+const DEFAULT_NATIVE_SIGNING_BASE_URL = 'https://afri.afrisell.app';
 
 export const isCloudinaryReady = () => Boolean(configuredCloudName);
 

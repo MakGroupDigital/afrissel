@@ -65,6 +65,14 @@ const getLatestKycRequestStatus = (value: unknown): KycStatus => {
   return normalizeKycStatus(latestRequest?.status);
 };
 
+const getTransactionStatusLabel = (status?: string) => {
+  if (status === 'pending_operator') return 'En attente opérateur';
+  if (status === 'confirmed') return 'Confirmée';
+  if (status === 'refunded') return 'Remboursée';
+  if (status === 'failed') return 'Échouée';
+  return status;
+};
+
 export default function WalletDashboard() {
   const { user, profile } = useFirebaseAuth();
   const { wallet, balance, currency, accountLabel, transactions, loading, error } = useAfriSpayWallet();
@@ -113,12 +121,12 @@ export default function WalletDashboard() {
   const activeActionLabel = actions.find((action) => action.action === activeAction)?.label;
 
   const balanceLabel = showBalance ? formatMoney(balance, currency) : '••••••';
-  const recipientPlaceholder = activeAction === 'transfer' ? 'Numéro ou uid:bénéficiaire' : 'Numéro Mobile Money';
+  const recipientPlaceholder = activeAction === 'transfer' ? 'uid:bénéficiaire AfriSpay' : 'Numéro Mobile Money';
   const operationHelp = activeAction === 'deposit'
-    ? 'Le dépôt crédite ton wallet AfriSpay et crée une transaction confirmée.'
+    ? 'AfriSpay lance une demande Mobile Money via Wonyapay. Le solde est crédité après confirmation opérateur.'
     : activeAction === 'withdraw'
-      ? 'Le retrait vérifie ton solde puis prépare la sortie Mobile Money.'
-      : 'Le transfert envoie vers un wallet AfriSpay avec uid: ou vers un numéro Mobile Money.';
+      ? 'AfriSpay débite ton wallet puis Wonyapay confirme la sortie Mobile Money. Si l’opérateur refuse, le montant est remboursé.'
+      : 'Le transfert reste interne à AfriSpay et cible un wallet avec uid:bénéficiaire.';
 
   React.useEffect(() => {
     setAmount('');
@@ -460,8 +468,12 @@ export default function WalletDashboard() {
       setNote('');
       setOperationStatus(
         result.status === 'pending_operator'
-          ? 'Operation créée. Confirmation operateur en attente.'
-          : 'Operation AfriSpay confirmee.'
+          ? 'Demande Wonyapay lancée. Confirmation opérateur en attente.'
+          : result.status === 'refunded'
+            ? 'Opération refusée par l’opérateur. Montant remboursé.'
+            : result.status === 'failed'
+              ? 'Opération refusée par l’opérateur.'
+              : 'Opération AfriSpay confirmée.'
       );
     } catch (operationError) {
       setOperationStatus(operationError instanceof Error ? operationError.message : 'Operation AfriSpay impossible.');
@@ -689,7 +701,7 @@ export default function WalletDashboard() {
           {operationStatus && (
             <p className={cn(
               "mt-3 rounded-xl border px-3 py-2 text-[11px] font-bold leading-relaxed",
-              operationStatus.includes('impossible') || operationStatus.includes('invalide') || operationStatus.includes('insuffisant') || operationStatus.includes('requis') || operationStatus.includes('Connecte')
+              operationStatus.includes('impossible') || operationStatus.includes('invalide') || operationStatus.includes('insuffisant') || operationStatus.includes('requis') || operationStatus.includes('Connecte') || operationStatus.includes('refusée')
                 ? "border-red-500/25 bg-red-500/10 text-red-100"
                 : "border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]"
             )}>
@@ -747,7 +759,7 @@ export default function WalletDashboard() {
                           <span className="text-gray-600 text-[10px] font-mono mt-0.5">{tx.dateLabel}</span>
                           {tx.status && (
                             <span className="mt-1 w-fit rounded-full border border-gray-800 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.16em] text-gray-500">
-                              {tx.status === 'pending_operator' ? 'En attente' : tx.status}
+                              {getTransactionStatusLabel(tx.status)}
                             </span>
                           )}
                        </div>

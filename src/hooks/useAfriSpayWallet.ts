@@ -4,6 +4,7 @@ import { realtimeDb } from '../lib/firebase';
 import { useFirebaseAuth } from './useFirebaseAuth';
 import { AfriSellIconName } from '../components/AfriSellIcon';
 import { isOfflineNow, offlineCacheKey, readOfflineCache, readOfflineCacheAsync, writeOfflineCache } from '../lib/offlineCache';
+import { reconcileWonyaPayOperation } from '../domains/payment';
 
 export type AfriSpayWallet = {
   balance?: number;
@@ -36,7 +37,14 @@ type RawTransaction = {
   channel?: string;
   module?: string;
   status?: string;
+  provider?: string;
+  wonyapay?: {
+    refTransa?: string;
+    checkedAt?: number;
+  };
 };
+
+const reconcilingWonyaPayOperations = new Set<string>();
 
 const formatDate = (value?: RawTransaction['createdAt'] | RawTransaction['timestamp']) => {
   if (!value) return 'Date non disponible';
@@ -89,6 +97,14 @@ const normalizeTransaction = (id: string, transaction: RawTransaction): AfriSpay
     icon: getTransactionIcon(transaction),
     status: transaction.status
   };
+};
+
+const shouldReconcileWonyaPayTransaction = (transaction: RawTransaction) => {
+  const status = String(transaction.status || '').toLowerCase();
+  if (transaction.provider !== 'Wonyapay' || !transaction.wonyapay?.refTransa) return false;
+  if (status !== 'pending_operator' && status !== 'pending') return false;
+  const checkedAt = Number(transaction.wonyapay.checkedAt || 0);
+  return !checkedAt || Date.now() - checkedAt > 15000;
 };
 
 const maskAccountNumber = (accountNumber?: string) => {
@@ -176,6 +192,21 @@ export const useAfriSpayWallet = () => {
         }
 
         const data = snapshot.val() as Record<string, RawTransaction> | null;
+        Object.entries(data || {})
+          .filter(([, transaction]) => shouldReconcileWonyaPayTransaction(transaction))
+          .slice(0, 5)
+          .forEach(([id]) => {
+            const reconcileKey = `${user.uid}:${id}`;
+            if (reconcilingWonyaPayOperations.has(reconcileKey)) return;
+            reconcilingWonyaPayOperations.add(reconcileKey);
+            void reconcileWonyaPayOperation(user.uid, id)
+              .catch((reconcileError) => {
+                console.warn('Réconciliation Wonyapay AfriSpay impossible:', reconcileError);
+              })
+              .finally(() => {
+                window.setTimeout(() => reconcilingWonyaPayOperations.delete(reconcileKey), 15000);
+              });
+          });
         const nextTransactions = Object.entries(data || {})
           .map(([id, transaction]) => normalizeTransaction(id, transaction))
           .sort((first, second) => {

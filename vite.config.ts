@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react';
 import { createHash } from 'crypto';
 import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
+import {
+  getWonyaPayTransactionStatus,
+  processWonyaPayPayment,
+  readNodeJsonBody
+} from './server/wonyapay.js';
 
 const parseCloudinaryUrl = (value?: string) => {
   if (!value) return null;
@@ -44,6 +49,9 @@ const readJsonBody = async (req: any): Promise<any> => new Promise((resolve, rej
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
+  process.env.WONYAPAY_BASE_URL ||= env.WONYAPAY_BASE_URL;
+  process.env.WONYAPAY_TOKEN ||= env.WONYAPAY_TOKEN;
+  process.env.WONYAPAY_REF_PARTENAIRE ||= env.WONYAPAY_REF_PARTENAIRE;
   const cloudinaryConfig = parseCloudinaryUrl(env.CLOUDINARY_URL) || (
     env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET
       ? {
@@ -113,6 +121,63 @@ export default defineConfig(({mode}) => {
               res.statusCode = 400;
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+            }
+          });
+        }
+      },
+      {
+        name: 'afrissel-wonyapay-dev',
+        configureServer(server) {
+          server.middlewares.use('/api/wonyapay/payment', async (req, res) => {
+            res.setHeader('Content-Type', 'application/json');
+            if (req.method !== 'POST') {
+              res.statusCode = 405;
+              res.end(JSON.stringify({ error: 'Method not allowed' }));
+              return;
+            }
+
+            try {
+              const body = await readNodeJsonBody(req);
+              const result = await processWonyaPayPayment({
+                action: body.action,
+                amount: body.amount,
+                currency: body.currency,
+                phoneNumber: body.phoneNumber,
+                motif: body.motif,
+                refPrefix: body.refPrefix
+              });
+              res.statusCode = 200;
+              res.end(JSON.stringify(result));
+            } catch (error: any) {
+              res.statusCode = error.status || 500;
+              res.end(JSON.stringify({
+                success: false,
+                error: error.message || 'Paiement Wonyapay impossible.',
+                detail: error.payload || undefined
+              }));
+            }
+          });
+
+          server.middlewares.use('/api/wonyapay/status', async (req, res) => {
+            res.setHeader('Content-Type', 'application/json');
+            if (req.method !== 'POST') {
+              res.statusCode = 405;
+              res.end(JSON.stringify({ error: 'Method not allowed' }));
+              return;
+            }
+
+            try {
+              const body = await readNodeJsonBody(req);
+              const result = await getWonyaPayTransactionStatus(body.refTransa);
+              res.statusCode = 200;
+              res.end(JSON.stringify(result));
+            } catch (error: any) {
+              res.statusCode = error.status || 500;
+              res.end(JSON.stringify({
+                success: false,
+                error: error.message || 'Statut Wonyapay impossible.',
+                detail: error.payload || undefined
+              }));
             }
           });
         }
