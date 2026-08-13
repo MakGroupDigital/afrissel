@@ -20,12 +20,13 @@ import CreateHubScreen from './screens/CreateHubScreen';
 import CreatePostScreen from './screens/CreatePostScreen';
 import AfriAiTalkScreen from './screens/AfriAiTalkScreen';
 import QuickActionOffersScreen from './screens/QuickActionOffersScreen';
-import ZandofyMarketplaceScreen, { ZandofyClientsScreen, ZandofyCreateProductScreen, ZandofyCreateStoreScreen, ZandofyDashboardScreen, ZandofyDomainScreen, ZandofyProductsScreen, ZandofyPublicStoreScreen, ZandofyStatsScreen } from './screens/ZandofyMarketplaceScreen';
+import ZandofyMarketplaceScreen, { ZandofyClientsScreen, ZandofyCreateProductScreen, ZandofyCreateStoreScreen, ZandofyDashboardScreen, ZandofyDomainScreen, ZandofyEditProductScreen, ZandofyProductsScreen, ZandofyPublicStoreScreen, ZandofyStatsScreen } from './screens/ZandofyMarketplaceScreen';
 import PromotionsScreen from './screens/PromotionsScreen';
 import MarketHome from './screens/MarketHome';
 import ProductDetailScreen from './screens/ProductDetailScreen';
 import MarketOrdersScreen from './screens/MarketOrdersScreen';
 import OrderVerificationScreen from './screens/OrderVerificationScreen';
+import DigitalAccessScreen from './screens/DigitalAccessScreen';
 import SellerStandScreen from './screens/SellerStandScreen';
 import WalletDashboard from './screens/WalletDashboard';
 import KycVerificationScreen from './screens/KycVerificationScreen';
@@ -140,6 +141,7 @@ function AppRoutes() {
         <Route path="/zandofy/clients" element={<RequireAuth><ZandofyClientsScreen /></RequireAuth>} />
         <Route path="/zandofy/products" element={<RequireAuth><ZandofyProductsScreen /></RequireAuth>} />
         <Route path="/zandofy/products/new" element={<RequireAuth><ZandofyCreateProductScreen /></RequireAuth>} />
+        <Route path="/zandofy/products/:productId/edit" element={<RequireAuth><ZandofyEditProductScreen /></RequireAuth>} />
         <Route path="/zandofy/product/:productId" element={<ProductDetailScreen />} />
         <Route path="/zandofy/:slug" element={<ZandofyPublicStoreScreen />} />
         <Route path="/promos" element={<PromotionsScreen />} />
@@ -165,6 +167,7 @@ function AppRoutes() {
         <Route path="/market" element={<MarketHome />} />
         <Route path="/market/orders" element={<MarketOrdersScreen />} />
         <Route path="/order/:orderId" element={<OrderVerificationScreen />} />
+        <Route path="/zandofy/access/:orderId" element={<RequireAuth><DigitalAccessScreen /></RequireAuth>} />
         <Route path="/market/stand/:sellerId" element={<SellerStandScreen />} />
         <Route path="/market/:productId" element={<ProductDetailScreen />} />
         <Route path="/wallet" element={<RequireAuth><WalletDashboard /></RequireAuth>} />

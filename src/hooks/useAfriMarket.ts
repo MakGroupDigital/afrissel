@@ -27,6 +27,7 @@ export type AfriMarketContent = {
   linkedProductImage?: string;
   linkedProductPrice?: number;
   linkedProductVillagePrice?: number;
+  abcPostId?: string;
   linkedProductCurrency?: string;
   price?: number;
   villagePrice?: number;
@@ -47,6 +48,7 @@ export type AfriMarketContent = {
   storeId?: string;
   storeSlug?: string;
   storeName?: string;
+  productKind?: 'digital' | 'physical';
   deliveryMode?: 'file' | 'link' | string;
   deliveryURL?: string;
   deliveryFile?: Record<string, unknown> | null;
@@ -54,6 +56,17 @@ export type AfriMarketContent = {
   accessNote?: string;
   productSpec?: Record<string, unknown>;
   stock?: number;
+  stockMode?: 'unlimited' | 'tracked';
+  regularPrice?: number;
+  salePrice?: number;
+  pricingMode?: 'paid' | 'free';
+  isFree?: boolean;
+  sku?: string;
+  shippingPrice?: number;
+  shippingRegions?: string[];
+  fppRate?: number;
+  publishToAfriZia?: boolean;
+  catalogCategory?: string;
   location?: string;
   textStyle?: string;
   createdAt?: number | string | { seconds?: number };
@@ -84,6 +97,13 @@ export type AfriMarketPostInput = {
   currency?: string;
   target?: 'abc' | 'text' | 'market' | 'offer';
   stock?: number;
+  productKind?: 'digital' | 'physical';
+  regularPrice?: number;
+  salePrice?: number;
+  pricingMode?: 'paid' | 'free';
+  fppRate?: number;
+  publishToAfriZia?: boolean;
+  catalogCategory?: string;
   location?: string;
   offerModule?: string;
   textStyle?: string;
@@ -221,6 +241,7 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     linkedProductImage: content.linkedProductImage || '',
     linkedProductPrice: content.linkedProductPrice !== undefined ? toNumber(content.linkedProductPrice) : undefined,
     linkedProductVillagePrice: content.linkedProductVillagePrice !== undefined ? toNumber(content.linkedProductVillagePrice) : undefined,
+    abcPostId: content.abcPostId || '',
     linkedProductCurrency: content.linkedProductCurrency || content.currency || 'USD',
     price: content.price !== undefined ? toNumber(content.price) : undefined,
     villagePrice: content.villagePrice !== undefined ? toNumber(content.villagePrice) : undefined,
@@ -235,6 +256,7 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     liveStatus: content.liveStatus || '',
     target: content.target || '',
     offerModule: content.offerModule || '',
+    productKind: content.productKind || (content.isDigital ? 'digital' : 'physical'),
     isDigital: Boolean(content.isDigital),
     digitalType: content.digitalType || '',
     collection: content.collection || '',
@@ -248,6 +270,17 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     accessNote: content.accessNote || '',
     productSpec: content.productSpec || {},
     stock: content.stock !== undefined ? toNumber(content.stock) : undefined,
+    stockMode: content.stockMode || (content.productKind === 'physical' ? 'tracked' : 'unlimited'),
+    regularPrice: content.regularPrice !== undefined ? toNumber(content.regularPrice) : content.price,
+    salePrice: content.salePrice !== undefined ? toNumber(content.salePrice) : undefined,
+    pricingMode: content.pricingMode || (content.isFree || content.price === 0 ? 'free' : 'paid'),
+    isFree: content.isFree ?? content.price === 0,
+    sku: content.sku || '',
+    shippingPrice: content.shippingPrice !== undefined ? toNumber(content.shippingPrice) : 0,
+    shippingRegions: Array.isArray(content.shippingRegions) ? content.shippingRegions : [],
+    fppRate: Math.min(Math.max(toNumber(content.fppRate), 0), 20),
+    publishToAfriZia: content.publishToAfriZia !== false,
+    catalogCategory: content.catalogCategory || '',
     location: content.location || '',
     textStyle: content.textStyle || '',
     createdAt: content.createdAt,
@@ -295,21 +328,35 @@ export const toCheckoutProduct = (content: AfriMarketContent): Product => ({
   storeId: content.storeId || '',
   storeSlug: content.storeSlug || '',
   storeName: content.storeName || '',
+  productKind: content.productKind || (content.isDigital ? 'digital' : 'physical'),
   isDigital: Boolean(content.isDigital),
   name: content.title,
   seller: content.authorName,
   description: content.description,
   category: content.category,
   price: content.price || content.villagePrice || 0,
+  regularPrice: content.regularPrice ?? content.price ?? content.villagePrice ?? 0,
+  salePrice: content.salePrice,
+  pricingMode: content.pricingMode || (content.isFree || content.price === 0 ? 'free' : 'paid'),
+  isFree: content.isFree ?? content.price === 0,
   villagePrice: content.villagePrice || content.price || 0,
   currency: content.currency || 'USD',
   imageUrl: content.coverURL,
   buyersCount: content.buyersCount || 0,
-  buyersNeeded: content.buyersNeeded || 1
+  buyersNeeded: content.buyersNeeded || 1,
+  stockMode: content.stockMode,
+  stock: content.stock,
+  deliveryMode: content.deliveryMode,
+  shippingPrice: content.shippingPrice,
+  shippingRegions: content.shippingRegions,
+  fppRate: content.fppRate,
+  publishToAfriZia: content.publishToAfriZia !== false,
+  catalogCategory: content.catalogCategory || ''
 });
 
 const shouldSyncWithMarket = (content: AfriMarketContent) => (
   content.isSellable &&
+  content.publishToAfriZia !== false &&
   !content.linkedProductId &&
   content.media.length > 0 &&
   content.media.every((item) => item.resourceType === 'image')
@@ -555,6 +602,12 @@ export const useAfriMarket = () => {
       linkedProductPrice: linkedProduct?.price,
       linkedProductVillagePrice: linkedProduct?.villagePrice,
       linkedProductCurrency: linkedProduct?.currency,
+      productKind: linkedProduct?.productKind,
+      isDigital: linkedProduct?.isDigital,
+      storeId: linkedProduct?.storeId,
+      storeSlug: linkedProduct?.storeSlug,
+      storeName: linkedProduct?.storeName,
+      fppRate: linkedProduct?.fppRate || 0,
       price: isDirectMarketItem ? input.price : undefined,
       villagePrice: isDirectMarketItem ? input.villagePrice : undefined,
       currency: linkedProduct?.currency || input.currency || 'USD',

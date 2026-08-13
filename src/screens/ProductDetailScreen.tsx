@@ -5,7 +5,7 @@ import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { AfriMarketContent, formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { CheckoutDelivery, useAppStore } from '../store/useAppStore';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
-import { shareVillageDealToAfriChat } from '../domains/commerce';
+import { linkProductToABC, shareVillageDealToAfriChat } from '../domains/commerce';
 import { realtimeDb } from '../lib/firebase';
 import { cn } from '../lib/utils';
 
@@ -205,6 +205,7 @@ export default function ProductDetailScreen() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [abcPublishing, setAbcPublishing] = useState(false);
 
   const product = useMemo(
     () => (
@@ -213,14 +214,20 @@ export default function ProductDetailScreen() {
     ),
     [abcContents, marketProducts, productId]
   );
+  useEffect(() => {
+    if (product?.deliveryMode === 'pickup') setSelectedDeliveryId('pickup');
+  }, [product?.deliveryMode]);
   const checkoutProduct = product ? toCheckoutProduct(product) : null;
-  const selectedDelivery = deliveryOptions.find((option) => option.id === selectedDeliveryId) || deliveryOptions[0];
+  const selectedDelivery = product?.deliveryMode === 'pickup'
+    ? deliveryOptions.find((option) => option.id === 'pickup') || deliveryOptions[0]
+    : deliveryOptions.find((option) => option.id === selectedDeliveryId) || deliveryOptions[0];
   const alreadyInCart = Boolean(checkoutProduct && cart.some((item) => item.id === checkoutProduct.id));
   const reviewAverage = reviews.length
     ? reviews.reduce((total, review) => total + review.rating, 0) / reviews.length
     : 0;
   const afriCoinValue = Math.max(1, Math.round(Number(product?.villagePrice || product?.price || 0) * 2));
-  const fppValue = Math.round(Number(product?.villagePrice || product?.price || 0) * 0.03 * 100) / 100;
+  const fppRate = Math.min(Math.max(Number(product?.fppRate || 0), 0), 20);
+  const fppValue = Math.round(Number(product?.villagePrice || product?.price || 0) * (fppRate / 100) * 100) / 100;
   const preferenceProducts = useMemo(() => {
     if (!product) return [];
     const activeWords = [
@@ -290,7 +297,9 @@ export default function ProductDetailScreen() {
     return <EmptyDetail />;
   }
 
-  const isZandofyDigital = Boolean(product.isDigital || product.offerModule === 'Zandofy' || product.category === 'Zandofy');
+  const isZandofyDigital = product.productKind === 'digital' || (
+    product.productKind === undefined && Boolean(product.isDigital || product.offerModule === 'Zandofy' || product.category === 'Zandofy')
+  );
   const productDetailPath = isZandofyDigital ? `/zandofy/product/${product.id}` : `/market/${product.id}`;
   const digitalMeta = getDigitalMeta(product);
   const productSpec = product.productSpec || {};
@@ -306,7 +315,7 @@ export default function ProductDetailScreen() {
       navigate('/login', { state: { next: productDetailPath } });
       return;
     }
-    openCheckout(checkoutProduct, selectedDelivery);
+    openCheckout(checkoutProduct, isZandofyDigital ? null : selectedDelivery);
   };
 
   const handleShareProduct = async () => {
@@ -315,7 +324,7 @@ export default function ProductDetailScreen() {
       if (navigator.share) {
         await navigator.share({
           title: product.title,
-          text: `${product.title} sur AfriSell`,
+          text: `${product.title} sur AfriZia`,
           url: productShareURL
         });
       } else {
@@ -468,7 +477,7 @@ export default function ProductDetailScreen() {
       setVillageStatus('Village d’achat créé. Il apparaît maintenant dans AfriChat.');
 
       if (payAfterCreation) {
-        openCheckout(checkoutProduct, selectedDelivery);
+        openCheckout(checkoutProduct, isZandofyDigital ? null : selectedDelivery);
       }
     } catch (error) {
       setVillageStatus(error instanceof Error ? error.message : 'Création du Village impossible.');
@@ -594,6 +603,24 @@ export default function ProductDetailScreen() {
     }
   };
 
+  const publishProductToABC = async () => {
+    if (!user || !checkoutProduct || !product) return;
+    if (product.abcPostId) {
+      setStatus('Ce produit est déjà présenté dans ABC.');
+      return;
+    }
+    setAbcPublishing(true);
+    setStatus('');
+    try {
+      const result = await linkProductToABC({ user, product: checkoutProduct });
+      setStatus(`Produit publié dans ABC. Publication ${result.postId.slice(-8).toUpperCase()}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Publication ABC impossible.');
+    } finally {
+      setAbcPublishing(false);
+    }
+  };
+
   if (isZandofyDigital) {
     const visibleSpec = Object.entries(productSpec)
       .filter(([, value]) => value !== undefined && value !== null && String(value).trim() !== '')
@@ -716,6 +743,23 @@ export default function ProductDetailScreen() {
             </div>
           </section>
 
+          {product.authorId === user?.uid && (
+            <section className="mt-4 rounded-[1.6rem] border border-[#15EA3E]/18 bg-[#15EA3E]/8 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
+                  <AfriSellIcon name="video" size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-sm font-black">Présenter dans ABC</h2>
+                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/48">Crée une publication commerce avec ce produit et son bouton Acheter.</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => void publishProductToABC()} disabled={abcPublishing || Boolean(product.abcPostId)} className="mt-3 w-full rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-45">
+                {abcPublishing ? 'Publication...' : product.abcPostId ? 'Déjà présenté dans ABC' : 'Publier dans ABC'}
+              </button>
+            </section>
+          )}
+
           {visibleSpec.length > 0 && (
             <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-4">
               <h2 className="text-sm font-black">Détails du produit</h2>
@@ -737,6 +781,10 @@ export default function ProductDetailScreen() {
               <p className="mt-0.5 text-[11px] font-semibold text-white/42">Boutique Zandofy, support client et catalogue digital.</p>
             </div>
             <AfriSellIcon name="arrow" size={16} className="text-[#15EA3E]" />
+          </Link>
+          <Link to={`/chat?contact=${encodeURIComponent(product.authorId)}&name=${encodeURIComponent(product.authorName)}&product=${encodeURIComponent(product.id)}`} className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 py-3 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">
+            <AfriSellIcon name="chat" size={15} />
+            Ouvrir AfriChat avec le vendeur
           </Link>
 
           <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-4">
@@ -906,6 +954,16 @@ export default function ProductDetailScreen() {
           </div>
         </section>
 
+        {product.storeId && product.authorId === user?.uid && (
+          <section className="mt-4 rounded-[1.5rem] border border-[#15EA3E]/18 bg-[#15EA3E]/8 p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#15EA3E] text-black"><AfriSellIcon name="video" size={18} /></span>
+              <div className="min-w-0 flex-1"><h2 className="text-sm font-black">Présenter dans ABC</h2><p className="mt-1 text-[11px] font-semibold text-white/48">Ce produit sera publié avec son accès Acheter.</p></div>
+            </div>
+            <button type="button" onClick={() => void publishProductToABC()} disabled={abcPublishing || Boolean(product.abcPostId)} className="mt-3 w-full rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-45">{abcPublishing ? 'Publication...' : product.abcPostId ? 'Déjà présenté dans ABC' : 'Publier dans ABC'}</button>
+          </section>
+        )}
+
         <section className="mt-5 rounded-[1.55rem] border border-[#15EA3E]/22 bg-[#071007] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
@@ -1049,7 +1107,7 @@ export default function ProductDetailScreen() {
             <span className="text-[10px] font-bold text-[#15EA3E]">{selectedDelivery.eta}</span>
           </div>
           <div className="space-y-2">
-            {deliveryOptions.map((option) => (
+            {deliveryOptions.filter((option) => product.deliveryMode !== 'pickup' || option.id === 'pickup').map((option) => (
               <button
                 key={option.id}
                 type="button"

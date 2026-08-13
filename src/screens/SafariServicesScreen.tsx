@@ -6,6 +6,7 @@ import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { realtimeDb } from '../lib/firebase';
 import { SafariServiceType, createSafariRequest } from '../domains/logistics';
+import { confirmCommerceDelivery } from '../domains/commerce';
 
 type SafariService = {
   id: string;
@@ -84,6 +85,8 @@ type SafariDelivery = {
   sellerName?: string;
   buyerName?: string;
   status?: string;
+  deliveryAddress?: string;
+  deliveryPhone?: string;
   delivery?: {
     title?: string;
     eta?: string;
@@ -128,6 +131,7 @@ export default function SafariServicesScreen() {
   const [details, setDetails] = useState('');
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirmingOrder, setConfirmingOrder] = useState('');
 
   useEffect(() => {
     if (serviceId && services.some((service) => service.id === serviceId)) {
@@ -175,6 +179,20 @@ export default function SafariServicesScreen() {
     setActiveServiceId(service.id);
     setStatus('');
     navigate(`/safari/${service.id}`, { replace: true });
+  };
+
+  const confirmDelivery = async (orderId: string) => {
+    if (!user) return;
+    setConfirmingOrder(orderId);
+    setStatus('');
+    try {
+      await confirmCommerceDelivery({ user, orderId });
+      setStatus('Réception confirmée. Le vendeur recevra le solde de la commande.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Confirmation de réception impossible.');
+    } finally {
+      setConfirmingOrder('');
+    }
   };
 
   const submitRequest = async (event: FormEvent<HTMLFormElement>) => {
@@ -347,10 +365,15 @@ export default function SafariServicesScreen() {
                   </span>
                 </div>
                 <div className="mt-3 flex items-center justify-between rounded-2xl bg-black/24 p-3">
-                  <span className="text-[10px] font-bold text-white/50">ETA: {delivery.delivery?.eta || 'A confirmer'}</span>
-                  <Link to="/chat" className="text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">
-                    Chat
-                  </Link>
+                  <span className="text-[10px] font-bold text-white/50">ETA: {delivery.delivery?.eta || 'À confirmer'}</span>
+                  <div className="flex items-center gap-3">
+                    <Link to="/chat" className="text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">Chat</Link>
+                    {delivery.buyerId === user?.uid && delivery.status !== 'delivered' && delivery.status !== 'cancelled' && (
+                      <button type="button" onClick={() => void confirmDelivery(delivery.orderId)} disabled={confirmingOrder === delivery.orderId} className="rounded-xl bg-[#15EA3E] px-2 py-2 text-[9px] font-black uppercase tracking-wider text-black disabled:opacity-50">
+                        {confirmingOrder === delivery.orderId ? '...' : 'Reçu'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </article>
             ))}

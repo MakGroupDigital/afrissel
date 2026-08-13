@@ -7,17 +7,31 @@ export type Product = {
   storeId?: string;
   storeSlug?: string;
   storeName?: string;
+  productKind?: 'digital' | 'physical';
   isDigital?: boolean;
   name: string;
   seller: string;
   description: string;
   category?: string;
+  catalogCategory?: string;
   price: number;
+  regularPrice?: number;
+  salePrice?: number;
+  pricingMode?: 'paid' | 'free';
+  isFree?: boolean;
   villagePrice: number;
   currency?: string;
   imageUrl: string;
   buyersCount: number;
   buyersNeeded: number;
+  stockMode?: 'unlimited' | 'tracked';
+  stock?: number;
+  sku?: string;
+  deliveryMode?: 'file' | 'link' | 'shipping' | 'pickup' | string;
+  shippingPrice?: number;
+  shippingRegions?: string[];
+  fppRate?: number;
+  publishToAfriZia?: boolean;
 };
 
 export type CheckoutDelivery = {
