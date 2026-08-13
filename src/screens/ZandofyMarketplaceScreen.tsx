@@ -8,6 +8,9 @@ import { AFRICAN_COUNTRIES_BY_PRIORITY, getCountryByCode, getDeviceCityHint, get
 import { realtimeDb } from '../lib/firebase';
 import { cn } from '../lib/utils';
 import { getZandofyRecommendations, rememberZandofyInterest } from '../domains/commerce/zandofyRecommendations';
+import { recordZandofyAnalyticsEvent, ZandofyAnalyticsSnapshot } from '../domains/commerce/zandofyAnalytics';
+import { toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
+import { useAppStore } from '../store/useAppStore';
 
 const themeStyles: Record<ZandofyTheme, string> = {
   emerald: 'from-[#15EA3E]/24 via-white/[0.05] to-black',
@@ -33,6 +36,7 @@ const dashboardActions = [
   { label: 'Commandes', icon: 'order' as const, route: '/market/orders?module=zandofy' },
   { label: 'Statistique', icon: 'signal' as const, route: '/zandofy/stats' },
   { label: 'Mes clients', icon: 'contact' as const, route: '/zandofy/clients' },
+  { label: 'ZikMart', icon: 'market' as const, route: '/zikmart' },
   { label: 'Réglage', icon: 'settings' as const, route: '/zandofy/domain' }
 ];
 
@@ -753,6 +757,8 @@ export function ZandofyStatsScreen() {
   const { ownerStore, products, loading } = useZandofyStore();
   const { orders, loadingOrders } = useZandofyOrders(ownerStore?.id, ownerStore?.ownerId);
   const [reviewCount, setReviewCount] = useState(0);
+  const [analytics, setAnalytics] = useState<ZandofyAnalyticsSnapshot>({});
+  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('week');
 
   useEffect(() => {
     if (!ownerStore?.id) {
@@ -767,8 +773,41 @@ export function ZandofyStatsScreen() {
     return unsubscribe;
   }, [ownerStore?.id]);
 
+  useEffect(() => {
+    if (!ownerStore?.id) {
+      setAnalytics({});
+      return undefined;
+    }
+    const analyticsRef = ref(realtimeDb, `zandofyAnalytics/${ownerStore.id}`);
+    const unsubscribe = onValue(analyticsRef, (snapshot) => {
+      setAnalytics(snapshot.val() as ZandofyAnalyticsSnapshot | null || {});
+    }, () => setAnalytics({}));
+    return unsubscribe;
+  }, [ownerStore?.id]);
+
   const stats = useMemo(() => {
     const paidOrdersList = orders.filter((order) => ['paid', 'preparing', 'delivering', 'completed'].includes(order.status) || order.paymentStatus === 'confirmed');
+    const paidOrderStatuses = new Set(['paid', 'preparing', 'delivering', 'completed']);
+    const periodDays = period === 'day' ? 1 : period === 'week' ? 7 : period === 'month' ? 30 : 365;
+    const periodStart = Date.now() - (periodDays * 24 * 60 * 60 * 1000);
+    const periodOrders = paidOrdersList.filter((order) => Number(order.createdAt || 0) >= periodStart);
+    const periodDaily = (Object.entries(analytics.daily || {}) as Array<[string, NonNullable<ZandofyAnalyticsSnapshot['daily']>[string]]>)
+      .filter(([day]) => {
+        const date = new Date(`${day}T23:59:59`).getTime();
+        return Number.isFinite(date) && date >= periodStart;
+      })
+      .sort(([first], [second]) => first.localeCompare(second));
+    const uniqueVisitors = new Set<string>();
+    Object.entries(analytics.visitors || {}).forEach(([day, visitors]) => {
+      const date = new Date(`${day}T23:59:59`).getTime();
+      if (!Number.isFinite(date) || date < periodStart) return;
+      Object.keys(visitors || {}).forEach((visitorId) => uniqueVisitors.add(visitorId));
+    });
+    const clientsById = new Map<string, number>();
+    paidOrdersList.forEach((order) => {
+      if (order.buyerId) clientsById.set(order.buyerId, (clientsById.get(order.buyerId) || 0) + 1);
+    });
+    const recurrentClients = Array.from(clientsById.values()).filter((count) => count > 1).length;
     const revenue = paidOrdersList
       .filter((order) => ['paid', 'completed'].includes(order.status))
       .reduce((total, order) => total + Number(order.totalAmount || 0), 0);
@@ -787,16 +826,32 @@ export function ZandofyStatsScreen() {
     const topProducts = products
       .map((product) => ({
         product,
-        orders: orders.filter((order) => order.productId === product.id).length,
-        revenue: orders
-          .filter((order) => order.productId === product.id && ['paid', 'completed'].includes(order.status))
+        orders: periodOrders.filter((order) => order.productId === product.id).length,
+        revenue: periodOrders
+          .filter((order) => order.productId === product.id && paidOrderStatuses.has(order.status))
           .reduce((total, order) => total + Number(order.sellerNetAmount ?? order.totalAmount ?? 0), 0)
       }))
       .sort((first, second) => second.revenue - first.revenue || second.orders - first.orders)
       .slice(0, 5);
 
-    return { revenue, netRevenue, fppTotal, clients, paidOrders, inProgress, recentOrders, lowStock, averageOrder, topProducts };
-  }, [orders, products]);
+    const periodRevenue = periodOrders.reduce((total, order) => total + Number(order.sellerNetAmount ?? order.totalAmount ?? 0), 0);
+    const periodSales = periodOrders.length;
+    const periodStoreViews = periodDaily.reduce((total, [, day]) => total + Number(day.storeViews || 0), 0);
+    const periodProductViews = periodDaily.reduce((total, [, day]) => total + Number(day.productViews || 0), 0);
+    const conversionRate = uniqueVisitors.size ? (periodSales / uniqueVisitors.size) * 100 : 0;
+    const dimensions = analytics.dimensions || {};
+    const topDimension = (values?: Record<string, number>) => Object.entries(values || {})
+      .sort(([, first], [, second]) => Number(second || 0) - Number(first || 0))
+      .slice(0, 5);
+
+    return {
+      revenue, netRevenue, fppTotal, clients, paidOrders, inProgress, recentOrders, lowStock, averageOrder, topProducts,
+      periodDays, periodRevenue, periodSales, periodStoreViews, periodProductViews, conversionRate, recurrentClients,
+      repeatRate: clients ? (recurrentClients / clients) * 100 : 0,
+      devices: topDimension(dimensions.devices), countries: topDimension(dimensions.countries), cities: topDimension(dimensions.cities), sources: topDimension(dimensions.sources),
+      uniqueVisitors: uniqueVisitors.size
+    };
+  }, [analytics, orders, period, products]);
 
   if (loading || loadingOrders) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement statistiques...</main>;
   if (!ownerStore) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Boutique introuvable.</main>;
@@ -834,6 +889,58 @@ export function ZandofyStatsScreen() {
             <p className="mt-1 text-[8px] font-black uppercase tracking-wider text-white/38">{item.label}</p>
           </div>
         ))}
+      </section>
+
+      <section className="px-4 pt-5">
+        <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.045] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Ventes avancées</p>
+              <h2 className="mt-1 text-sm font-black">Performance par période</h2>
+            </div>
+            <span className="text-[10px] font-bold text-white/38">{stats.periodSales} vente(s)</span>
+          </div>
+          <div className="mt-4 grid grid-cols-4 gap-1.5">
+            {([
+              ['day', "Aujourd'hui"],
+              ['week', '7 jours'],
+              ['month', '30 jours'],
+              ['year', '12 mois']
+            ] as const).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setPeriod(value)} className={cn('rounded-xl px-2 py-2 text-[9px] font-black', period === value ? 'bg-[#15EA3E] text-black' : 'border border-white/10 bg-black/20 text-white/50')}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="rounded-2xl border border-[#15EA3E]/16 bg-[#15EA3E]/8 p-3">
+              <p className="text-[9px] font-black uppercase tracking-wider text-white/40">Revenu net</p>
+              <p className="mt-2 text-lg font-black text-[#15EA3E]">{formatZandofyMoney(stats.periodRevenue, ownerStore.currency)}</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+              <p className="text-[9px] font-black uppercase tracking-wider text-white/40">Visiteurs uniques</p>
+              <p className="mt-2 text-lg font-black">{stats.uniqueVisitors}</p>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <div><p className="text-sm font-black">{stats.periodStoreViews}</p><p className="text-[8px] font-bold text-white/35">Visites</p></div>
+            <div><p className="text-sm font-black">{stats.periodProductViews}</p><p className="text-[8px] font-bold text-white/35">Produits vus</p></div>
+            <div><p className="text-sm font-black text-[#15EA3E]">{stats.conversionRate.toFixed(1)}%</p><p className="text-[8px] font-bold text-white/35">Conversion</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-2 px-4 pt-4">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+          <p className="text-[9px] font-black uppercase tracking-wider text-white/38">Clients récurrents</p>
+          <p className="mt-2 text-xl font-black text-[#15EA3E]">{stats.recurrentClients}</p>
+          <p className="mt-1 text-[10px] font-semibold text-white/40">{stats.repeatRate.toFixed(1)}% de la clientèle</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+          <p className="text-[9px] font-black uppercase tracking-wider text-white/38">Panier moyen</p>
+          <p className="mt-2 text-xl font-black">{formatZandofyMoney(stats.averageOrder, ownerStore.currency)}</p>
+          <p className="mt-1 text-[10px] font-semibold text-white/40">Toutes les commandes confirmées</p>
+        </div>
       </section>
 
       <section className="px-4 pt-5">
@@ -877,6 +984,27 @@ export function ZandofyStatsScreen() {
           </div>
           {stats.lowStock > 0 && <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/8 px-3 py-2 text-[10px] font-bold text-amber-100">{stats.lowStock} produit(s) physique(s) bientôt en rupture.</p>}
         </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-2 px-4 pt-4">
+        {[
+          ['Appareils', stats.devices, 'Aucune visite enregistrée'],
+          ['Pays', stats.countries, 'Aucun pays enregistré'],
+          ['Villes', stats.cities, 'Aucune ville enregistrée'],
+          ['Sources', stats.sources, 'Aucune source enregistrée']
+        ].map(([title, values, empty]) => (
+          <div key={title as string} className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
+            <p className="text-[9px] font-black uppercase tracking-wider text-white/38">{title as string}</p>
+            <div className="mt-3 space-y-2">
+              {(values as Array<[string, number]>).length ? (values as Array<[string, number]>).slice(0, 3).map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between gap-2 text-[10px]">
+                  <span className="truncate font-bold text-white/60">{label}</span>
+                  <span className="font-black text-[#15EA3E]">{value}</span>
+                </div>
+              )) : <p className="text-[10px] font-semibold text-white/35">{empty as string}</p>}
+            </div>
+          </div>
+        ))}
       </section>
     </main>
   );
@@ -998,6 +1126,14 @@ export function ZandofyCreateProductScreen() {
   const [shippingPrice, setShippingPrice] = useState('');
   const [shippingRegions, setShippingRegions] = useState('RDC');
   const [publishToAfriZia, setPublishToAfriZia] = useState(true);
+  const [publishToZikMart, setPublishToZikMart] = useState(false);
+  const [supplierType, setSupplierType] = useState<'self' | 'supplier' | 'dropshipper'>('self');
+  const [supplierId, setSupplierId] = useState('');
+  const [supplierName, setSupplierName] = useState('');
+  const [supplierSKU, setSupplierSKU] = useState('');
+  const [supplierCost, setSupplierCost] = useState('');
+  const [supplierLeadTimeDays, setSupplierLeadTimeDays] = useState('');
+  const [dropshippingEnabled, setDropshippingEnabled] = useState(false);
   const [courseLevel, setCourseLevel] = useState('Débutant');
   const [courseDuration, setCourseDuration] = useState('');
   const [templateSoftware, setTemplateSoftware] = useState('');
@@ -1045,6 +1181,14 @@ export function ZandofyCreateProductScreen() {
         shippingPrice: string;
         shippingRegions: string;
         publishToAfriZia: boolean;
+        publishToZikMart: boolean;
+        supplierType: 'self' | 'supplier' | 'dropshipper';
+        supplierId: string;
+        supplierName: string;
+        supplierSKU: string;
+        supplierCost: string;
+        supplierLeadTimeDays: string;
+        dropshippingEnabled: boolean;
         courseLevel: string;
         courseDuration: string;
         templateSoftware: string;
@@ -1079,6 +1223,14 @@ export function ZandofyCreateProductScreen() {
       setShippingPrice(draft.shippingPrice || '');
       setShippingRegions(draft.shippingRegions || 'RDC');
       setPublishToAfriZia(draft.publishToAfriZia !== false);
+      setPublishToZikMart(draft.publishToZikMart === true);
+      setSupplierType(draft.supplierType || 'self');
+      setSupplierId(draft.supplierId || '');
+      setSupplierName(draft.supplierName || '');
+      setSupplierSKU(draft.supplierSKU || '');
+      setSupplierCost(draft.supplierCost || '');
+      setSupplierLeadTimeDays(draft.supplierLeadTimeDays || '');
+      setDropshippingEnabled(draft.dropshippingEnabled === true);
       setCourseLevel(draft.courseLevel || 'Débutant');
       setCourseDuration(draft.courseDuration || '');
       setTemplateSoftware(draft.templateSoftware || '');
@@ -1126,6 +1278,14 @@ export function ZandofyCreateProductScreen() {
       shippingPrice,
       shippingRegions,
       publishToAfriZia,
+      publishToZikMart,
+      supplierType,
+      supplierId,
+      supplierName,
+      supplierSKU,
+      supplierCost,
+      supplierLeadTimeDays,
+      dropshippingEnabled,
       courseLevel,
       courseDuration,
       templateSoftware,
@@ -1164,6 +1324,14 @@ export function ZandofyCreateProductScreen() {
     price,
     productKind,
     publishToAfriZia,
+    publishToZikMart,
+    supplierType,
+    supplierId,
+    supplierName,
+    supplierSKU,
+    supplierCost,
+    supplierLeadTimeDays,
+    dropshippingEnabled,
     salePrice,
     shippingPrice,
     shippingRegions,
@@ -1193,9 +1361,10 @@ export function ZandofyCreateProductScreen() {
   const canContinue = step === 0
     ? productKind === 'physical' || Boolean(digitalType)
     : step === 1
-      ? title.trim().length >= 3 && description.trim().length >= 12 && Boolean(coverFile) &&
+          ? title.trim().length >= 3 && description.trim().length >= 12 && Boolean(coverFile) &&
         (pricingMode === 'free' || Number(price) > 0) &&
-        (productKind === 'digital' || stockMode === 'unlimited' || (stock.trim() !== '' && Number(stock) >= 0))
+        (productKind === 'digital' || stockMode === 'unlimited' || (stock.trim() !== '' && Number(stock) >= 0)) &&
+        (!publishToZikMart || supplierCost.trim() !== '')
       : step === 2
         ? productKind === 'physical'
           ? deliveryMode === 'pickup' || (deliveryMode === 'shipping' && shippingRegions.trim().length > 0)
@@ -1280,6 +1449,14 @@ export function ZandofyCreateProductScreen() {
         shippingPrice: Number(shippingPrice || 0),
         shippingRegions: shippingRegions.split(',').map((region) => region.trim()).filter(Boolean),
         publishToAfriZia,
+        publishToZikMart,
+        supplierType,
+        supplierId,
+        supplierName,
+        supplierSKU,
+        supplierCost: Number(supplierCost || 0),
+        supplierLeadTimeDays: Number(supplierLeadTimeDays || 0),
+        dropshippingEnabled,
         productSpec: {
           courseLevel,
           courseDuration,
@@ -1424,6 +1601,35 @@ export function ZandofyCreateProductScreen() {
               <input type="checkbox" checked={publishToAfriZia} onChange={(event) => setPublishToAfriZia(event.target.checked)} className="h-4 w-4 accent-[#15EA3E]" />
               <span><span className="block text-xs font-black">Afficher aussi dans AfriZia</span><span className="mt-1 block text-[10px] font-semibold text-white/42">Désactive pour garder le produit uniquement dans ta boutique.</span></span>
             </label>
+            {productKind === 'physical' && (
+              <div className="mt-4 rounded-2xl border border-sky-300/18 bg-sky-300/6 p-3">
+                <p className="text-xs font-black">ZikMart et approvisionnement</p>
+                <p className="mt-1 text-[10px] font-semibold leading-relaxed text-white/42">Publie volontairement ce produit physique dans la marketplace de sourcing et calcule ta marge.</p>
+                <label className="mt-3 flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-3">
+                  <input type="checkbox" checked={publishToZikMart} onChange={(event) => setPublishToZikMart(event.target.checked)} className="h-4 w-4 accent-[#15EA3E]" />
+                  <span className="text-[10px] font-black">Publier dans ZikMart</span>
+                </label>
+                {publishToZikMart && <div className="mt-3 space-y-2">
+                  <select value={supplierType} onChange={(event) => setSupplierType(event.target.value as 'self' | 'supplier' | 'dropshipper')} className="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-3 text-xs font-black outline-none">
+                    <option value="self">Mon propre stock</option>
+                    <option value="supplier">Fournisseur partenaire</option>
+                    <option value="dropshipper">Dropshipping</option>
+                  </select>
+                  {supplierType !== 'self' && <>
+                    <input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} placeholder="Nom du fournisseur" className="w-full rounded-xl border border-white/10 bg-black/28 px-3 py-3 text-xs font-bold outline-none" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={supplierId} onChange={(event) => setSupplierId(event.target.value)} placeholder="Référence fournisseur" className="rounded-xl border border-white/10 bg-black/28 px-3 py-3 text-xs font-bold outline-none" />
+                      <input value={supplierSKU} onChange={(event) => setSupplierSKU(event.target.value)} placeholder="SKU fournisseur" className="rounded-xl border border-white/10 bg-black/28 px-3 py-3 text-xs font-bold outline-none" />
+                    </div>
+                  </>}
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={supplierCost} onChange={(event) => setSupplierCost(event.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" placeholder="Coût réel" className="rounded-xl border border-white/10 bg-black/28 px-3 py-3 text-xs font-bold outline-none" />
+                    <input value={supplierLeadTimeDays} onChange={(event) => setSupplierLeadTimeDays(event.target.value.replace(/[^\d]/g, ''))} inputMode="numeric" placeholder="Délai en jours" className="rounded-xl border border-white/10 bg-black/28 px-3 py-3 text-xs font-bold outline-none" />
+                  </div>
+                  {supplierType === 'dropshipper' && <p className="rounded-xl bg-sky-300/10 px-3 py-2 text-[10px] font-bold text-sky-100">La commande sera transmise au fournisseur après paiement, avec suivi du délai annoncé.</p>}
+                </div>}
+              </div>
+            )}
           </section>
         )}
 
@@ -1576,6 +1782,14 @@ export function ZandofyEditProductScreen() {
   const [shippingPrice, setShippingPrice] = useState('');
   const [shippingRegions, setShippingRegions] = useState('RDC');
   const [publishToAfriZia, setPublishToAfriZia] = useState(true);
+  const [publishToZikMart, setPublishToZikMart] = useState(false);
+  const [supplierType, setSupplierType] = useState<'self' | 'supplier' | 'dropshipper'>('self');
+  const [supplierId, setSupplierId] = useState('');
+  const [supplierName, setSupplierName] = useState('');
+  const [supplierSKU, setSupplierSKU] = useState('');
+  const [supplierCost, setSupplierCost] = useState('');
+  const [supplierLeadTimeDays, setSupplierLeadTimeDays] = useState('');
+  const [dropshippingEnabled, setDropshippingEnabled] = useState(false);
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -1598,6 +1812,14 @@ export function ZandofyEditProductScreen() {
     setShippingPrice(String(product.shippingPrice || 0));
     setShippingRegions(product.shippingRegions?.join(', ') || 'RDC');
     setPublishToAfriZia(product.publishToAfriZia !== false);
+    setPublishToZikMart(product.publishToZikMart === true);
+    setSupplierType(product.supplierType || 'self');
+    setSupplierId(product.supplierId || '');
+    setSupplierName(product.supplierName || '');
+    setSupplierSKU(product.supplierSKU || '');
+    setSupplierCost(product.supplierCost ? String(product.supplierCost) : '');
+    setSupplierLeadTimeDays(product.supplierLeadTimeDays ? String(product.supplierLeadTimeDays) : '');
+    setDropshippingEnabled(product.dropshippingEnabled === true);
   }, [product]);
 
   const submit = async (event: FormEvent) => {
@@ -1623,7 +1845,15 @@ export function ZandofyEditProductScreen() {
         deliveryMode,
         shippingPrice: Number(shippingPrice || 0),
         shippingRegions: shippingRegions.split(',').map((region) => region.trim()).filter(Boolean),
-        publishToAfriZia
+        publishToAfriZia,
+        publishToZikMart,
+        supplierType,
+        supplierId,
+        supplierName,
+        supplierSKU,
+        supplierCost: Number(supplierCost || 0),
+        supplierLeadTimeDays: Number(supplierLeadTimeDays || 0),
+        dropshippingEnabled
       });
       navigate('/zandofy/products');
     } catch (error) {
@@ -1714,6 +1944,29 @@ export function ZandofyEditProductScreen() {
           <span><span className="block text-xs font-black">Visible dans AfriZia</span><span className="mt-1 block text-[10px] font-semibold text-white/42">Désactive pour garder le produit uniquement dans ta boutique.</span></span>
         </label>
 
+        {isPhysical && (
+          <section className="rounded-[1.8rem] border border-sky-300/18 bg-sky-300/6 p-4">
+            <p className="text-xs font-black">ZikMart et fournisseur</p>
+            <label className="mt-3 flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-3">
+              <input type="checkbox" checked={publishToZikMart} onChange={(event) => setPublishToZikMart(event.target.checked)} className="h-4 w-4 accent-[#15EA3E]" />
+              <span className="text-[10px] font-black">Publier dans ZikMart</span>
+            </label>
+            {publishToZikMart && <div className="mt-3 space-y-2">
+              <select value={supplierType} onChange={(event) => setSupplierType(event.target.value as 'self' | 'supplier' | 'dropshipper')} className="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-3 text-xs font-black outline-none">
+                <option value="self">Mon propre stock</option>
+                <option value="supplier">Fournisseur partenaire</option>
+                <option value="dropshipper">Dropshipping</option>
+              </select>
+              {supplierType !== 'self' && <>
+                <input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} placeholder="Nom du fournisseur" className="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs font-bold outline-none" />
+                <div className="grid grid-cols-2 gap-2"><input value={supplierId} onChange={(event) => setSupplierId(event.target.value)} placeholder="Référence fournisseur" className="rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs font-bold outline-none" /><input value={supplierSKU} onChange={(event) => setSupplierSKU(event.target.value)} placeholder="SKU fournisseur" className="rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs font-bold outline-none" /></div>
+              </>}
+              <div className="grid grid-cols-2 gap-2"><input value={supplierCost} onChange={(event) => setSupplierCost(event.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" placeholder="Coût réel" className="rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs font-bold outline-none" /><input value={supplierLeadTimeDays} onChange={(event) => setSupplierLeadTimeDays(event.target.value.replace(/[^\d]/g, ''))} inputMode="numeric" placeholder="Délai en jours" className="rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs font-bold outline-none" /></div>
+              <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-3"><input type="checkbox" checked={dropshippingEnabled} onChange={(event) => setDropshippingEnabled(event.target.checked)} className="h-4 w-4 accent-[#15EA3E]" /><span className="text-[10px] font-black">Activer le traitement dropshipping</span></label>
+            </div>}
+          </section>
+        )}
+
         {status && <p className="rounded-2xl border border-red-400/18 bg-red-500/10 p-3 text-center text-xs font-bold text-red-100">{status}</p>}
         <button type="submit" disabled={saving} className="w-full rounded-2xl bg-[#15EA3E] py-4 text-xs font-black uppercase tracking-[0.18em] text-black disabled:opacity-40">{saving ? 'Enregistrement...' : 'Enregistrer les modifications'}</button>
       </form>
@@ -1783,6 +2036,7 @@ export function ZandofyProductsScreen() {
             <div className="flex items-center justify-between gap-2 border-t border-white/8 px-3 py-2">
               <div className="min-w-0">
                 <p className="truncate text-[9px] font-black uppercase tracking-wider text-white/42">{product.productKind === 'physical' ? product.stockMode === 'tracked' ? `Stock: ${product.stock ?? 0}` : 'Stock illimité' : 'Accès digital'}</p>
+                {product.productKind === 'physical' && product.publishToZikMart && <p className="mt-1 truncate text-[9px] font-bold text-sky-200/70">Marge: {formatZandofyMoney(product.sellerMargin || 0, product.currency)}</p>}
                 {product.productKind === 'physical' && product.stockMode === 'tracked' && <div className="mt-1 flex items-center gap-1">
                   <button type="button" aria-label="Diminuer le stock" disabled={stockBusy === product.id} onClick={async (event) => { event.preventDefault(); setStockBusy(product.id); setStockStatus(''); try { await setProductStock(product.id, Math.max(0, Number(product.stock || 0) - 1)); } catch (error) { setStockStatus(error instanceof Error ? error.message : 'Stock impossible.'); } finally { setStockBusy(''); } }} className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/10 text-xs font-black">−</button>
                   <button type="button" aria-label="Augmenter le stock" disabled={stockBusy === product.id} onClick={async (event) => { event.preventDefault(); setStockBusy(product.id); setStockStatus(''); try { await setProductStock(product.id, Number(product.stock || 0) + 1); } catch (error) { setStockStatus(error instanceof Error ? error.message : 'Stock impossible.'); } finally { setStockBusy(''); } }} className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#15EA3E] text-xs font-black text-black">+</button>
@@ -1814,6 +2068,7 @@ export function ZandofyDomainScreen() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState('');
   const [status, setStatus] = useState('');
+  const [domainResult, setDomainResult] = useState<Awaited<ReturnType<typeof updateCustomDomain>> | null>(null);
 
   useEffect(() => {
     if (!ownerStore) return;
@@ -1821,6 +2076,7 @@ export function ZandofyDomainScreen() {
     setTagline(ownerStore.tagline);
     setTheme(ownerStore.theme);
     setLogoPreview(ownerStore.logoURL);
+    setDomain(ownerStore.customDomain || '');
   }, [ownerStore]);
 
   if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement domaine...</main>;
@@ -1829,10 +2085,22 @@ export function ZandofyDomainScreen() {
   const saveDomain = async () => {
     setStatus('');
     try {
-      await updateCustomDomain(domain);
-      setStatus('Domaine enregistré. Les DNS seront vérifiables dès que l’infrastructure domaine sera connectée.');
+      const result = await updateCustomDomain(domain, 'connect');
+      setDomainResult(result);
+      setStatus(result.message);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Domaine impossible.');
+    }
+  };
+
+  const verifyDomain = async () => {
+    setStatus('');
+    try {
+      const result = await updateCustomDomain(domain || ownerStore.customDomain, 'verify');
+      setDomainResult(result);
+      setStatus(result.message);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Vérification du domaine impossible.');
     }
   };
 
@@ -1897,16 +2165,29 @@ export function ZandofyDomainScreen() {
       <section className="px-4 pt-5">
         <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5">
           <h2 className="text-xl font-black">Domaine personnalisé</h2>
-          <p className="mt-2 text-sm font-semibold leading-relaxed text-white/46">{ownerStore.customDomain ? `${ownerStore.customDomain} - ${ownerStore.customDomainStatus}` : 'Ajoute le domaine que tu veux connecter à ta boutique.'}</p>
+          <p className="mt-2 text-sm font-semibold leading-relaxed text-white/46">{ownerStore.customDomain ? `${ownerStore.customDomain} - ${ownerStore.customDomainStatus === 'verified' ? 'vérifié' : 'en attente'}` : 'Ajoute le domaine que tu veux connecter à ta boutique.'}</p>
           <div className="mt-5 flex gap-2">
             <input value={domain} onChange={(event) => setDomain(event.target.value)} placeholder="boutique.com" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/24 px-3 py-3 text-xs font-bold outline-none" />
             <button type="button" onClick={saveDomain} className="rounded-2xl bg-[#15EA3E] px-4 text-[10px] font-black uppercase tracking-wider text-black">Lier</button>
           </div>
-          <div className="mt-5 rounded-2xl border border-[#15EA3E]/16 bg-[#15EA3E]/8 p-4">
-            <p className="text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">DNS prévu</p>
-            <p className="mt-2 text-xs font-bold text-white/60">CNAME www → cname.afrisell.app</p>
-            <p className="mt-1 text-xs font-bold text-white/60">TXT _afrisell-verification → zandofy-{ownerStore.slug}</p>
-          </div>
+          {domainResult && (
+            <div className="mt-5 rounded-2xl border border-[#15EA3E]/16 bg-[#15EA3E]/8 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">Configuration DNS</p>
+                <span className={cn('rounded-full px-2 py-1 text-[8px] font-black uppercase', domainResult.status === 'verified' ? 'bg-[#15EA3E] text-black' : 'bg-amber-300/15 text-amber-100')}>{domainResult.status === 'verified' ? 'Vérifié' : 'En attente'}</span>
+              </div>
+              <div className="mt-3 space-y-2">
+                {domainResult.dnsRecords.map((record) => (
+                  <div key={`${record.type}-${record.name}-${record.value}`} className="rounded-xl border border-white/10 bg-black/20 p-3">
+                    <p className="text-[9px] font-black uppercase tracking-wider text-white/38">{record.type} · {record.name}</p>
+                    <p className="mt-1 break-all text-[11px] font-bold text-white/72">{record.value}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-[10px] font-semibold leading-relaxed text-white/45">Une fois les DNS enregistrés chez ton fournisseur, lance la vérification. Le certificat SSL et le routage sont activés automatiquement par Vercel après validation.</p>
+              {domainResult.status !== 'verified' && <button type="button" onClick={() => void verifyDomain()} className="mt-3 w-full rounded-xl border border-[#15EA3E]/30 bg-[#15EA3E]/10 py-3 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">Vérifier maintenant</button>}
+            </div>
+          )}
           {status && <p className="mt-4 text-xs font-bold text-[#15EA3E]">{status}</p>}
         </div>
       </section>
@@ -1924,6 +2205,20 @@ export function ZandofyPublicStoreScreen() {
   const [reviewText, setReviewText] = useState('');
   const [feedbackStatus, setFeedbackStatus] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
+  useEffect(() => {
+    if (!publicStore?.id) return;
+    const viewerCountry = profile?.country || getCountryByCode(getDeviceCountryCode())?.name || publicStore.country;
+    const viewerCity = profile?.city || getDeviceCityHint() || publicStore.city;
+    void recordZandofyAnalyticsEvent({
+      storeId: publicStore.id,
+      eventType: 'store_view',
+      country: viewerCountry,
+      city: viewerCity
+    }).catch(() => {
+      // Les statistiques ne doivent jamais bloquer l'affichage de la boutique.
+    });
+  }, [profile?.city, profile?.country, publicStore?.city, publicStore?.country, publicStore?.id]);
 
   useEffect(() => {
     if (!publicStore?.id) {
@@ -2107,7 +2402,7 @@ export function ZandofyPublicStoreScreen() {
             <p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/42">Suggestions calculées à partir de tes intérêts récents, des collections et de la disponibilité.</p>
             <div className="mt-4 flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
               {recommendedProducts.map((product) => (
-                <Link key={product.id} to={`/zandofy/product/${product.id}`} onClick={() => rememberZandofyInterest(product)} className="w-[132px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/22">
+                <Link key={product.id} to={`/zandofy/product/${product.id}`} onClick={() => { rememberZandofyInterest(product); void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="w-[132px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/22">
                   <img src={product.coverURL} alt="" className="h-20 w-full object-cover" />
                   <div className="p-2.5">
                     <p className="line-clamp-2 text-[10px] font-black leading-tight">{product.title}</p>
@@ -2201,7 +2496,7 @@ export function ZandofyPublicStoreScreen() {
               </div>
               {visibleProducts.length > 0 ? <div className="mt-4 grid grid-cols-2 gap-3 text-left">
                 {visibleProducts.slice(0, 12).map((product) => (
-                  <Link key={product.id} to={`/zandofy/product/${product.id}`} className="overflow-hidden rounded-2xl border border-white/10 bg-black/22">
+                  <Link key={product.id} to={`/zandofy/product/${product.id}`} onClick={() => { void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="overflow-hidden rounded-2xl border border-white/10 bg-black/22">
                     <img src={product.coverURL} alt="" className="h-24 w-full object-cover" />
                     <div className="p-3">
                       <p className="line-clamp-2 min-h-[32px] text-xs font-black leading-tight">{product.title}</p>
@@ -2236,6 +2531,38 @@ export function ZandofyPublicStoreScreen() {
           </p>
         )}
       </section>
+    </main>
+  );
+}
+
+export function ZikMartMarketplaceScreen() {
+  const navigate = useNavigate();
+  const { zikMartProducts, loading } = useAfriMarket();
+  const openCheckout = useAppStore((state) => state.openCheckout);
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('Tout');
+  const categories = Array.from(new Set(zikMartProducts.map((product) => product.catalogCategory || 'Autres')));
+  const products = zikMartProducts.filter((product) => {
+    const text = `${product.title} ${product.description} ${product.supplierName} ${product.catalogCategory}`.toLowerCase();
+    return (category === 'Tout' || product.catalogCategory === category) && (!query.trim() || text.includes(query.trim().toLowerCase()));
+  });
+
+  if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement ZikMart...</main>;
+
+  return (
+    <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
+      <header className="sticky top-0 z-20 bg-[#030604]/92 px-4 pb-4 pt-4 backdrop-blur-xl">
+        <div className="flex items-center justify-between gap-3">
+          <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]"><AfriSellIcon name="arrow" size={16} className="rotate-180" /></button>
+          <div className="text-center"><p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">ZikMart</p><h1 className="text-sm font-black">Sourcing physique</h1></div>
+          <AfriSellIcon name="market" size={20} className="text-[#15EA3E]" />
+        </div>
+        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-[#15EA3E]/18 bg-[#071007] px-3 py-2"><AfriSellIcon name="search" size={16} className="text-[#15EA3E]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un produit ou fournisseur" className="h-9 min-w-0 flex-1 bg-transparent text-xs font-bold outline-none placeholder:text-white/30" /></div>
+        <div className="scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-1"><button type="button" onClick={() => setCategory('Tout')} className={cn('shrink-0 rounded-full px-3 py-2 text-[9px] font-black', category === 'Tout' ? 'bg-[#15EA3E] text-black' : 'border border-white/10 text-white/50')}>Tout</button>{categories.map((item) => <button key={item} type="button" onClick={() => setCategory(item)} className={cn('shrink-0 rounded-full px-3 py-2 text-[9px] font-black', category === item ? 'bg-[#15EA3E] text-black' : 'border border-white/10 text-white/50')}>{item}</button>)}</div>
+      </header>
+      <section className="px-4 pt-5"><div className="rounded-[1.7rem] border border-[#15EA3E]/18 bg-[radial-gradient(circle_at_10%_10%,rgba(21,234,62,0.18),transparent_36%),#071007] p-5"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Marketplace fournisseur</p><h2 className="mt-2 text-2xl font-black">Des produits, des sources, une marge claire.</h2><p className="mt-2 text-xs font-semibold leading-relaxed text-white/45">ZikMart rassemble les produits physiques publiés volontairement depuis les boutiques Zandofy.</p></div></section>
+      <section className="grid grid-cols-2 gap-3 px-4 pt-5">{products.map((product) => <article key={product.id} className="overflow-hidden rounded-[1.4rem] border border-white/10 bg-white/[0.04]"><img src={product.coverURL || '/afrimarket.jpeg'} alt="" className="h-32 w-full object-cover" /><div className="p-3"><p className="line-clamp-2 min-h-[32px] text-xs font-black">{product.title}</p><p className="mt-2 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">{product.catalogCategory || 'Autres'}</p><p className="mt-1 text-sm font-black">{formatZandofyMoney(product.price || 0, product.currency)}</p><p className="mt-2 text-[9px] font-semibold text-white/42">{product.supplierName || 'Vendeur direct'}{product.supplierLeadTimeDays ? ` · ${product.supplierLeadTimeDays} j` : ''}</p><button type="button" onClick={() => openCheckout(toCheckoutProduct(product))} className="mt-3 w-full rounded-xl bg-[#15EA3E] py-2.5 text-[9px] font-black uppercase tracking-wider text-black">Acheter</button></div></article>)}</section>
+      {!products.length && <p className="mx-4 mt-5 rounded-2xl border border-dashed border-white/14 p-6 text-center text-xs font-bold text-white/45">Aucun produit ZikMart ne correspond à ta recherche.</p>}
     </main>
   );
 }

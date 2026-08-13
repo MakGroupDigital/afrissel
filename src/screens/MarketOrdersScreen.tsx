@@ -5,7 +5,7 @@ import { AfriSellIcon } from '../components/AfriSellIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { realtimeDb } from '../lib/firebase';
 import { formatMarketPrice } from '../hooks/useAfriMarket';
-import { updateZandofyOrderStatus } from '../domains/commerce';
+import { updateZandofyOrderStatus, updateZikMartSupplierStatus, ZikMartSupplierStage } from '../domains/commerce';
 
 type MarketOrder = {
   id: string;
@@ -30,6 +30,9 @@ type MarketOrder = {
   storeId?: string;
   storeName?: string;
   isDigital?: boolean;
+  marketplace?: string;
+  dropshippingEnabled?: boolean;
+  supplierFulfillmentStatus?: ZikMartSupplierStage | 'not_applicable';
   createdAt?: number;
 };
 
@@ -101,6 +104,20 @@ export default function MarketOrdersScreen() {
     }
   };
 
+  const updateSupplierStage = async (orderId: string, status: ZikMartSupplierStage) => {
+    if (!user) return;
+    setBusyOrder(orderId);
+    setActionStatus('');
+    try {
+      await updateZikMartSupplierStatus({ user, orderId, status });
+      setActionStatus(status === 'confirmed' ? 'Fournisseur confirmé.' : status === 'dispatched' ? 'Expédition fournisseur enregistrée.' : status === 'unavailable' ? 'Indisponibilité signalée au client.' : 'Demande transmise au fournisseur.');
+    } catch (error) {
+      setActionStatus(error instanceof Error ? error.message : 'Mise à jour fournisseur impossible.');
+    } finally {
+      setBusyOrder('');
+    }
+  };
+
   if (!user) {
     return (
       <main className="min-h-full bg-black px-4 pb-8 pt-4 text-center text-white">
@@ -164,6 +181,9 @@ export default function MarketOrdersScreen() {
           const isSeller = isZandofyMode && order.sellerId === user.uid;
           const canPrepare = isSeller && !order.isDigital && order.status === 'paid';
           const canDispatch = isSeller && !order.isDigital && order.status === 'preparing';
+          const isDropshipping = isSeller && order.marketplace === 'zikmart' && order.dropshippingEnabled;
+          const canConfirmSupplier = isDropshipping && order.supplierFulfillmentStatus === 'pending_supplier' && order.status === 'paid';
+          const canDispatchSupplier = isDropshipping && order.supplierFulfillmentStatus === 'confirmed';
           return (
           <article key={order.id} className="rounded-[1.3rem] border border-white/10 bg-white/[0.04] p-3">
             <div className="flex gap-3">
@@ -180,7 +200,7 @@ export default function MarketOrdersScreen() {
               </span>
             </div>
             <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2">
-              <span className="text-[9px] font-bold text-white/45">{order.isDigital ? 'Accès digital' : order.deliveryStatus === 'in_transit' ? 'Safari en route' : order.deliveryStatus === 'delivered' ? 'Livré' : 'Livraison à organiser'}</span>
+              <span className="text-[9px] font-bold text-white/45">{order.isDigital ? 'Accès digital' : isDropshipping ? `Fournisseur: ${order.supplierFulfillmentStatus === 'confirmed' ? 'confirmé' : order.supplierFulfillmentStatus === 'dispatched' ? 'expédié' : order.supplierFulfillmentStatus === 'unavailable' ? 'indisponible' : 'en attente'}` : order.deliveryStatus === 'in_transit' ? 'Safari en route' : order.deliveryStatus === 'delivered' ? 'Livré' : 'Livraison à organiser'}</span>
               {isSeller && order.deliveryAddress && <span className="max-w-[52%] truncate text-right text-[9px] font-bold text-white/45">{order.deliveryAddress}</span>}
             </div>
             <div className="mt-3 grid grid-cols-4 gap-2">
@@ -201,6 +221,12 @@ export default function MarketOrdersScreen() {
               <button type="button" onClick={() => void updateOrderStage(order.id, canPrepare ? 'preparing' : 'delivering')} disabled={busyOrder === order.id} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#15EA3E] px-3 py-3 text-[9px] font-black uppercase tracking-wider text-black disabled:opacity-50">
                 <AfriSellIcon name={canPrepare ? 'order' : 'send'} size={14} />
                 {busyOrder === order.id ? 'Mise à jour...' : canPrepare ? 'Marquer en préparation' : 'Remettre à Safari'}
+              </button>
+            )}
+            {isDropshipping && (canConfirmSupplier || canDispatchSupplier) && (
+              <button type="button" onClick={() => void updateSupplierStage(order.id, canConfirmSupplier ? 'confirmed' : 'dispatched')} disabled={busyOrder === order.id} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-sky-300/30 bg-sky-300/10 px-3 py-3 text-[9px] font-black uppercase tracking-wider text-sky-100 disabled:opacity-50">
+                <AfriSellIcon name={canConfirmSupplier ? 'contact' : 'send'} size={14} />
+                {busyOrder === order.id ? 'Mise à jour...' : canConfirmSupplier ? 'Confirmer le fournisseur' : 'Confirmer l’expédition fournisseur'}
               </button>
             )}
           </article>

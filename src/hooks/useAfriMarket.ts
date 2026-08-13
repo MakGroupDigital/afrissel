@@ -67,6 +67,15 @@ export type AfriMarketContent = {
   fppRate?: number;
   publishToAfriZia?: boolean;
   catalogCategory?: string;
+  publishToZikMart?: boolean;
+  supplierType?: 'self' | 'supplier' | 'dropshipper';
+  supplierId?: string;
+  supplierName?: string;
+  supplierSKU?: string;
+  supplierCost?: number;
+  supplierLeadTimeDays?: number;
+  dropshippingEnabled?: boolean;
+  sellerMargin?: number;
   location?: string;
   textStyle?: string;
   createdAt?: number | string | { seconds?: number };
@@ -220,7 +229,7 @@ const normalizeMedia = (content: RawContent): AfriMarketMedia[] => {
   return [];
 };
 
-const normalizeContent = (id: string, content: RawContent): AfriMarketContent => {
+export const normalizeContent = (id: string, content: RawContent): AfriMarketContent => {
   const media = normalizeMedia(content);
   const isSellable = Boolean(content.isSellable || content.linkedProductId || content.format === 'article' || content.villagePrice);
 
@@ -281,6 +290,15 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     fppRate: Math.min(Math.max(toNumber(content.fppRate), 0), 20),
     publishToAfriZia: content.publishToAfriZia !== false,
     catalogCategory: content.catalogCategory || '',
+    publishToZikMart: content.publishToZikMart === true,
+    supplierType: content.supplierType || 'self',
+    supplierId: content.supplierId || '',
+    supplierName: content.supplierName || '',
+    supplierSKU: content.supplierSKU || '',
+    supplierCost: content.supplierCost !== undefined ? toNumber(content.supplierCost) : 0,
+    supplierLeadTimeDays: content.supplierLeadTimeDays !== undefined ? toNumber(content.supplierLeadTimeDays) : 0,
+    dropshippingEnabled: Boolean(content.dropshippingEnabled),
+    sellerMargin: content.sellerMargin !== undefined ? toNumber(content.sellerMargin) : Math.max(0, toNumber(content.price) - toNumber(content.supplierCost)),
     location: content.location || '',
     textStyle: content.textStyle || '',
     createdAt: content.createdAt,
@@ -351,6 +369,15 @@ export const toCheckoutProduct = (content: AfriMarketContent): Product => ({
   shippingRegions: content.shippingRegions,
   fppRate: content.fppRate,
   publishToAfriZia: content.publishToAfriZia !== false,
+  publishToZikMart: content.publishToZikMart === true,
+  supplierType: content.supplierType,
+  supplierId: content.supplierId,
+  supplierName: content.supplierName,
+  supplierSKU: content.supplierSKU,
+  supplierCost: content.supplierCost,
+  supplierLeadTimeDays: content.supplierLeadTimeDays,
+  dropshippingEnabled: content.dropshippingEnabled,
+  sellerMargin: content.sellerMargin,
   catalogCategory: content.catalogCategory || ''
 });
 
@@ -370,6 +397,7 @@ export const useAfriMarket = () => {
   const { user, profile } = useFirebaseAuth();
   const [abcContents, setAbcContents] = useState<AfriMarketContent[]>(() => readOfflineCache(ABC_CACHE_KEY, []));
   const [marketProducts, setMarketProducts] = useState<AfriMarketContent[]>(() => readOfflineCache(MARKET_CACHE_KEY, []));
+  const [zikMartProducts, setZikMartProducts] = useState<AfriMarketContent[]>([]);
   const [followedAuthors, setFollowedAuthors] = useState<Record<string, boolean>>({});
   const [followerAuthors, setFollowerAuthors] = useState<Record<string, boolean>>({});
   const [mutualAuthors, setMutualAuthors] = useState<Record<string, boolean>>({});
@@ -414,6 +442,7 @@ export const useAfriMarket = () => {
 
     const abcRef = ref(realtimeDb, 'abcPosts');
     const marketRef = ref(realtimeDb, 'marketProducts');
+    const zikMartRef = ref(realtimeDb, 'zikMartProducts');
     const followsRef = user ? ref(realtimeDb, `follows/${user.uid}`) : null;
     const followersRef = user ? ref(realtimeDb, `followers/${user.uid}`) : null;
     const likesRef = user ? ref(realtimeDb, `contentLikesByUser/${user.uid}`) : null;
@@ -475,6 +504,13 @@ export const useAfriMarket = () => {
       }
     );
 
+    const unsubscribeZikMart = onValue(zikMartRef, (snapshot) => {
+      const data = snapshot.val() as Record<string, RawContent> | null;
+      setZikMartProducts(Object.entries(data || {})
+        .map(([id, content]) => normalizeContent(id, content))
+        .filter((content) => content.status !== 'deleted' && content.status !== 'hidden' && content.productKind === 'physical'));
+    }, () => setZikMartProducts([]));
+
     const unsubscribeFollows = followsRef
       ? onValue(followsRef, (snapshot) => {
           const fallback = readOfflineCache<Record<string, boolean>>(scopedCacheKey('follows', user?.uid), {});
@@ -518,11 +554,13 @@ export const useAfriMarket = () => {
       mounted = false;
       unsubscribeAbc();
       unsubscribeMarket();
+      unsubscribeZikMart();
       unsubscribeFollows?.();
       unsubscribeFollowers?.();
       unsubscribeLikes?.();
       off(abcRef);
       off(marketRef);
+      off(zikMartRef);
       if (followsRef) off(followsRef);
       if (followersRef) off(followersRef);
       if (likesRef) off(likesRef);
@@ -874,6 +912,7 @@ export const useAfriMarket = () => {
   return useMemo(() => ({
     abcContents,
     marketProducts,
+    zikMartProducts,
     followedAuthors,
     mutualAuthors,
     likedContents,
@@ -886,5 +925,5 @@ export const useAfriMarket = () => {
     watchComments,
     addComment,
     recordShare
-  }), [abcContents, commentsByContent, error, followedAuthors, likedContents, loading, marketProducts, mutualAuthors]);
+  }), [abcContents, commentsByContent, error, followedAuthors, likedContents, loading, marketProducts, mutualAuthors, zikMartProducts]);
 };

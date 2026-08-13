@@ -32,6 +32,15 @@ export type Product = {
   shippingRegions?: string[];
   fppRate?: number;
   publishToAfriZia?: boolean;
+  publishToZikMart?: boolean;
+  supplierType?: 'self' | 'supplier' | 'dropshipper';
+  supplierId?: string;
+  supplierName?: string;
+  supplierSKU?: string;
+  supplierCost?: number;
+  supplierLeadTimeDays?: number;
+  dropshippingEnabled?: boolean;
+  sellerMargin?: number;
 };
 
 export type CheckoutDelivery = {

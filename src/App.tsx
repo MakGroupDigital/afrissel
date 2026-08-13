@@ -20,7 +20,7 @@ import CreateHubScreen from './screens/CreateHubScreen';
 import CreatePostScreen from './screens/CreatePostScreen';
 import AfriAiTalkScreen from './screens/AfriAiTalkScreen';
 import QuickActionOffersScreen from './screens/QuickActionOffersScreen';
-import ZandofyMarketplaceScreen, { ZandofyClientsScreen, ZandofyCreateProductScreen, ZandofyCreateStoreScreen, ZandofyDashboardScreen, ZandofyDomainScreen, ZandofyEditProductScreen, ZandofyProductsScreen, ZandofyPublicStoreScreen, ZandofyStatsScreen } from './screens/ZandofyMarketplaceScreen';
+import ZandofyMarketplaceScreen, { ZandofyClientsScreen, ZandofyCreateProductScreen, ZandofyCreateStoreScreen, ZandofyDashboardScreen, ZandofyDomainScreen, ZandofyEditProductScreen, ZandofyProductsScreen, ZandofyPublicStoreScreen, ZandofyStatsScreen, ZikMartMarketplaceScreen } from './screens/ZandofyMarketplaceScreen';
 import PromotionsScreen from './screens/PromotionsScreen';
 import MarketHome from './screens/MarketHome';
 import ProductDetailScreen from './screens/ProductDetailScreen';
@@ -86,6 +86,15 @@ function AppRoutes() {
   const { user, profile, loading } = useFirebaseAuth();
   const [isBooting, setIsBooting] = useState(window.location.pathname !== '/');
   const hasSeenOnboarding = window.localStorage.getItem('afrisell:onboarding-seen') === '1';
+  const currentHost = window.location.hostname.toLowerCase().replace(/^www\./, '');
+  const isCustomStoreDomain = Boolean(
+    currentHost &&
+    currentHost !== 'localhost' &&
+    currentHost !== '127.0.0.1' &&
+    currentHost !== 'afri.afrisell.app' &&
+    !currentHost.endsWith('.vercel.app') &&
+    !currentHost.endsWith('.localhost')
+  );
 
   useEffect(() => {
     if (!isBooting) return;
@@ -93,7 +102,7 @@ function AppRoutes() {
     return () => window.clearTimeout(timer);
   }, [isBooting]);
 
-  if (!hasSeenOnboarding && !['/', '/onboarding', '/login', '/identity-setup'].includes(location.pathname)) {
+  if (!isCustomStoreDomain && !hasSeenOnboarding && !['/', '/onboarding', '/login', '/identity-setup'].includes(location.pathname)) {
     return (
       <PhoneWrapper>
         <Navigate to="/onboarding" replace />
@@ -110,6 +119,7 @@ function AppRoutes() {
   }
 
   if (
+    !isCustomStoreDomain &&
     !loading &&
     user &&
     profile?.demographicsSetupRequired &&
@@ -126,7 +136,7 @@ function AppRoutes() {
   return (
     <PhoneWrapper>
       <Routes>
-        <Route path="/" element={<SplashScreen />} />
+        <Route path="/" element={isCustomStoreDomain ? <ZandofyPublicStoreScreen /> : <SplashScreen />} />
         <Route path="/onboarding" element={<OnboardingScreen />} />
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/identity-setup" element={<RequireAuth><IdentitySetupScreen /></RequireAuth>} />
@@ -134,6 +144,7 @@ function AppRoutes() {
         <Route path="/ecosystem" element={<EcosystemHome />} />
         <Route path="/offers/:sectionId" element={<QuickActionOffersScreen />} />
         <Route path="/zandofy" element={<ZandofyMarketplaceScreen />} />
+        <Route path="/zikmart" element={<ZikMartMarketplaceScreen />} />
         <Route path="/zandofy/create" element={<RequireAuth><ZandofyCreateStoreScreen /></RequireAuth>} />
         <Route path="/zandofy/dashboard" element={<RequireAuth><ZandofyDashboardScreen /></RequireAuth>} />
         <Route path="/zandofy/domain" element={<RequireAuth><ZandofyDomainScreen /></RequireAuth>} />

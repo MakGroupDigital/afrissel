@@ -28,6 +28,7 @@ type VillageShareInput = {
 };
 
 type ZandofyOrderStage = 'preparing' | 'delivering';
+export type ZikMartSupplierStage = 'pending_supplier' | 'confirmed' | 'dispatched' | 'unavailable';
 
 const formatMoney = (value: number, currency = 'USD') => {
   if (currency === 'USD') return `$${value.toLocaleString('fr-FR')}`;
@@ -178,6 +179,7 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
   const isPaidNow = paymentMode === 'afrispay' || totalAmount === 0;
   const documentType = isPaidNow ? 'receipt' : 'invoice';
   const orderModule = product.module === 'Zandofy' || isDigitalProduct || product.storeId ? 'zandofy' : 'market';
+  const isZikMartProduct = product.publishToZikMart === true && product.productKind === 'physical';
   const orderMessage = `${isPaidNow ? 'Commande payée' : 'Facture créée'} ${orderId}: ${product.name} - ${formatMoney(totalAmount, currency)}. Livraison : ${deliveryRecord.title}.`;
 
   const updates: Record<string, unknown> = {
@@ -188,6 +190,7 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
       productImage: product.imageUrl,
       productCategory: product.category || '',
       module: orderModule,
+      marketplace: isZikMartProduct ? 'zikmart' : orderModule === 'zandofy' ? 'zandofy' : 'afrizia',
       storeId: product.storeId || '',
       storeSlug: product.storeSlug || '',
       storeName: product.storeName || '',
@@ -204,6 +207,14 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
       fppRate,
       fppAmount,
       sellerNetAmount,
+      supplierType: product.supplierType || 'self',
+      supplierId: product.supplierId || '',
+      supplierName: product.supplierName || '',
+      supplierSKU: product.supplierSKU || '',
+      supplierCost: Number(product.supplierCost || 0),
+      supplierLeadTimeDays: Number(product.supplierLeadTimeDays || 0),
+      dropshippingEnabled: Boolean(product.dropshippingEnabled),
+      supplierFulfillmentStatus: product.dropshippingEnabled ? 'pending_supplier' : 'not_applicable',
       currency,
       status: isPaidNow ? 'paid' : 'awaiting_delivery_payment',
       paymentStatus: isPaidNow ? 'confirmed' : 'pay_on_delivery',
@@ -230,6 +241,9 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
       sellerId,
       sellerName: product.seller,
       productName: product.name,
+      marketplace: isZikMartProduct ? 'zikmart' : orderModule,
+      dropshippingEnabled: Boolean(product.dropshippingEnabled),
+      supplierName: product.supplierName || '',
       delivery: deliveryRecord,
       deliveryAddress: deliveryAddress.trim(),
       deliveryPhone: deliveryPhone.trim(),
@@ -455,6 +469,52 @@ export async function updateZandofyOrderStatus({ user, orderId, status }: { user
 
   await update(ref(realtimeDb), updates);
   return { ...order, status, deliveryStatus: nextDeliveryStatus };
+}
+
+export async function updateZikMartSupplierStatus({ user, orderId, status }: { user: User; orderId: string; status: ZikMartSupplierStage }) {
+  const snapshot = await get(ref(realtimeDb, `orders/${orderId}`));
+  if (!snapshot.exists()) throw new Error('Commande introuvable.');
+  const order = snapshot.val() as Record<string, unknown>;
+  if (order.sellerId !== user.uid) throw new Error('Seul le vendeur peut suivre cet approvisionnement.');
+  if (order.marketplace !== 'zikmart' || !order.dropshippingEnabled) throw new Error('Cette commande ne contient pas de traitement dropshipping.');
+  if (order.status === 'completed' || order.status === 'cancelled') throw new Error('Cette commande est déjà clôturée.');
+  if (status === 'confirmed' && !['paid', 'preparing'].includes(String(order.status))) throw new Error('Le paiement doit être confirmé avant de valider le fournisseur.');
+  if (status === 'dispatched' && order.supplierFulfillmentStatus !== 'confirmed') throw new Error('Confirme d’abord la prise en charge par le fournisseur.');
+
+  const updates: Record<string, unknown> = {
+    [`orders/${orderId}/supplierFulfillmentStatus`]: status,
+    [`orders/${orderId}/updatedAt`]: serverTimestamp(),
+    [`safariDeliveries/${orderId}/supplierFulfillmentStatus`]: status,
+    [`safariDeliveries/${orderId}/updatedAt`]: serverTimestamp()
+  };
+  const threadId = String(order.chatThreadId || '');
+  if (threadId) {
+    const messageRef = push(ref(realtimeDb, `chatMessages/${threadId}`));
+    if (messageRef.key) {
+      const message = status === 'confirmed'
+        ? 'Le fournisseur ZikMart a confirmé la prise en charge de ta commande.'
+        : status === 'dispatched'
+          ? 'Le fournisseur ZikMart a expédié la commande. Safari va suivre la livraison.'
+          : status === 'unavailable'
+            ? 'Le fournisseur ZikMart a signalé une indisponibilité. Le vendeur va te contacter.'
+            : 'La demande est transmise au fournisseur ZikMart.';
+      updates[`chatMessages/${threadId}/${messageRef.key}`] = {
+        id: messageRef.key,
+        senderId: user.uid,
+        text: message,
+        type: 'delivery',
+        orderId,
+        createdAt: Date.now(),
+        status: 'sent'
+      };
+      updates[`chatThreads/${threadId}/lastMessage`] = message;
+      updates[`chatThreads/${threadId}/lastMessageSenderId`] = user.uid;
+      updates[`chatThreads/${threadId}/lastMessageAt`] = serverTimestamp();
+    }
+  }
+
+  await update(ref(realtimeDb), updates);
+  return { ...order, supplierFulfillmentStatus: status };
 }
 
 export async function linkProductToABC({ user, product }: { user: User; product: Product }) {

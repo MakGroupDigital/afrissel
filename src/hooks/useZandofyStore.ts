@@ -4,6 +4,8 @@ import { realtimeDb } from '../lib/firebase';
 import { uploadDigitalAssetToCloudinary, uploadMediaToCloudinary } from '../lib/cloudinary';
 import { useFirebaseAuth } from './useFirebaseAuth';
 import { getDefaultCountry } from '../lib/africaLocation';
+import { apiRequest } from '../domains/shared/apiClient';
+import { inferZandofyCatalogCategory } from '../domains/commerce/zandofyCatalog';
 
 export type ZandofyTheme = 'emerald' | 'midnight' | 'sunrise' | 'mono';
 export type ZandofyProductKind = 'digital' | 'physical';
@@ -11,6 +13,7 @@ export type ZandofyPricingMode = 'paid' | 'free';
 export type ZandofyStockMode = 'unlimited' | 'tracked';
 export type ZandofyDeliveryMode = 'file' | 'link' | 'shipping' | 'pickup';
 export type ZandofyMarketplaceVisibility = 'zandofy' | 'afrizia' | 'both';
+export type ZandofySupplierType = 'self' | 'supplier' | 'dropshipper';
 
 export type ZandofyStore = {
   id: string;
@@ -57,6 +60,16 @@ export type ZandofyStoreUpdateInput = {
   logoFile?: File | null;
 };
 
+export type ZandofyDomainResult = {
+  domain: string;
+  status: 'pending' | 'verified';
+  ssl: 'pending' | 'active';
+  routing: 'pending' | 'active';
+  dnsRecords: Array<{ type: string; name: string; value: string }>;
+  verification?: Array<{ type?: string; domain?: string; value?: string; token?: string }>;
+  message: string;
+};
+
 export type ZandofyProductInput = {
   productKind: ZandofyProductKind;
   title: string;
@@ -83,6 +96,14 @@ export type ZandofyProductInput = {
   shippingRegions?: string[];
   fppRate?: number;
   publishToAfriZia?: boolean;
+  publishToZikMart?: boolean;
+  supplierType?: ZandofySupplierType;
+  supplierId?: string;
+  supplierName?: string;
+  supplierSKU?: string;
+  supplierCost?: number;
+  supplierLeadTimeDays?: number;
+  dropshippingEnabled?: boolean;
   productSpec?: Record<string, unknown>;
 };
 
@@ -108,6 +129,14 @@ export type ZandofyProductUpdateInput = {
   fppRate?: number;
   deliveryMode?: ZandofyDeliveryMode;
   publishToAfriZia: boolean;
+  publishToZikMart: boolean;
+  supplierType: ZandofySupplierType;
+  supplierId: string;
+  supplierName: string;
+  supplierSKU: string;
+  supplierCost: number;
+  supplierLeadTimeDays: number;
+  dropshippingEnabled: boolean;
 };
 
 export type ZandofyDigitalProduct = {
@@ -144,6 +173,15 @@ export type ZandofyDigitalProduct = {
   fppRate: number;
   marketplaceVisibility: ZandofyMarketplaceVisibility;
   publishToAfriZia: boolean;
+  publishToZikMart: boolean;
+  supplierType: ZandofySupplierType;
+  supplierId: string;
+  supplierName: string;
+  supplierSKU: string;
+  supplierCost: number;
+  supplierLeadTimeDays: number;
+  dropshippingEnabled: boolean;
+  sellerMargin: number;
   productSpec?: Record<string, unknown>;
   status: string;
   createdAt?: unknown;
@@ -153,6 +191,8 @@ export type ZandofyDigitalProduct = {
 const fallbackCountry = getDefaultCountry();
 
 export const getZandofyStoreURL = (slug: string) => `${window.location.origin}/zandofy/${slug}`;
+
+const getCurrentHost = () => (typeof window === 'undefined' ? '' : window.location.hostname.toLowerCase().replace(/^www\./, ''));
 
 export const normalizeZandofySlug = (value: string) => {
   const normalized = value
@@ -230,7 +270,10 @@ export function useZandofyStore(slug?: string) {
   );
 
   const publicStore = useMemo(
-    () => stores.find((store) => store.slug === slug) || null,
+    () => {
+      const host = getCurrentHost();
+      return stores.find((store) => store.slug === slug || (host && store.customDomain?.replace(/^www\./, '') === host)) || null;
+    },
     [stores, slug]
   );
 
@@ -254,6 +297,9 @@ export function useZandofyStore(slug?: string) {
             ? 0
             : Number(product.price ?? salePrice ?? regularPrice ?? 0);
           const publishToAfriZia = product.publishToAfriZia !== false;
+          const publishToZikMart = product.publishToZikMart === true && productKind === 'physical';
+          const supplierCost = Number(product.supplierCost || 0);
+          const sellerMargin = Math.max(0, effectivePrice - supplierCost);
 
           return {
           id,
@@ -265,7 +311,11 @@ export function useZandofyStore(slug?: string) {
           title: product.title || 'Produit digital',
           description: product.description || '',
           category: product.category || 'Zandofy',
-          catalogCategory: product.catalogCategory || (productKind === 'physical' ? 'Autres' : 'Digital'),
+          catalogCategory: product.catalogCategory && product.catalogCategory !== 'Autres'
+            ? product.catalogCategory
+            : productKind === 'physical'
+              ? inferZandofyCatalogCategory(product.title || '', product.description || '')
+              : 'Digital',
           digitalType: product.digitalType || 'Pack digital',
           collection: product.collection || 'Nouveautés',
           price: effectivePrice,
@@ -288,6 +338,15 @@ export function useZandofyStore(slug?: string) {
           fppRate: Math.min(Math.max(Number(product.fppRate || 0), 0), 20),
           marketplaceVisibility: product.marketplaceVisibility || (publishToAfriZia ? 'both' : 'zandofy'),
           publishToAfriZia,
+          publishToZikMart,
+          supplierType: product.supplierType || 'self',
+          supplierId: product.supplierId || '',
+          supplierName: product.supplierName || '',
+          supplierSKU: product.supplierSKU || '',
+          supplierCost,
+          supplierLeadTimeDays: Number(product.supplierLeadTimeDays || 0),
+          dropshippingEnabled: Boolean(product.dropshippingEnabled && productKind === 'physical'),
+          sellerMargin,
           productSpec: product.productSpec || {},
           status: product.status || 'active',
           createdAt: product.createdAt,
@@ -359,15 +418,16 @@ export function useZandofyStore(slug?: string) {
     return normalizeStore(id, store);
   };
 
-  const updateCustomDomain = async (domain: string) => {
+  const updateCustomDomain = async (domain: string, action: 'connect' | 'verify' | 'status' = 'connect'): Promise<ZandofyDomainResult> => {
     if (!user || !ownerStore) throw new Error('Boutique Zandofy introuvable.');
-    const cleanDomain = domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-    if (!cleanDomain) throw new Error('Ajoute un domaine valide.');
-
-    await update(ref(realtimeDb), {
-      [`zandofyStores/${ownerStore.id}/customDomain`]: cleanDomain,
-      [`zandofyStores/${ownerStore.id}/customDomainStatus`]: 'pending',
-      [`zandofyStores/${ownerStore.id}/updatedAt`]: serverTimestamp()
+    const idToken = await user.getIdToken();
+    return apiRequest<ZandofyDomainResult>('/api/zandofy/domain', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({
+        action,
+        domain: domain.trim()
+      })
     });
   };
 
@@ -412,6 +472,15 @@ export function useZandofyStore(slug?: string) {
       throw new Error('Ajoute un stock valide.');
     }
     const fppRate = Math.min(Math.max(Number(input.fppRate || 0), 0), 20);
+    const supplierType: ZandofySupplierType = input.productKind === 'physical' ? (input.supplierType || 'self') : 'self';
+    const supplierCost = input.productKind === 'physical' ? Math.max(0, Number(input.supplierCost || 0)) : 0;
+    if (!Number.isFinite(supplierCost)) throw new Error('Ajoute un coût fournisseur valide.');
+    if (supplierCost > effectivePrice && input.productKind === 'physical') throw new Error('Le coût fournisseur ne peut pas dépasser le prix de vente.');
+    const dropshippingEnabled = input.productKind === 'physical' && supplierType === 'dropshipper' && Boolean(input.dropshippingEnabled);
+    const publishToZikMart = input.productKind === 'physical' && Boolean(input.publishToZikMart);
+    const catalogCategory = input.productKind === 'physical'
+      ? inferZandofyCatalogCategory(input.title, input.description, input.catalogCategory?.trim() || 'Autres')
+      : input.catalogCategory?.trim() || 'Digital';
 
     if (input.productKind === 'digital') {
       if (input.deliveryMode === 'link' && !input.deliveryURL?.trim()) throw new Error('Ajoute le lien de livraison.');
@@ -467,7 +536,7 @@ export function useZandofyStore(slug?: string) {
       title: input.title.trim(),
       description: input.description.trim(),
       category: 'Zandofy',
-      catalogCategory: input.catalogCategory?.trim() || (input.productKind === 'digital' ? 'Digital' : 'Autres'),
+      catalogCategory,
       digitalType: input.productKind === 'digital' ? input.digitalType : '',
       collection: input.collection,
       price: effectivePrice,
@@ -494,6 +563,15 @@ export function useZandofyStore(slug?: string) {
       fppRate,
       marketplaceVisibility: publishToAfriZia ? 'both' : 'zandofy',
       publishToAfriZia,
+      publishToZikMart,
+      supplierType,
+      supplierId: input.supplierId?.trim() || '',
+      supplierName: input.supplierName?.trim() || '',
+      supplierSKU: input.supplierSKU?.trim() || '',
+      supplierCost,
+      supplierLeadTimeDays: Math.max(0, Number(input.supplierLeadTimeDays || 0)),
+      dropshippingEnabled,
+      sellerMargin: Math.max(0, effectivePrice - supplierCost),
       productSpec: input.productSpec || {},
       target: 'market',
       offerModule: 'Zandofy',
@@ -504,8 +582,15 @@ export function useZandofyStore(slug?: string) {
       updatedAt: serverTimestamp()
     };
 
+    const {
+      supplierCost: _supplierCost,
+      sellerMargin: _sellerMargin,
+      supplierId: _supplierId,
+      supplierSKU: _supplierSKU,
+      ...publicProductPayload
+    } = productPayload;
     const marketPayload = {
-      ...productPayload,
+      ...publicProductPayload,
       deliveryURL: '',
       deliveryFiles: [],
       deliveryFile: null,
@@ -543,6 +628,7 @@ export function useZandofyStore(slug?: string) {
           }
         : {}),
       ...(publishToAfriZia ? { [`marketProducts/${productId}`]: marketPayload } : {}),
+      [`zikMartProducts/${productId}`]: publishToZikMart ? marketPayload : null,
       [`userProducts/${user.uid}/${productId}`]: {
         id: productId,
         createdAt: now,
@@ -585,12 +671,21 @@ export function useZandofyStore(slug?: string) {
       throw new Error('Ajoute un stock valide.');
     }
     const fppRate = Math.min(Math.max(Number(input.fppRate || 0), 0), 20);
+    const effectivePrice = pricingMode === 'free' ? 0 : Number(salePrice ?? regularPrice);
+    const supplierType: ZandofySupplierType = productKind === 'physical' ? (input.supplierType || 'self') : 'self';
+    const supplierCost = productKind === 'physical' ? Math.max(0, Number(input.supplierCost || 0)) : 0;
+    if (!Number.isFinite(supplierCost)) throw new Error('Ajoute un coût fournisseur valide.');
+    if (supplierCost > effectivePrice && productKind === 'physical') throw new Error('Le coût fournisseur ne peut pas dépasser le prix de vente.');
+    const dropshippingEnabled = productKind === 'physical' && supplierType === 'dropshipper' && Boolean(input.dropshippingEnabled);
+    const publishToZikMart = productKind === 'physical' && Boolean(input.publishToZikMart);
+    const catalogCategory = productKind === 'physical'
+      ? inferZandofyCatalogCategory(input.title, input.description, input.catalogCategory.trim() || 'Autres')
+      : input.catalogCategory.trim() || 'Digital';
 
     const coverUpload = input.coverFile
       ? await uploadMediaToCloudinary(input.coverFile, user.uid)
       : null;
     const coverURL = coverUpload?.secureUrl || String(existing.coverURL || '/zandofy/woman-promoting-cloths-from-thrift-store.jpg');
-    const effectivePrice = pricingMode === 'free' ? 0 : Number(salePrice ?? regularPrice);
     const publishToAfriZia = Boolean(input.publishToAfriZia);
     const now = Date.now();
     const productPayload = {
@@ -601,7 +696,7 @@ export function useZandofyStore(slug?: string) {
       title: input.title.trim(),
       description: input.description.trim(),
       collection: input.collection.trim() || 'Nouveautés',
-      catalogCategory: input.catalogCategory.trim() || (productKind === 'physical' ? 'Autres' : 'Digital'),
+      catalogCategory,
       price: effectivePrice,
       regularPrice,
       salePrice: pricingMode === 'paid' && salePrice !== undefined ? salePrice : null,
@@ -618,11 +713,27 @@ export function useZandofyStore(slug?: string) {
       deliveryMode: input.deliveryMode || existing.deliveryMode || (productKind === 'physical' ? 'shipping' : 'file'),
       marketplaceVisibility: publishToAfriZia ? 'both' : 'zandofy',
       publishToAfriZia,
+      publishToZikMart,
+      supplierType,
+      supplierId: input.supplierId.trim(),
+      supplierName: input.supplierName.trim(),
+      supplierSKU: input.supplierSKU.trim(),
+      supplierCost,
+      supplierLeadTimeDays: Math.max(0, Number(input.supplierLeadTimeDays || 0)),
+      dropshippingEnabled,
+      sellerMargin: Math.max(0, effectivePrice - supplierCost),
       updatedAt: serverTimestamp()
     };
 
+    const {
+      supplierCost: _supplierCost,
+      sellerMargin: _sellerMargin,
+      supplierId: _supplierId,
+      supplierSKU: _supplierSKU,
+      ...publicProductPayload
+    } = productPayload;
     const marketPayload = {
-      ...productPayload,
+      ...publicProductPayload,
       deliveryURL: '',
       deliveryFiles: [],
       deliveryFile: null,
@@ -640,6 +751,7 @@ export function useZandofyStore(slug?: string) {
     await update(ref(realtimeDb), {
       [`zandofyProducts/${ownerStore.id}/${productId}`]: productPayload,
       [`marketProducts/${productId}`]: publishToAfriZia ? marketPayload : null,
+      [`zikMartProducts/${productId}`]: publishToZikMart ? marketPayload : null,
       [`zandofyStores/${ownerStore.id}/updatedAt`]: serverTimestamp()
     });
 
