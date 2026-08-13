@@ -1,7 +1,7 @@
 import { apiRequest } from '../domains/shared/apiClient';
 import { isTauriNative } from './nativePlatform';
 
-export type CloudinaryResourceType = 'image' | 'video';
+export type CloudinaryResourceType = 'image' | 'video' | 'raw';
 
 export interface CloudinaryUploadResult {
   provider: 'cloudinary';
@@ -51,6 +51,13 @@ const getCloudinarySignUploadEndpoint = () => {
 const getResourceType = (file: File): CloudinaryResourceType => {
   if (file.type.startsWith('image/')) return 'image';
   if (file.type.startsWith('video/')) return 'video';
+  throw new Error('Le fichier doit être une image ou une video.');
+};
+
+const getUploadResourceType = (file: File, allowRaw: boolean): CloudinaryResourceType => {
+  if (file.type.startsWith('image/')) return 'image';
+  if (file.type.startsWith('video/')) return 'video';
+  if (allowRaw) return 'raw';
   throw new Error('Le fichier doit être une image ou une video.');
 };
 
@@ -139,13 +146,12 @@ export async function compressImageForCloudinary(file: File, maxBytes = 9 * 1024
   }
 }
 
-export async function uploadMediaToCloudinary(file: File, ownerId: string): Promise<CloudinaryUploadResult> {
+async function uploadCloudinaryFile(file: File, ownerId: string, resourceType: CloudinaryResourceType): Promise<CloudinaryUploadResult> {
   if (!isCloudinaryReady()) {
     throw new Error('Cloudinary doit avoir VITE_CLOUDINARY_CLOUD_NAME configuré.');
   }
 
-  const safeFile = await compressImageForCloudinary(file);
-  const resourceType = getResourceType(safeFile);
+  const safeFile = resourceType === 'image' ? await compressImageForCloudinary(file) : file;
   const signedUpload = await apiRequest<SignedUploadPayload>(getCloudinarySignUploadEndpoint(), {
     service: 'media',
     method: 'POST',
@@ -233,4 +239,12 @@ export async function uploadMediaToCloudinary(file: File, ownerId: string): Prom
     height: typedPayload.height,
     duration: typedPayload.duration
   };
+}
+
+export async function uploadMediaToCloudinary(file: File, ownerId: string): Promise<CloudinaryUploadResult> {
+  return uploadCloudinaryFile(file, ownerId, getResourceType(file));
+}
+
+export async function uploadDigitalAssetToCloudinary(file: File, ownerId: string): Promise<CloudinaryUploadResult> {
+  return uploadCloudinaryFile(file, ownerId, getUploadResourceType(file, true));
 }

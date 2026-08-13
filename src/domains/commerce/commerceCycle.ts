@@ -1,5 +1,5 @@
 import { User } from 'firebase/auth';
-import { push, ref, runTransaction, serverTimestamp, update } from 'firebase/database';
+import { get, push, ref, runTransaction, serverTimestamp, update } from 'firebase/database';
 import { realtimeDb } from '../../lib/firebase';
 import { Product, CheckoutDelivery } from '../../store/useAppStore';
 
@@ -16,6 +16,9 @@ type CompleteOrderInput = {
   product: Product;
   delivery?: CheckoutDelivery | null;
   paymentMode?: 'afrispay' | 'delivery';
+  checkoutKey?: string;
+  deliveryAddress?: string;
+  deliveryPhone?: string;
 };
 
 type VillageShareInput = {
@@ -24,6 +27,9 @@ type VillageShareInput = {
   product: Product;
 };
 
+type ZandofyOrderStage = 'preparing' | 'delivering';
+export type ZikMartSupplierStage = 'pending_supplier' | 'confirmed' | 'dispatched' | 'unavailable';
+
 const formatMoney = (value: number, currency = 'USD') => {
   if (currency === 'USD') return `$${value.toLocaleString('fr-FR')}`;
   if (currency === 'CDF') return `${value.toLocaleString('fr-FR')} CDF`;
@@ -31,7 +37,7 @@ const formatMoney = (value: number, currency = 'USD') => {
 };
 
 const buyerName = (user: User, profile?: CommerceProfile | null) => (
-  profile?.displayName || user.displayName || 'Client AfriSell'
+  profile?.displayName || user.displayName || 'Client AfriZia'
 );
 
 const buyerAvatar = (user: User, profile?: CommerceProfile | null) => (
@@ -55,18 +61,65 @@ const ensureSeller = (product: Product, currentUserId: string) => {
   return sellerId;
 };
 
-export async function completeCommerceOrder({ user, profile, product, delivery, paymentMode = 'afrispay' }: CompleteOrderInput) {
+const getProductAmount = (product: Product) => {
+  if (product.isFree || product.pricingMode === 'free') return 0;
+  const villagePrice = Number(product.villagePrice);
+  return Number.isFinite(villagePrice) && villagePrice >= 0 ? villagePrice : Number(product.price || 0);
+};
+
+const reserveProductStock = async (product: Product) => {
+  if (product.productKind !== 'physical' || product.stockMode !== 'tracked') return null;
+  const stockPath = product.storeId
+    ? `zandofyProducts/${product.storeId}/${product.id}/stock`
+    : `marketProducts/${product.id}/stock`;
+  const result = await runTransaction(ref(realtimeDb, stockPath), (currentStock) => {
+    if (currentStock === null || currentStock === undefined) return;
+    const stock = Number(currentStock);
+    if (!Number.isFinite(stock) || stock < 1) return;
+    return stock - 1;
+  });
+  if (!result.committed) throw new Error('Ce produit est en rupture de stock.');
+  return stockPath;
+};
+
+const releaseProductStock = async (stockPath: string | null) => {
+  if (!stockPath) return;
+  await runTransaction(ref(realtimeDb, stockPath), (currentStock) => Number(currentStock || 0) + 1);
+};
+
+export async function completeCommerceOrder({ user, profile, product, delivery, paymentMode = 'afrispay', checkoutKey, deliveryAddress = '', deliveryPhone = '' }: CompleteOrderInput) {
   const sellerId = ensureSeller(product, user.uid);
   const deliveryPrice = Number(delivery?.price || 0);
-  const productAmount = Number(product.villagePrice || product.price || 0);
+  const productAmount = getProductAmount(product);
   const totalAmount = productAmount + deliveryPrice;
   const currency = product.currency || 'USD';
+  const fppRate = Math.min(Math.max(Number(product.fppRate || 0), 0), 20);
+  const fppAmount = Math.round(productAmount * (fppRate / 100) * 100) / 100;
+  const sellerNetAmount = Math.max(0, productAmount - fppAmount);
 
-  if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+  if (!Number.isFinite(totalAmount) || totalAmount < 0) {
     throw new Error('Montant de commande invalide.');
   }
 
-  if (paymentMode === 'afrispay') {
+  if (product.productKind === 'physical' && delivery?.id !== 'pickup' && !deliveryAddress.trim()) {
+    throw new Error('Ajoute l’adresse de livraison.');
+  }
+
+  if (checkoutKey) {
+    const previous = await get(ref(realtimeDb, `commerceCheckouts/${user.uid}/${checkoutKey}`));
+    const previousOrderId = previous.val()?.orderId;
+    if (previousOrderId) {
+      const previousOrder = await get(ref(realtimeDb, `orders/${previousOrderId}`));
+      if (previousOrder.exists()) {
+        const existing = previousOrder.val();
+        return { orderId: previousOrderId, threadId: existing.chatThreadId || '', totalAmount: Number(existing.totalAmount || 0), currency: existing.currency || currency, villageStatus: existing.villageStatus || 'collecting', documentType: existing.documentType || 'receipt', paymentMode: existing.paymentMode || paymentMode };
+      }
+    }
+  }
+
+  let walletDebited = false;
+  let stockPath: string | null = null;
+  if (paymentMode === 'afrispay' && totalAmount > 0) {
     const walletBalanceRef = ref(realtimeDb, `wallets/${user.uid}/balance`);
     const debitResult = await runTransaction(walletBalanceRef, (currentBalance) => {
       const balance = Number(currentBalance || 0);
@@ -77,6 +130,14 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
     if (!debitResult.committed) {
       throw new Error('Solde AfriSpay insuffisant pour confirmer cette commande.');
     }
+    walletDebited = true;
+  }
+
+  try {
+    stockPath = await reserveProductStock(product);
+  } catch (error) {
+    if (walletDebited) await runTransaction(ref(realtimeDb, `wallets/${user.uid}/balance`), (balance) => Number(balance || 0) + totalAmount);
+    throw error;
   }
 
   const orderRef = push(ref(realtimeDb, 'orders'));
@@ -90,13 +151,21 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
   const villageMembersNeeded = Math.max(Number(product.buyersNeeded || 1), 1);
   const nextBuyerCount = Number(product.buyersCount || 0) + 1;
   const villageStatus = nextBuyerCount >= villageMembersNeeded ? 'unlocked' : 'collecting';
-  const deliveryRecord = delivery ? {
+  const isDigitalProduct = Boolean(product.isDigital || product.productKind === 'digital');
+  const deliveryRecord = isDigitalProduct ? {
+    id: 'digital',
+    title: 'Livraison digitale',
+    description: 'Accès sécurisé après confirmation du paiement.',
+    price: 0,
+    eta: 'Immédiat',
+    status: 'delivered'
+  } : delivery ? {
     id: delivery.id,
     title: delivery.title,
     description: delivery.description,
     price: deliveryPrice,
     eta: delivery.eta,
-    status: delivery.id === 'pickup' ? 'pickup_requested' : 'pending_assignment'
+      status: delivery.id === 'pickup' ? 'pickup_requested' : 'pending_assignment'
   } : {
     id: 'standard',
     title: 'Livraison Safari',
@@ -107,10 +176,11 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
   };
   const customerName = buyerName(user, profile);
   const customerAvatar = buyerAvatar(user, profile);
-  const isPaidNow = paymentMode === 'afrispay';
+  const isPaidNow = paymentMode === 'afrispay' || totalAmount === 0;
   const documentType = isPaidNow ? 'receipt' : 'invoice';
-  const orderModule = product.module === 'Zandofy' || product.isDigital || product.storeId ? 'zandofy' : 'market';
-  const orderMessage = `${isPaidNow ? 'Commande payee' : 'Facture creee'} ${orderId}: ${product.name} - ${formatMoney(totalAmount, currency)}. Livraison: ${deliveryRecord.title}.`;
+  const orderModule = product.module === 'Zandofy' || isDigitalProduct || product.storeId ? 'zandofy' : 'market';
+  const isZikMartProduct = product.publishToZikMart === true && product.productKind === 'physical';
+  const orderMessage = `${isPaidNow ? 'Commande payée' : 'Facture créée'} ${orderId}: ${product.name} - ${formatMoney(totalAmount, currency)}. Livraison : ${deliveryRecord.title}.`;
 
   const updates: Record<string, unknown> = {
     [`orders/${orderId}`]: {
@@ -120,10 +190,11 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
       productImage: product.imageUrl,
       productCategory: product.category || '',
       module: orderModule,
+      marketplace: isZikMartProduct ? 'zikmart' : orderModule === 'zandofy' ? 'zandofy' : 'afrizia',
       storeId: product.storeId || '',
       storeSlug: product.storeSlug || '',
       storeName: product.storeName || '',
-      isDigital: Boolean(product.isDigital),
+      isDigital: isDigitalProduct,
       sellerId,
       sellerName: product.seller,
       buyerId: user.uid,
@@ -133,11 +204,26 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
       productAmount,
       deliveryAmount: deliveryPrice,
       totalAmount,
+      fppRate,
+      fppAmount,
+      sellerNetAmount,
+      supplierType: product.supplierType || 'self',
+      supplierId: product.supplierId || '',
+      supplierName: product.supplierName || '',
+      supplierSKU: product.supplierSKU || '',
+      supplierCost: Number(product.supplierCost || 0),
+      supplierLeadTimeDays: Number(product.supplierLeadTimeDays || 0),
+      dropshippingEnabled: Boolean(product.dropshippingEnabled),
+      supplierFulfillmentStatus: product.dropshippingEnabled ? 'pending_supplier' : 'not_applicable',
       currency,
       status: isPaidNow ? 'paid' : 'awaiting_delivery_payment',
       paymentStatus: isPaidNow ? 'confirmed' : 'pay_on_delivery',
       paymentMode,
       documentType,
+      checkoutKey: checkoutKey || '',
+      deliveryAddress: deliveryAddress.trim(),
+      deliveryPhone: deliveryPhone.trim(),
+      digitalDeliveryStatus: isDigitalProduct ? (isPaidNow ? 'available' : 'locked_until_payment') : 'not_applicable',
       deliveryStatus: deliveryRecord.status,
       villageStatus,
       chatThreadId: threadId,
@@ -155,7 +241,12 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
       sellerId,
       sellerName: product.seller,
       productName: product.name,
+      marketplace: isZikMartProduct ? 'zikmart' : orderModule,
+      dropshippingEnabled: Boolean(product.dropshippingEnabled),
+      supplierName: product.supplierName || '',
       delivery: deliveryRecord,
+      deliveryAddress: deliveryAddress.trim(),
+      deliveryPhone: deliveryPhone.trim(),
       status: deliveryRecord.status,
       createdAt: now,
       updatedAt: now
@@ -183,7 +274,7 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
       participantId: sellerId,
       participantName: product.seller,
       type: 'direct',
-      status: 'Commande Market',
+      status: 'Commande AfriZia',
       lastMessage: orderMessage,
       lastMessageAt: now,
       unreadCount: 0,
@@ -197,7 +288,7 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
       participantName: customerName,
       participantAvatarURL: customerAvatar,
       type: 'direct',
-      status: 'Commande Market',
+      status: 'Commande AfriZia',
       lastMessage: orderMessage,
       lastMessageAt: now,
       unreadCount: 1,
@@ -228,16 +319,29 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
       orderId,
       createdAt: now
     };
-    updates[`walletTransactions/${sellerId}/${orderId}`] = {
+    if (sellerNetAmount > 0) updates[`walletTransactions/${sellerId}/${orderId}`] = {
       id: orderId,
       type: 'credit',
       title: `Vente ${product.name}`,
-      amount: productAmount,
+      amount: sellerNetAmount,
       currency,
       module: orderModule,
       channel: 'AfriSpay Escrow',
       status: 'escrow_pending_delivery',
       orderId,
+      createdAt: now
+    };
+    if (fppAmount > 0) updates[`fppContributions/${orderId}`] = {
+      id: orderId,
+      orderId,
+      productId: product.id,
+      storeId: product.storeId || '',
+      sellerId,
+      buyerId: user.uid,
+      amount: fppAmount,
+      rate: fppRate,
+      currency,
+      status: 'confirmed',
       createdAt: now
     };
   }
@@ -255,8 +359,230 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
     };
   }
 
-  await update(ref(realtimeDb), updates);
+  try {
+    await update(ref(realtimeDb), {
+      ...updates,
+      ...(checkoutKey ? { [`commerceCheckouts/${user.uid}/${checkoutKey}`]: { orderId, status: 'created', createdAt: now } } : {})
+    });
+  } catch (error) {
+    if (walletDebited) await runTransaction(ref(realtimeDb, `wallets/${user.uid}/balance`), (balance) => Number(balance || 0) + totalAmount);
+    await releaseProductStock(stockPath);
+    throw error;
+  }
   return { orderId, threadId, totalAmount, currency, villageStatus, documentType, paymentMode };
+}
+
+export async function confirmCommerceDelivery({ user, orderId }: { user: User; orderId: string }) {
+  const snapshot = await get(ref(realtimeDb, `orders/${orderId}`));
+  if (!snapshot.exists()) throw new Error('Commande introuvable.');
+  const order = snapshot.val() as Record<string, unknown>;
+  if (order.buyerId !== user.uid) throw new Error('Seul le client peut confirmer la réception.');
+  if (order.deliveryStatus === 'delivered') return order;
+  if (order.status !== 'paid' || order.paymentStatus !== 'confirmed') {
+    throw new Error('Le paiement doit être confirmé avant de clôturer la livraison.');
+  }
+
+  const sellerId = String(order.sellerId || '');
+  const amount = Number(order.sellerNetAmount ?? order.productAmount ?? 0);
+  const escrowSnapshot = sellerId ? await get(ref(realtimeDb, `walletTransactions/${sellerId}/${orderId}`)) : null;
+  const escrow = escrowSnapshot?.val() as Record<string, unknown> | null;
+  const threadId = String(order.chatThreadId || '');
+  const updates: Record<string, unknown> = {
+    [`orders/${orderId}/status`]: 'completed',
+    [`orders/${orderId}/deliveryStatus`]: 'delivered',
+    [`orders/${orderId}/updatedAt`]: serverTimestamp(),
+    [`safariDeliveries/${orderId}/status`]: 'delivered',
+    [`safariDeliveries/${orderId}/updatedAt`]: serverTimestamp()
+  };
+
+  if (threadId) {
+    const messageRef = push(ref(realtimeDb, `chatMessages/${threadId}`));
+    if (messageRef.key) updates[`chatMessages/${threadId}/${messageRef.key}`] = {
+      id: messageRef.key,
+      senderId: user.uid,
+      text: 'Réception confirmée. La commande est terminée.',
+      type: 'delivery',
+      orderId,
+      createdAt: Date.now(),
+      status: 'sent'
+    };
+  }
+
+  let shouldReleaseEscrow = false;
+  if (sellerId && amount > 0 && !escrow?.balanceApplied) {
+    const claim = await runTransaction(ref(realtimeDb, `walletTransactions/${sellerId}/${orderId}/releaseClaimed`), (claimed) => claimed ? undefined : true);
+    shouldReleaseEscrow = claim.committed;
+  }
+
+  if (shouldReleaseEscrow) {
+    await runTransaction(ref(realtimeDb, `wallets/${sellerId}/balance`), (balance) => Number(balance || 0) + amount);
+    updates[`walletTransactions/${sellerId}/${orderId}/status`] = 'confirmed';
+    updates[`walletTransactions/${sellerId}/${orderId}/balanceApplied`] = true;
+    updates[`walletTransactions/${sellerId}/${orderId}/releasedAt`] = serverTimestamp();
+  }
+
+  await update(ref(realtimeDb), updates);
+  return { ...order, status: 'completed', deliveryStatus: 'delivered' };
+}
+
+export async function updateZandofyOrderStatus({ user, orderId, status }: { user: User; orderId: string; status: ZandofyOrderStage }) {
+  const snapshot = await get(ref(realtimeDb, `orders/${orderId}`));
+  if (!snapshot.exists()) throw new Error('Commande introuvable.');
+  const order = snapshot.val() as Record<string, unknown>;
+  if (order.sellerId !== user.uid) throw new Error('Seul le vendeur de la boutique peut avancer cette commande.');
+  if (order.module !== 'zandofy' || !order.storeId) throw new Error('Cette commande ne concerne pas une boutique Zandofy.');
+  if (order.status === 'completed' || order.status === 'cancelled') throw new Error('Cette commande est déjà clôturée.');
+  if (order.isDigital) throw new Error('Les produits digitaux sont livrés automatiquement après paiement.');
+  if (status === 'preparing' && order.status !== 'paid') throw new Error('La commande doit être payée avant sa préparation.');
+  if (status === 'delivering' && !['paid', 'preparing'].includes(String(order.status))) throw new Error('Prépare d’abord la commande avant de la remettre à Safari.');
+
+  const nextDeliveryStatus = status === 'delivering' ? 'in_transit' : String(order.deliveryStatus || 'pending_assignment');
+  const updates: Record<string, unknown> = {
+    [`orders/${orderId}/status`]: status,
+    [`orders/${orderId}/deliveryStatus`]: nextDeliveryStatus,
+    [`orders/${orderId}/updatedAt`]: serverTimestamp(),
+    [`safariDeliveries/${orderId}/status`]: nextDeliveryStatus,
+    [`safariDeliveries/${orderId}/updatedAt`]: serverTimestamp()
+  };
+
+  const threadId = String(order.chatThreadId || '');
+  if (threadId) {
+    const messageRef = push(ref(realtimeDb, `chatMessages/${threadId}`));
+    if (messageRef.key) {
+      const message = status === 'preparing'
+        ? 'La boutique prépare ta commande Zandofy.'
+        : 'La commande Zandofy est remise à Safari et passe en livraison.';
+      updates[`chatMessages/${threadId}/${messageRef.key}`] = {
+        id: messageRef.key,
+        senderId: user.uid,
+        text: message,
+        type: 'delivery',
+        orderId,
+        createdAt: Date.now(),
+        status: 'sent'
+      };
+      updates[`chatThreads/${threadId}/lastMessage`] = message;
+      updates[`chatThreads/${threadId}/lastMessageSenderId`] = user.uid;
+      updates[`chatThreads/${threadId}/lastMessageAt`] = serverTimestamp();
+    }
+  }
+
+  await update(ref(realtimeDb), updates);
+  return { ...order, status, deliveryStatus: nextDeliveryStatus };
+}
+
+export async function updateZikMartSupplierStatus({ user, orderId, status }: { user: User; orderId: string; status: ZikMartSupplierStage }) {
+  const snapshot = await get(ref(realtimeDb, `orders/${orderId}`));
+  if (!snapshot.exists()) throw new Error('Commande introuvable.');
+  const order = snapshot.val() as Record<string, unknown>;
+  if (order.sellerId !== user.uid) throw new Error('Seul le vendeur peut suivre cet approvisionnement.');
+  if (order.marketplace !== 'zikmart' || !order.dropshippingEnabled) throw new Error('Cette commande ne contient pas de traitement dropshipping.');
+  if (order.status === 'completed' || order.status === 'cancelled') throw new Error('Cette commande est déjà clôturée.');
+  if (status === 'confirmed' && !['paid', 'preparing'].includes(String(order.status))) throw new Error('Le paiement doit être confirmé avant de valider le fournisseur.');
+  if (status === 'dispatched' && order.supplierFulfillmentStatus !== 'confirmed') throw new Error('Confirme d’abord la prise en charge par le fournisseur.');
+
+  const updates: Record<string, unknown> = {
+    [`orders/${orderId}/supplierFulfillmentStatus`]: status,
+    [`orders/${orderId}/updatedAt`]: serverTimestamp(),
+    [`safariDeliveries/${orderId}/supplierFulfillmentStatus`]: status,
+    [`safariDeliveries/${orderId}/updatedAt`]: serverTimestamp()
+  };
+  const threadId = String(order.chatThreadId || '');
+  if (threadId) {
+    const messageRef = push(ref(realtimeDb, `chatMessages/${threadId}`));
+    if (messageRef.key) {
+      const message = status === 'confirmed'
+        ? 'Le fournisseur ZikMart a confirmé la prise en charge de ta commande.'
+        : status === 'dispatched'
+          ? 'Le fournisseur ZikMart a expédié la commande. Safari va suivre la livraison.'
+          : status === 'unavailable'
+            ? 'Le fournisseur ZikMart a signalé une indisponibilité. Le vendeur va te contacter.'
+            : 'La demande est transmise au fournisseur ZikMart.';
+      updates[`chatMessages/${threadId}/${messageRef.key}`] = {
+        id: messageRef.key,
+        senderId: user.uid,
+        text: message,
+        type: 'delivery',
+        orderId,
+        createdAt: Date.now(),
+        status: 'sent'
+      };
+      updates[`chatThreads/${threadId}/lastMessage`] = message;
+      updates[`chatThreads/${threadId}/lastMessageSenderId`] = user.uid;
+      updates[`chatThreads/${threadId}/lastMessageAt`] = serverTimestamp();
+    }
+  }
+
+  await update(ref(realtimeDb), updates);
+  return { ...order, supplierFulfillmentStatus: status };
+}
+
+export async function linkProductToABC({ user, product }: { user: User; product: Product }) {
+  if (!product.sellerId || product.sellerId !== user.uid) {
+    throw new Error('Seul le vendeur peut présenter ce produit dans ABC.');
+  }
+  if (!product.imageUrl) throw new Error('Ajoute une couverture avant de publier dans ABC.');
+
+  const postRef = push(ref(realtimeDb, 'abcPosts'));
+  const postId = postRef.key;
+  if (!postId) throw new Error('Publication ABC impossible.');
+  const now = Date.now();
+  const productURL = `${window.location.origin}/${product.storeId ? 'zandofy/product' : 'market'}/${product.id}`;
+  const payload = {
+    id: postId,
+    authorId: user.uid,
+    authorName: product.seller,
+    authorAvatar: '',
+    title: product.name,
+    description: product.description,
+    category: product.category || 'Zandofy',
+    format: 'article',
+    media: [{
+      id: `${postId}_cover`,
+      provider: 'cloudinary',
+      mediaUrl: product.imageUrl,
+      secureUrl: product.imageUrl,
+      publicId: '',
+      resourceType: 'image'
+    }],
+    coverURL: product.imageUrl,
+    isSellable: true,
+    linkedProductId: product.id,
+    linkedProductTitle: product.name,
+    linkedProductImage: product.imageUrl,
+    linkedProductPrice: product.price,
+    linkedProductVillagePrice: product.villagePrice,
+    linkedProductCurrency: product.currency || 'USD',
+    price: product.price,
+    villagePrice: product.villagePrice,
+    currency: product.currency || 'USD',
+    buyersCount: product.buyersCount || 0,
+    buyersNeeded: product.buyersNeeded || 1,
+    likesCount: 0,
+    commentsCount: 0,
+    sharesCount: 0,
+    followsCount: 0,
+    target: 'abc',
+    offerModule: product.storeId ? 'Zandofy' : product.module || 'Market',
+    productKind: product.productKind || (product.isDigital ? 'digital' : 'physical'),
+    isDigital: Boolean(product.isDigital),
+    storeId: product.storeId || '',
+    storeSlug: product.storeSlug || '',
+    storeName: product.storeName || '',
+    fppRate: product.fppRate || 0,
+    productURL,
+    createdAt: now,
+    updatedAt: now,
+    status: 'active'
+  };
+
+  await update(ref(realtimeDb), {
+    [`abcPosts/${postId}`]: payload,
+    [`userPosts/${user.uid}/${postId}`]: { id: postId, createdAt: now, type: 'abc-product', linkedProductId: product.id },
+    ...(product.storeId ? { [`zandofyProducts/${product.storeId}/${product.id}/abcPostId`]: postId } : {}),
+    [`marketProducts/${product.id}/abcPostId`]: postId
+  });
+  return { postId };
 }
 
 export async function shareVillageDealToAfriChat({ user, profile, product }: VillageShareInput) {

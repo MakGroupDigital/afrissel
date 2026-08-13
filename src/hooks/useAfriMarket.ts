@@ -27,6 +27,7 @@ export type AfriMarketContent = {
   linkedProductImage?: string;
   linkedProductPrice?: number;
   linkedProductVillagePrice?: number;
+  abcPostId?: string;
   linkedProductCurrency?: string;
   price?: number;
   villagePrice?: number;
@@ -47,6 +48,7 @@ export type AfriMarketContent = {
   storeId?: string;
   storeSlug?: string;
   storeName?: string;
+  productKind?: 'digital' | 'physical';
   deliveryMode?: 'file' | 'link' | string;
   deliveryURL?: string;
   deliveryFile?: Record<string, unknown> | null;
@@ -54,6 +56,26 @@ export type AfriMarketContent = {
   accessNote?: string;
   productSpec?: Record<string, unknown>;
   stock?: number;
+  stockMode?: 'unlimited' | 'tracked';
+  regularPrice?: number;
+  salePrice?: number;
+  pricingMode?: 'paid' | 'free';
+  isFree?: boolean;
+  sku?: string;
+  shippingPrice?: number;
+  shippingRegions?: string[];
+  fppRate?: number;
+  publishToAfriZia?: boolean;
+  catalogCategory?: string;
+  publishToZikMart?: boolean;
+  supplierType?: 'self' | 'supplier' | 'dropshipper';
+  supplierId?: string;
+  supplierName?: string;
+  supplierSKU?: string;
+  supplierCost?: number;
+  supplierLeadTimeDays?: number;
+  dropshippingEnabled?: boolean;
+  sellerMargin?: number;
   location?: string;
   textStyle?: string;
   createdAt?: number | string | { seconds?: number };
@@ -84,6 +106,13 @@ export type AfriMarketPostInput = {
   currency?: string;
   target?: 'abc' | 'text' | 'market' | 'offer';
   stock?: number;
+  productKind?: 'digital' | 'physical';
+  regularPrice?: number;
+  salePrice?: number;
+  pricingMode?: 'paid' | 'free';
+  fppRate?: number;
+  publishToAfriZia?: boolean;
+  catalogCategory?: string;
   location?: string;
   offerModule?: string;
   textStyle?: string;
@@ -200,7 +229,7 @@ const normalizeMedia = (content: RawContent): AfriMarketMedia[] => {
   return [];
 };
 
-const normalizeContent = (id: string, content: RawContent): AfriMarketContent => {
+export const normalizeContent = (id: string, content: RawContent): AfriMarketContent => {
   const media = normalizeMedia(content);
   const isSellable = Boolean(content.isSellable || content.linkedProductId || content.format === 'article' || content.villagePrice);
 
@@ -221,6 +250,7 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     linkedProductImage: content.linkedProductImage || '',
     linkedProductPrice: content.linkedProductPrice !== undefined ? toNumber(content.linkedProductPrice) : undefined,
     linkedProductVillagePrice: content.linkedProductVillagePrice !== undefined ? toNumber(content.linkedProductVillagePrice) : undefined,
+    abcPostId: content.abcPostId || '',
     linkedProductCurrency: content.linkedProductCurrency || content.currency || 'USD',
     price: content.price !== undefined ? toNumber(content.price) : undefined,
     villagePrice: content.villagePrice !== undefined ? toNumber(content.villagePrice) : undefined,
@@ -235,6 +265,7 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     liveStatus: content.liveStatus || '',
     target: content.target || '',
     offerModule: content.offerModule || '',
+    productKind: content.productKind || (content.isDigital ? 'digital' : 'physical'),
     isDigital: Boolean(content.isDigital),
     digitalType: content.digitalType || '',
     collection: content.collection || '',
@@ -248,6 +279,26 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     accessNote: content.accessNote || '',
     productSpec: content.productSpec || {},
     stock: content.stock !== undefined ? toNumber(content.stock) : undefined,
+    stockMode: content.stockMode || (content.productKind === 'physical' ? 'tracked' : 'unlimited'),
+    regularPrice: content.regularPrice !== undefined ? toNumber(content.regularPrice) : content.price,
+    salePrice: content.salePrice !== undefined ? toNumber(content.salePrice) : undefined,
+    pricingMode: content.pricingMode || (content.isFree || content.price === 0 ? 'free' : 'paid'),
+    isFree: content.isFree ?? content.price === 0,
+    sku: content.sku || '',
+    shippingPrice: content.shippingPrice !== undefined ? toNumber(content.shippingPrice) : 0,
+    shippingRegions: Array.isArray(content.shippingRegions) ? content.shippingRegions : [],
+    fppRate: Math.min(Math.max(toNumber(content.fppRate), 0), 20),
+    publishToAfriZia: content.publishToAfriZia !== false,
+    catalogCategory: content.catalogCategory || '',
+    publishToZikMart: content.publishToZikMart === true,
+    supplierType: content.supplierType || 'self',
+    supplierId: content.supplierId || '',
+    supplierName: content.supplierName || '',
+    supplierSKU: content.supplierSKU || '',
+    supplierCost: content.supplierCost !== undefined ? toNumber(content.supplierCost) : 0,
+    supplierLeadTimeDays: content.supplierLeadTimeDays !== undefined ? toNumber(content.supplierLeadTimeDays) : 0,
+    dropshippingEnabled: Boolean(content.dropshippingEnabled),
+    sellerMargin: content.sellerMargin !== undefined ? toNumber(content.sellerMargin) : Math.max(0, toNumber(content.price) - toNumber(content.supplierCost)),
     location: content.location || '',
     textStyle: content.textStyle || '',
     createdAt: content.createdAt,
@@ -295,21 +346,44 @@ export const toCheckoutProduct = (content: AfriMarketContent): Product => ({
   storeId: content.storeId || '',
   storeSlug: content.storeSlug || '',
   storeName: content.storeName || '',
+  productKind: content.productKind || (content.isDigital ? 'digital' : 'physical'),
   isDigital: Boolean(content.isDigital),
   name: content.title,
   seller: content.authorName,
   description: content.description,
   category: content.category,
   price: content.price || content.villagePrice || 0,
+  regularPrice: content.regularPrice ?? content.price ?? content.villagePrice ?? 0,
+  salePrice: content.salePrice,
+  pricingMode: content.pricingMode || (content.isFree || content.price === 0 ? 'free' : 'paid'),
+  isFree: content.isFree ?? content.price === 0,
   villagePrice: content.villagePrice || content.price || 0,
   currency: content.currency || 'USD',
   imageUrl: content.coverURL,
   buyersCount: content.buyersCount || 0,
-  buyersNeeded: content.buyersNeeded || 1
+  buyersNeeded: content.buyersNeeded || 1,
+  stockMode: content.stockMode,
+  stock: content.stock,
+  deliveryMode: content.deliveryMode,
+  shippingPrice: content.shippingPrice,
+  shippingRegions: content.shippingRegions,
+  fppRate: content.fppRate,
+  publishToAfriZia: content.publishToAfriZia !== false,
+  publishToZikMart: content.publishToZikMart === true,
+  supplierType: content.supplierType,
+  supplierId: content.supplierId,
+  supplierName: content.supplierName,
+  supplierSKU: content.supplierSKU,
+  supplierCost: content.supplierCost,
+  supplierLeadTimeDays: content.supplierLeadTimeDays,
+  dropshippingEnabled: content.dropshippingEnabled,
+  sellerMargin: content.sellerMargin,
+  catalogCategory: content.catalogCategory || ''
 });
 
 const shouldSyncWithMarket = (content: AfriMarketContent) => (
   content.isSellable &&
+  content.publishToAfriZia !== false &&
   !content.linkedProductId &&
   content.media.length > 0 &&
   content.media.every((item) => item.resourceType === 'image')
@@ -323,6 +397,7 @@ export const useAfriMarket = () => {
   const { user, profile } = useFirebaseAuth();
   const [abcContents, setAbcContents] = useState<AfriMarketContent[]>(() => readOfflineCache(ABC_CACHE_KEY, []));
   const [marketProducts, setMarketProducts] = useState<AfriMarketContent[]>(() => readOfflineCache(MARKET_CACHE_KEY, []));
+  const [zikMartProducts, setZikMartProducts] = useState<AfriMarketContent[]>([]);
   const [followedAuthors, setFollowedAuthors] = useState<Record<string, boolean>>({});
   const [followerAuthors, setFollowerAuthors] = useState<Record<string, boolean>>({});
   const [mutualAuthors, setMutualAuthors] = useState<Record<string, boolean>>({});
@@ -367,6 +442,7 @@ export const useAfriMarket = () => {
 
     const abcRef = ref(realtimeDb, 'abcPosts');
     const marketRef = ref(realtimeDb, 'marketProducts');
+    const zikMartRef = ref(realtimeDb, 'zikMartProducts');
     const followsRef = user ? ref(realtimeDb, `follows/${user.uid}`) : null;
     const followersRef = user ? ref(realtimeDb, `followers/${user.uid}`) : null;
     const likesRef = user ? ref(realtimeDb, `contentLikesByUser/${user.uid}`) : null;
@@ -428,6 +504,13 @@ export const useAfriMarket = () => {
       }
     );
 
+    const unsubscribeZikMart = onValue(zikMartRef, (snapshot) => {
+      const data = snapshot.val() as Record<string, RawContent> | null;
+      setZikMartProducts(Object.entries(data || {})
+        .map(([id, content]) => normalizeContent(id, content))
+        .filter((content) => content.status !== 'deleted' && content.status !== 'hidden' && content.productKind === 'physical'));
+    }, () => setZikMartProducts([]));
+
     const unsubscribeFollows = followsRef
       ? onValue(followsRef, (snapshot) => {
           const fallback = readOfflineCache<Record<string, boolean>>(scopedCacheKey('follows', user?.uid), {});
@@ -471,11 +554,13 @@ export const useAfriMarket = () => {
       mounted = false;
       unsubscribeAbc();
       unsubscribeMarket();
+      unsubscribeZikMart();
       unsubscribeFollows?.();
       unsubscribeFollowers?.();
       unsubscribeLikes?.();
       off(abcRef);
       off(marketRef);
+      off(zikMartRef);
       if (followsRef) off(followsRef);
       if (followersRef) off(followersRef);
       if (likesRef) off(likesRef);
@@ -555,6 +640,12 @@ export const useAfriMarket = () => {
       linkedProductPrice: linkedProduct?.price,
       linkedProductVillagePrice: linkedProduct?.villagePrice,
       linkedProductCurrency: linkedProduct?.currency,
+      productKind: linkedProduct?.productKind,
+      isDigital: linkedProduct?.isDigital,
+      storeId: linkedProduct?.storeId,
+      storeSlug: linkedProduct?.storeSlug,
+      storeName: linkedProduct?.storeName,
+      fppRate: linkedProduct?.fppRate || 0,
       price: isDirectMarketItem ? input.price : undefined,
       villagePrice: isDirectMarketItem ? input.villagePrice : undefined,
       currency: linkedProduct?.currency || input.currency || 'USD',
@@ -821,6 +912,7 @@ export const useAfriMarket = () => {
   return useMemo(() => ({
     abcContents,
     marketProducts,
+    zikMartProducts,
     followedAuthors,
     mutualAuthors,
     likedContents,
@@ -833,5 +925,5 @@ export const useAfriMarket = () => {
     watchComments,
     addComment,
     recordShare
-  }), [abcContents, commentsByContent, error, followedAuthors, likedContents, loading, marketProducts, mutualAuthors]);
+  }), [abcContents, commentsByContent, error, followedAuthors, likedContents, loading, marketProducts, mutualAuthors, zikMartProducts]);
 };

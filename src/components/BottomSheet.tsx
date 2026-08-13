@@ -22,10 +22,14 @@ export default function BottomSheet() {
   const [paymentMode, setPaymentMode] = React.useState<'afrispay' | 'delivery'>('afrispay');
   const [checkoutError, setCheckoutError] = React.useState('');
   const [documentStatus, setDocumentStatus] = React.useState('');
+  const [deliveryAddress, setDeliveryAddress] = React.useState('');
+  const [deliveryPhone, setDeliveryPhone] = React.useState('');
   const [confirmedOrder, setConfirmedOrder] = React.useState<{ orderId: string; threadId: string; villageStatus: string; documentType: OrderDocumentKind; totalAmount: number; currency: string } | null>(null);
 
   const deliveryPrice = Number(selectedDelivery?.price || 0);
   const totalAmount = Number(selectedProduct?.villagePrice || selectedProduct?.price || 0) + deliveryPrice;
+  const isPhysicalProduct = selectedProduct?.productKind === 'physical';
+  const checkoutKey = selectedProduct ? `${selectedProduct.id}:${selectedDelivery?.id || 'standard'}` : '';
 
   const handlePayment = async () => {
     if (!selectedProduct || paymentStatus === 'processing') return;
@@ -43,7 +47,10 @@ export default function BottomSheet() {
         profile,
         product: selectedProduct,
         delivery: selectedDelivery,
-        paymentMode
+        paymentMode,
+        checkoutKey,
+        deliveryAddress,
+        deliveryPhone
       });
       removeFromCart(selectedProduct.id);
       setConfirmedOrder({
@@ -68,6 +75,8 @@ export default function BottomSheet() {
       setDocumentStatus('');
       setConfirmedOrder(null);
       setPaymentMode('afrispay');
+      setDeliveryAddress('');
+      setDeliveryPhone('');
       closeCheckout();
     }
   }
@@ -140,6 +149,9 @@ export default function BottomSheet() {
                     <Link to={`/order/${confirmedOrder.orderId}`} onClick={handleClose} className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-3 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
                       Vérifier
                     </Link>
+                    {selectedProduct.isDigital && <Link to={`/zandofy/access/${confirmedOrder.orderId}`} onClick={handleClose} className="rounded-xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-2 py-3 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
+                      Accès digital
+                    </Link>}
                     <Link to="/chat" onClick={handleClose} className="rounded-xl border border-white/10 bg-white/[0.04] px-2 py-3 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
                       Chat
                     </Link>
@@ -201,6 +213,14 @@ export default function BottomSheet() {
                   </div>
                 )}
 
+                {isPhysicalProduct && selectedDelivery?.id !== 'pickup' && (
+                  <div className="space-y-2 rounded-xl border border-gray-800 bg-[#0A0A0A] p-4">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Coordonnées Safari</span>
+                    <input value={deliveryAddress} onChange={(event) => setDeliveryAddress(event.target.value)} placeholder="Adresse complète de livraison" className="h-11 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+                    <input value={deliveryPhone} onChange={(event) => setDeliveryPhone(event.target.value)} placeholder="Téléphone de réception" inputMode="tel" className="h-11 w-full rounded-xl border border-gray-800 bg-black/40 px-3 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { id: 'afrispay', label: 'Payer maintenant', body: 'Reçu sécurisé' },
@@ -237,7 +257,7 @@ export default function BottomSheet() {
                      ? 'Confirmation...'
                      : paymentMode === 'delivery'
                        ? `Créer facture • ${formatPrice(totalAmount, selectedProduct.currency)}`
-                       : `Payer • ${formatPrice(totalAmount, selectedProduct.currency)}`}
+                       : totalAmount === 0 ? 'Confirmer gratuitement' : `Payer • ${formatPrice(totalAmount, selectedProduct.currency)}`}
                 </button>
               </div>
             )}

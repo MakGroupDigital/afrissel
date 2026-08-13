@@ -587,12 +587,24 @@ const signInWithSocialProvider = async (provider: typeof googleProvider | typeof
   await setPersistence(firebaseAuth, browserLocalPersistence);
 
   if (isMobileOrStandalone()) {
+    try {
+      // A popup keeps the OAuth result in the current tab on mobile browsers.
+      // Use the redirect flow only when the browser explicitly blocks it.
+      const credential = await signInWithPopup(firebaseAuth, provider);
+      await syncCurrentUser(credential.user);
+      return;
+    } catch (error) {
+      if (!shouldFallbackToRedirect(error)) {
+        throw error;
+      }
+    }
+
     setPendingGoogleRedirect();
     try {
       await signInWithRedirect(firebaseAuth, provider);
-    } catch (error) {
+    } catch (redirectError) {
       clearPendingGoogleRedirect();
-      throw error;
+      throw redirectError;
     }
     return;
   }
@@ -728,12 +740,24 @@ export const useFirebaseAuth = () => {
       }
 
       if (isMobileOrStandalone()) {
+        try {
+          // Keep the mobile web result in this tab so LoginScreen can observe
+          // the authenticated user before applying its normal redirect.
+          const credential = await signInWithPopup(firebaseAuth, googleProvider);
+          await syncCurrentUser(credential.user);
+          return;
+        } catch (error) {
+          if (!shouldFallbackToRedirect(error)) {
+            throw error;
+          }
+        }
+
         setPendingGoogleRedirect();
         try {
           await signInWithRedirect(firebaseAuth, googleProvider);
-        } catch (error) {
+        } catch (redirectError) {
           clearPendingGoogleRedirect();
-          throw error;
+          throw redirectError;
         }
         return;
       }
