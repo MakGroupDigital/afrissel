@@ -50,6 +50,13 @@ const getDirectThreadId = (firstUserId: string, secondUserId: string) => (
 
 const getSellerId = (product: Product) => product.sellerId || '';
 
+const getOrderProcessingMode = async (product: Product): Promise<'automatic' | 'manual'> => {
+  if (product.orderProcessingMode) return product.orderProcessingMode;
+  if (!product.storeId) return 'manual';
+  const snapshot = await get(ref(realtimeDb, `zandofyStores/${product.storeId}/orderProcessingMode`));
+  return snapshot.val() === 'automatic' ? 'automatic' : 'manual';
+};
+
 const ensureSeller = (product: Product, currentUserId: string) => {
   const sellerId = getSellerId(product);
   if (!sellerId) {
@@ -89,13 +96,21 @@ const releaseProductStock = async (stockPath: string | null) => {
 
 export async function completeCommerceOrder({ user, profile, product, delivery, paymentMode = 'afrispay', checkoutKey, deliveryAddress = '', deliveryPhone = '' }: CompleteOrderInput) {
   const sellerId = ensureSeller(product, user.uid);
+  const orderProcessingMode = await getOrderProcessingMode(product);
   const deliveryPrice = Number(delivery?.price || 0);
   const productAmount = getProductAmount(product);
   const totalAmount = productAmount + deliveryPrice;
   const currency = product.currency || 'USD';
   const fppRate = Math.min(Math.max(Number(product.fppRate || 0), 0), 20);
   const fppAmount = Math.round(productAmount * (fppRate / 100) * 100) / 100;
-  const sellerNetAmount = Math.max(0, productAmount - fppAmount);
+  const affiliateId = product.affiliateEnabled && product.affiliateRef && product.affiliateRef !== user.uid && product.affiliateRef !== sellerId
+    ? product.affiliateRef
+    : '';
+  const affiliateLevel = affiliateId && product.affiliateLevel === 'indirect' ? 'indirect' : 'direct';
+  const configuredAffiliateRate = affiliateLevel === 'indirect' ? product.affiliateIndirectRate : product.affiliateDirectRate;
+  const affiliateRate = affiliateId ? Math.min(Math.max(Number(configuredAffiliateRate || 0), 0), 50) : 0;
+  const affiliateAmount = Math.round(productAmount * (affiliateRate / 100) * 100) / 100;
+  const sellerNetAmount = Math.max(0, productAmount - fppAmount - affiliateAmount);
 
   if (!Number.isFinite(totalAmount) || totalAmount < 0) {
     throw new Error('Montant de commande invalide.');
@@ -179,8 +194,10 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
   const isPaidNow = paymentMode === 'afrispay' || totalAmount === 0;
   const documentType = isPaidNow ? 'receipt' : 'invoice';
   const orderModule = product.module === 'Zandofy' || isDigitalProduct || product.storeId ? 'zandofy' : 'market';
-  const isZikMartProduct = product.publishToZikMart === true && product.productKind === 'physical';
-  const orderMessage = `${isPaidNow ? 'Commande payée' : 'Facture créée'} ${orderId}: ${product.name} - ${formatMoney(totalAmount, currency)}. Livraison : ${deliveryRecord.title}.`;
+  const isZikMartProduct = (product.publishToZikMart === true || product.sourceMarketplace === 'zikmart') && product.productKind === 'physical';
+  const automaticPhysicalProcessing = isPaidNow && product.productKind === 'physical' && orderProcessingMode === 'automatic';
+  const initialOrderStatus = automaticPhysicalProcessing ? 'preparing' : isPaidNow ? 'paid' : 'awaiting_delivery_payment';
+  const orderMessage = `${isPaidNow ? 'Commande payée' : 'Facture créée'} ${orderId}: ${product.name} - ${formatMoney(totalAmount, currency)}. ${automaticPhysicalProcessing ? 'Traitement automatique lancé.' : `Livraison : ${deliveryRecord.title}.`}`;
 
   const updates: Record<string, unknown> = {
     [`orders/${orderId}`]: {
@@ -207,6 +224,10 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
       fppRate,
       fppAmount,
       sellerNetAmount,
+      affiliateId,
+      affiliateLevel: affiliateId ? affiliateLevel : '',
+      affiliateRate,
+      affiliateAmount,
       supplierType: product.supplierType || 'self',
       supplierId: product.supplierId || '',
       supplierName: product.supplierName || '',
@@ -216,9 +237,10 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
       dropshippingEnabled: Boolean(product.dropshippingEnabled),
       supplierFulfillmentStatus: product.dropshippingEnabled ? 'pending_supplier' : 'not_applicable',
       currency,
-      status: isPaidNow ? 'paid' : 'awaiting_delivery_payment',
+      status: initialOrderStatus,
       paymentStatus: isPaidNow ? 'confirmed' : 'pay_on_delivery',
       paymentMode,
+      orderProcessingMode,
       documentType,
       checkoutKey: checkoutKey || '',
       deliveryAddress: deliveryAddress.trim(),
@@ -302,7 +324,23 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
     [`chatThreads/${threadId}/members/${user.uid}`]: true,
     [`chatThreads/${threadId}/members/${sellerId}`]: true,
     [`chatThreads/${threadId}/memberNames/${user.uid}`]: customerName,
-    [`chatThreads/${threadId}/memberNames/${sellerId}`]: product.seller
+    [`chatThreads/${threadId}/memberNames/${sellerId}`]: product.seller,
+    ...(isZikMartProduct && product.dropshippingEnabled && product.supplierId && product.supplierId !== sellerId
+      ? {
+          [`supplierOrderRequests/${product.supplierId}/${orderId}`]: {
+            orderId,
+            productId: product.sourceProductId || product.id,
+            productName: product.name,
+            resellerId: sellerId,
+            resellerName: product.seller,
+            supplierId: product.supplierId,
+            supplierName: product.supplierName || product.sourceSellerName || '',
+            quantity: 1,
+            status: 'pending_supplier',
+            createdAt: now
+          }
+        }
+      : {})
   };
 
   if (isPaidNow) {
@@ -331,6 +369,35 @@ export async function completeCommerceOrder({ user, profile, product, delivery, 
       orderId,
       createdAt: now
     };
+    if (affiliateId && affiliateAmount > 0) {
+      const affiliateTransactionId = `${orderId}_affiliate`;
+      updates[`walletTransactions/${affiliateId}/${affiliateTransactionId}`] = {
+        id: affiliateTransactionId,
+        type: 'credit',
+        title: `Commission recommandation ${product.name}`,
+        amount: affiliateAmount,
+        currency,
+        module: orderModule,
+        channel: 'Affiliation Zandofy',
+        status: 'confirmed',
+        orderId,
+        productId: product.id,
+        affiliateLevel,
+        createdAt: now
+      };
+      updates[`affiliateEarnings/${affiliateId}/${orderId}`] = {
+        id: orderId,
+        productId: product.id,
+        productName: product.name,
+        sellerId,
+        level: affiliateLevel,
+        rate: affiliateRate,
+        amount: affiliateAmount,
+        currency,
+        status: 'confirmed',
+        createdAt: now
+      };
+    }
     if (fppAmount > 0) updates[`fppContributions/${orderId}`] = {
       id: orderId,
       orderId,
@@ -475,7 +542,7 @@ export async function updateZikMartSupplierStatus({ user, orderId, status }: { u
   const snapshot = await get(ref(realtimeDb, `orders/${orderId}`));
   if (!snapshot.exists()) throw new Error('Commande introuvable.');
   const order = snapshot.val() as Record<string, unknown>;
-  if (order.sellerId !== user.uid) throw new Error('Seul le vendeur peut suivre cet approvisionnement.');
+  if (order.sellerId !== user.uid && order.supplierId !== user.uid) throw new Error('Seul le vendeur ou le fournisseur peut suivre cet approvisionnement.');
   if (order.marketplace !== 'zikmart' || !order.dropshippingEnabled) throw new Error('Cette commande ne contient pas de traitement dropshipping.');
   if (order.status === 'completed' || order.status === 'cancelled') throw new Error('Cette commande est déjà clôturée.');
   if (status === 'confirmed' && !['paid', 'preparing'].includes(String(order.status))) throw new Error('Le paiement doit être confirmé avant de valider le fournisseur.');

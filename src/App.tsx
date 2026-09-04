@@ -20,7 +20,7 @@ import CreateHubScreen from './screens/CreateHubScreen';
 import CreatePostScreen from './screens/CreatePostScreen';
 import AfriAiTalkScreen from './screens/AfriAiTalkScreen';
 import QuickActionOffersScreen from './screens/QuickActionOffersScreen';
-import ZandofyMarketplaceScreen, { ZandofyClientsScreen, ZandofyCreateProductScreen, ZandofyCreateStoreScreen, ZandofyDashboardScreen, ZandofyDomainScreen, ZandofyEditProductScreen, ZandofyProductsScreen, ZandofyPublicStoreScreen, ZandofyStatsScreen, ZikMartMarketplaceScreen } from './screens/ZandofyMarketplaceScreen';
+import ZandofyMarketplaceScreen, { ZandofyAboutScreen, ZandofyAffiliationScreen, ZandofyClientsScreen, ZandofyCreateProductScreen, ZandofyCreateStoreScreen, ZandofyDashboardScreen, ZandofyDomainScreen, ZandofyEditProductScreen, ZandofyProductsScreen, ZandofyPromosScreen, ZandofyPublicStoreScreen, ZandofyStatsScreen, ZikMartMarketplaceScreen } from './screens/ZandofyMarketplaceScreen';
 import PromotionsScreen from './screens/PromotionsScreen';
 import MarketHome from './screens/MarketHome';
 import ProductDetailScreen from './screens/ProductDetailScreen';
@@ -148,12 +148,16 @@ function AppRoutes() {
         <Route path="/zandofy/create" element={<RequireAuth><ZandofyCreateStoreScreen /></RequireAuth>} />
         <Route path="/zandofy/dashboard" element={<RequireAuth><ZandofyDashboardScreen /></RequireAuth>} />
         <Route path="/zandofy/domain" element={<RequireAuth><ZandofyDomainScreen /></RequireAuth>} />
+        <Route path="/zandofy/promos" element={<RequireAuth><ZandofyPromosScreen /></RequireAuth>} />
+        <Route path="/zandofy/affiliation" element={<RequireAuth><ZandofyAffiliationScreen /></RequireAuth>} />
+        <Route path="/zandofy/about" element={<ZandofyAboutScreen />} />
         <Route path="/zandofy/stats" element={<RequireAuth><ZandofyStatsScreen /></RequireAuth>} />
         <Route path="/zandofy/clients" element={<RequireAuth><ZandofyClientsScreen /></RequireAuth>} />
         <Route path="/zandofy/products" element={<RequireAuth><ZandofyProductsScreen /></RequireAuth>} />
         <Route path="/zandofy/products/new" element={<RequireAuth><ZandofyCreateProductScreen /></RequireAuth>} />
         <Route path="/zandofy/products/:productId/edit" element={<RequireAuth><ZandofyEditProductScreen /></RequireAuth>} />
         <Route path="/zandofy/product/:productId" element={<ProductDetailScreen />} />
+        <Route path="/zandofy/:slug/product/:productId" element={<ProductDetailScreen />} />
         <Route path="/zandofy/:slug" element={<ZandofyPublicStoreScreen />} />
         <Route path="/promos" element={<PromotionsScreen />} />
         <Route path="/apps" element={<AppsDirectoryScreen />} />

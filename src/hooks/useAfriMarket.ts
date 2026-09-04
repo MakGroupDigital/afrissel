@@ -65,6 +65,16 @@ export type AfriMarketContent = {
   shippingPrice?: number;
   shippingRegions?: string[];
   fppRate?: number;
+  affiliateEnabled?: boolean;
+  affiliateDirectRate?: number;
+  affiliateIndirectRate?: number;
+  orderProcessingMode?: 'automatic' | 'manual';
+  sourceProductId?: string;
+  sourceProductURL?: string;
+  sourceMarketplace?: string;
+  sourceSellerId?: string;
+  sourceSellerName?: string;
+  sourcePrice?: number;
   publishToAfriZia?: boolean;
   catalogCategory?: string;
   publishToZikMart?: boolean;
@@ -111,6 +121,10 @@ export type AfriMarketPostInput = {
   salePrice?: number;
   pricingMode?: 'paid' | 'free';
   fppRate?: number;
+  affiliateEnabled?: boolean;
+  affiliateDirectRate?: number;
+  affiliateIndirectRate?: number;
+  orderProcessingMode?: 'automatic' | 'manual';
   publishToAfriZia?: boolean;
   catalogCategory?: string;
   location?: string;
@@ -368,6 +382,16 @@ export const toCheckoutProduct = (content: AfriMarketContent): Product => ({
   shippingPrice: content.shippingPrice,
   shippingRegions: content.shippingRegions,
   fppRate: content.fppRate,
+  affiliateEnabled: content.affiliateEnabled === true,
+  affiliateDirectRate: content.affiliateDirectRate,
+  affiliateIndirectRate: content.affiliateIndirectRate,
+  orderProcessingMode: content.orderProcessingMode || 'manual',
+  sourceProductId: content.sourceProductId || '',
+  sourceProductURL: content.sourceProductURL || '',
+  sourceMarketplace: content.sourceMarketplace || '',
+  sourceSellerId: content.sourceSellerId || '',
+  sourceSellerName: content.sourceSellerName || '',
+  sourcePrice: content.sourcePrice !== undefined ? toNumber(content.sourcePrice) : undefined,
   publishToAfriZia: content.publishToAfriZia !== false,
   publishToZikMart: content.publishToZikMart === true,
   supplierType: content.supplierType,

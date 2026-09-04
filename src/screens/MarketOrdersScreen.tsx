@@ -28,6 +28,7 @@ type MarketOrder = {
   villageStatus?: string;
   module?: string;
   storeId?: string;
+  storeSlug?: string;
   storeName?: string;
   isDigital?: boolean;
   marketplace?: string;
@@ -55,6 +56,7 @@ export default function MarketOrdersScreen() {
   const [actionStatus, setActionStatus] = useState('');
   const moduleFilter = new URLSearchParams(location.search).get('module');
   const isZandofyMode = moduleFilter === 'zandofy';
+  const isPurchasesMode = new URLSearchParams(location.search).get('view') === 'purchases';
 
   useEffect(() => {
     if (!user) {
@@ -65,16 +67,16 @@ export default function MarketOrdersScreen() {
     const ordersRef = ref(realtimeDb, 'orders');
     const unsubscribe = onValue(ordersRef, (snapshot) => {
       const data = snapshot.val() as Record<string, MarketOrder> | null;
-      const nextOrders = Object.entries(data || {})
-        .map(([id, order]) => ({ ...order, id: order.id || id }))
-        .filter((order) => order.buyerId === user.uid || order.sellerId === user.uid)
+        const nextOrders = Object.entries(data || {})
+          .map(([id, order]) => ({ ...order, id: order.id || id }))
+        .filter((order) => isPurchasesMode ? order.buyerId === user.uid : order.buyerId === user.uid || order.sellerId === user.uid)
         .filter((order) => !isZandofyMode || order.module === 'zandofy' || Boolean(order.storeId))
         .sort((first, second) => Number(second.createdAt || 0) - Number(first.createdAt || 0));
       setOrders(nextOrders);
     });
 
     return unsubscribe;
-  }, [isZandofyMode, user]);
+  }, [isPurchasesMode, isZandofyMode, user]);
 
   const stats = useMemo(() => ({
     paid: orders.filter((order) => order.status === 'paid' || order.paymentStatus === 'confirmed').length,
@@ -124,7 +126,7 @@ export default function MarketOrdersScreen() {
         <AfriZiaIcon name="order" size={34} className="mx-auto mt-16 text-[#15EA3E]" />
         <h1 className="mt-4 text-xl font-black">Connexion requise</h1>
         <p className="mt-2 text-sm font-semibold text-white/45">Connecte-toi pour voir tes commandes {isZandofyMode ? 'Zandofy' : 'Market'}.</p>
-        <Link to="/login" state={{ next: isZandofyMode ? '/market/orders?module=zandofy' : '/market/orders' }} className="mt-5 inline-flex rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">
+        <Link to="/login" state={{ next: isPurchasesMode ? '/market/orders?module=zandofy&view=purchases' : isZandofyMode ? '/market/orders?module=zandofy' : '/market/orders' }} className="mt-5 inline-flex rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">
           Se connecter
         </Link>
       </main>
@@ -139,7 +141,7 @@ export default function MarketOrdersScreen() {
         </Link>
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{isZandofyMode ? 'Zandofy' : 'Market'}</p>
-          <h1 className="mt-1 text-xl font-black">Mes commandes</h1>
+          <h1 className="mt-1 text-xl font-black">{isPurchasesMode ? 'Mes achats' : 'Mes commandes'}</h1>
         </div>
       </header>
 
@@ -204,7 +206,7 @@ export default function MarketOrdersScreen() {
               {isSeller && order.deliveryAddress && <span className="max-w-[52%] truncate text-right text-[9px] font-bold text-white/45">{order.deliveryAddress}</span>}
             </div>
             <div className="mt-3 grid grid-cols-4 gap-2">
-              <Link to={order.isDigital ? `/zandofy/access/${order.id}` : order.module === 'zandofy' ? `/zandofy/product/${order.productId}` : `/market/${order.productId}`} className="rounded-xl border border-white/10 bg-black/20 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-white/62">
+              <Link to={order.isDigital ? `/zandofy/access/${order.id}` : order.module === 'zandofy' ? order.storeSlug ? `/zandofy/${encodeURIComponent(order.storeSlug)}/product/${encodeURIComponent(order.productId)}` : `/zandofy/product/${encodeURIComponent(order.productId)}` : `/market/${encodeURIComponent(order.productId)}`} className="rounded-xl border border-white/10 bg-black/20 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-white/62">
                 {order.isDigital ? 'Accès' : 'Produit'}
               </Link>
               <Link to="/safari" className="rounded-xl border border-white/10 bg-black/20 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-white/62">

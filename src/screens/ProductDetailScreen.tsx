@@ -1,13 +1,16 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { get, onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
 import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { AfriMarketContent, formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { CheckoutDelivery, useAppStore } from '../store/useAppStore';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
+import { ZandofyDigitalProduct, useZandofyStore } from '../hooks/useZandofyStore';
 import { linkProductToABC, shareVillageDealToAfriChat } from '../domains/commerce';
 import { realtimeDb } from '../lib/firebase';
 import { cn } from '../lib/utils';
+import { shareLink } from '../lib/shareLink';
+import { CloudinaryResourceType } from '../lib/cloudinary';
 
 const deliveryOptions: CheckoutDelivery[] = [
   {
@@ -121,7 +124,98 @@ const getDigitalMeta = (product: AfriMarketContent) => (
   digitalDetailMeta[product.digitalType || ''] || digitalDetailMeta['Pack digital']
 );
 
-const getZandofyProductURL = (product: AfriMarketContent) => `${window.location.origin}/zandofy/product/${product.id}`;
+const getZandofyProductPath = (product: Pick<AfriMarketContent, 'id' | 'storeSlug'>) => (
+  product.storeSlug
+    ? `/zandofy/${encodeURIComponent(product.storeSlug)}/product/${encodeURIComponent(product.id)}`
+    : `/zandofy/product/${encodeURIComponent(product.id)}`
+);
+
+const getZandofyProductURL = (product: AfriMarketContent) => `${window.location.origin}${getZandofyProductPath(product)}`;
+
+const toMarketContent = (product: ZandofyDigitalProduct): AfriMarketContent => ({
+  id: product.id,
+  authorId: product.authorId,
+  authorName: product.storeName || 'Vendeur Zandofy',
+  authorAvatar: '',
+  title: product.title,
+  description: product.description,
+  category: 'Zandofy',
+  format: 'article',
+  media: product.media?.length
+    ? product.media.map((item) => ({
+        id: item.id,
+        provider: 'cloudinary' as const,
+        mediaUrl: item.mediaUrl || item.secureUrl || '',
+        secureUrl: item.secureUrl || item.mediaUrl || '',
+        publicId: item.publicId || '',
+        resourceType: (item.resourceType || 'image') as CloudinaryResourceType
+      }))
+    : [{
+        id: `${product.id}_cover`,
+        provider: 'cloudinary',
+        mediaUrl: product.coverURL,
+        secureUrl: product.coverURL,
+        publicId: '',
+        resourceType: 'image'
+      }],
+  coverURL: product.coverURL,
+  isSellable: true,
+  linkedProductId: '',
+  linkedProductTitle: '',
+  linkedProductImage: '',
+  linkedProductPrice: product.price,
+  linkedProductCurrency: product.currency,
+  price: product.price,
+  villagePrice: product.villagePrice || product.price,
+  currency: product.currency,
+  buyersCount: 0,
+  buyersNeeded: 1,
+  likesCount: 0,
+  commentsCount: 0,
+  sharesCount: 0,
+  target: 'market',
+  offerModule: 'Zandofy',
+  isDigital: product.productKind === 'digital',
+  digitalType: product.digitalType,
+  collection: product.collection,
+  storeId: product.storeId,
+  storeSlug: product.storeSlug,
+  storeName: product.storeName,
+  productKind: product.productKind,
+  deliveryMode: product.deliveryMode,
+  accessNote: product.accessNote,
+  productSpec: product.productSpec,
+  stock: product.stock,
+  stockMode: product.stockMode,
+  regularPrice: product.regularPrice,
+  salePrice: product.salePrice,
+  pricingMode: product.pricingMode,
+  isFree: product.isFree,
+  fppRate: product.fppRate,
+  affiliateEnabled: product.affiliateEnabled,
+  affiliateDirectRate: product.affiliateDirectRate,
+  affiliateIndirectRate: product.affiliateIndirectRate,
+  orderProcessingMode: product.orderProcessingMode,
+  sourceProductId: product.sourceProductId,
+  sourceProductURL: product.sourceProductURL,
+  sourceMarketplace: product.sourceMarketplace,
+  sourceSellerId: product.sourceSellerId,
+  sourceSellerName: product.sourceSellerName,
+  sourcePrice: product.sourcePrice,
+  supplierType: product.supplierType,
+  supplierId: product.supplierId,
+  supplierName: product.supplierName,
+  supplierSKU: product.supplierSKU,
+  supplierCost: product.supplierCost,
+  supplierLeadTimeDays: product.supplierLeadTimeDays,
+  dropshippingEnabled: product.dropshippingEnabled,
+  sellerMargin: product.sellerMargin,
+  publishToZikMart: product.publishToZikMart,
+  publishToAfriZia: product.publishToAfriZia,
+  status: product.status,
+  createdAt: product.createdAt,
+  updatedAt: product.updatedAt
+});
 
 function ProductGallery({ product }: { product: AfriMarketContent }) {
   const media = product.media.length ? product.media : [{
@@ -133,16 +227,15 @@ function ProductGallery({ product }: { product: AfriMarketContent }) {
     publicId: ''
   }];
   const [activeIndex, setActiveIndex] = useState(0);
+  const [fullscreen, setFullscreen] = useState(false);
   const activeMedia = media[activeIndex] || media[0];
 
   return (
     <section>
       <div className="relative aspect-[4/5] overflow-hidden rounded-[1.8rem] border border-white/10 bg-[#050505]">
-        <img
-          src={activeMedia.secureUrl || activeMedia.mediaUrl}
-          alt={product.title}
-          className="h-full w-full object-cover"
-        />
+        <button type="button" onClick={() => setFullscreen(true)} className="h-full w-full cursor-zoom-in" aria-label="Afficher l’image en plein écran">
+          <img src={activeMedia.secureUrl || activeMedia.mediaUrl} alt={product.title} className="h-full w-full object-cover" />
+        </button>
         <div className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">
           {activeIndex + 1}/{media.length}
         </div>
@@ -165,6 +258,12 @@ function ProductGallery({ product }: { product: AfriMarketContent }) {
           ))}
         </div>
       )}
+      {fullscreen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/95 p-4" role="dialog" aria-modal="true" onClick={() => setFullscreen(false)}>
+          <button type="button" onClick={() => setFullscreen(false)} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white" aria-label="Fermer l’image"><AfriZiaIcon name="close" size={18} /></button>
+          <img src={activeMedia.secureUrl || activeMedia.mediaUrl} alt={product.title} className="max-h-full max-w-full object-contain" onClick={(event) => event.stopPropagation()} />
+        </div>
+      )}
     </section>
   );
 }
@@ -185,9 +284,11 @@ function EmptyDetail() {
 }
 
 export default function ProductDetailScreen() {
-  const { productId } = useParams();
+  const { productId, slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { abcContents, marketProducts, loading } = useAfriMarket();
+  const { products: zandofyProducts } = useZandofyStore(slug);
   const { user, profile } = useFirebaseAuth();
   const openCheckout = useAppStore((state) => state.openCheckout);
   const addToCart = useAppStore((state) => state.addToCart);
@@ -206,18 +307,56 @@ export default function ProductDetailScreen() {
   const [reviewText, setReviewText] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [abcPublishing, setAbcPublishing] = useState(false);
+  const [affiliateAttribution, setAffiliateAttribution] = useState<{ id: string; level: 'direct' | 'indirect' } | null>(null);
+
+  useEffect(() => {
+    if (!productId) return;
+    const storageKey = `afrizia:zandofy-affiliate:${productId}`;
+    const params = new URLSearchParams(location.search);
+    const referralId = params.get('ref')?.trim() || '';
+    const level = params.get('level') === 'indirect' ? 'indirect' : 'direct';
+
+    if (referralId) {
+      const attribution = { id: referralId, level } as const;
+      window.localStorage.setItem(storageKey, JSON.stringify(attribution));
+      setAffiliateAttribution(attribution);
+      return;
+    }
+
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(storageKey) || 'null') as Partial<{ id: string; level: 'direct' | 'indirect' }> | null;
+      if (stored?.id) setAffiliateAttribution({ id: stored.id, level: stored.level === 'indirect' ? 'indirect' : 'direct' });
+    } catch {
+      setAffiliateAttribution(null);
+    }
+  }, [location.search, productId]);
+
+  const zandofyProduct = useMemo(
+    () => zandofyProducts.find((item) => item.id === productId),
+    [productId, zandofyProducts]
+  );
 
   const product = useMemo(
     () => (
       marketProducts.find((item) => item.id === productId) ||
-      abcContents.find((item) => item.id === productId && item.isSellable)
+      abcContents.find((item) => item.id === productId && item.isSellable) ||
+      (zandofyProduct ? toMarketContent(zandofyProduct) : undefined)
     ),
-    [abcContents, marketProducts, productId]
+    [abcContents, marketProducts, productId, zandofyProduct]
   );
   useEffect(() => {
     if (product?.deliveryMode === 'pickup') setSelectedDeliveryId('pickup');
   }, [product?.deliveryMode]);
-  const checkoutProduct = product ? toCheckoutProduct(product) : null;
+  const checkoutProduct = useMemo(() => {
+    if (!product) return null;
+    const baseProduct = toCheckoutProduct(product);
+    if (!affiliateAttribution || affiliateAttribution.id === user?.uid) return baseProduct;
+    return {
+      ...baseProduct,
+      affiliateRef: affiliateAttribution.id,
+      affiliateLevel: affiliateAttribution.level
+    };
+  }, [affiliateAttribution, product, user?.uid]);
   const selectedDelivery = product?.deliveryMode === 'pickup'
     ? deliveryOptions.find((option) => option.id === 'pickup') || deliveryOptions[0]
     : deliveryOptions.find((option) => option.id === selectedDeliveryId) || deliveryOptions[0];
@@ -300,7 +439,7 @@ export default function ProductDetailScreen() {
   const isZandofyDigital = product.productKind === 'digital' || (
     product.productKind === undefined && Boolean(product.isDigital || product.offerModule === 'Zandofy' || product.category === 'Zandofy')
   );
-  const productDetailPath = isZandofyDigital ? `/zandofy/product/${product.id}` : `/market/${product.id}`;
+  const productDetailPath = isZandofyDigital ? getZandofyProductPath(product) : `/market/${product.id}`;
   const digitalMeta = getDigitalMeta(product);
   const productSpec = product.productSpec || {};
   const productShareURL = isZandofyDigital ? getZandofyProductURL(product) : `${window.location.origin}/market/${product.id}`;
@@ -321,19 +460,38 @@ export default function ProductDetailScreen() {
   const handleShareProduct = async () => {
     setStatus('');
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: product.title,
-          text: `${product.title} sur AfriZia`,
-          url: productShareURL
-        });
-      } else {
-        await navigator.clipboard?.writeText(productShareURL);
-        setStatus('Lien du produit copié.');
-      }
+      const result = await shareLink({
+        title: product.title,
+        text: `${product.title} sur AfriZia`,
+        url: productShareURL
+      });
+      setStatus(result === 'copied' ? 'Lien du produit copié.' : 'Produit partagé.');
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
-      setStatus('Partage indisponible. Le lien peut être copié depuis cette page.');
+      setStatus(error instanceof Error ? error.message : 'Partage indisponible.');
+    }
+  };
+
+  const handleShareAffiliate = async (level: 'direct' | 'indirect') => {
+    if (!user) {
+      navigate('/login', { state: { next: productDetailPath } });
+      return;
+    }
+    if (!product.affiliateEnabled) return;
+
+    const affiliateURL = new URL(productShareURL);
+    affiliateURL.searchParams.set('ref', user.uid);
+    affiliateURL.searchParams.set('level', level);
+    try {
+      const result = await shareLink({
+        title: `${product.title} - recommandation`,
+        text: `Découvre ${product.title} sur AfriZia.`,
+        url: affiliateURL.toString()
+      });
+      setStatus(result === 'copied' ? `Lien d’affiliation ${level} copié.` : `Lien d’affiliation ${level} partagé.`);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setStatus(error instanceof Error ? error.message : 'Partage du lien d’affiliation impossible.');
     }
   };
 
@@ -743,6 +901,32 @@ export default function ProductDetailScreen() {
             </div>
           </section>
 
+          {product.affiliateEnabled && (
+            <section className="mt-4 rounded-[1.6rem] border border-sky-300/18 bg-sky-300/6 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-300 text-black">
+                  <AfriZiaIcon name="share" size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-sm font-black">Recommander ce produit</h2>
+                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/48">Le vendeur rémunère les recommandations selon le niveau choisi.</p>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => void handleShareAffiliate('direct')} className="rounded-2xl border border-white/10 bg-black/22 px-3 py-3 text-left">
+                  <span className="block text-[9px] font-black uppercase tracking-wider text-sky-200">Direct</span>
+                  <span className="mt-1 block text-sm font-black text-white">{product.affiliateDirectRate || 0}%</span>
+                  <span className="mt-1 block text-[9px] font-semibold text-white/38">Partager le lien</span>
+                </button>
+                <button type="button" onClick={() => void handleShareAffiliate('indirect')} className="rounded-2xl border border-white/10 bg-black/22 px-3 py-3 text-left">
+                  <span className="block text-[9px] font-black uppercase tracking-wider text-sky-200">Indirect</span>
+                  <span className="mt-1 block text-sm font-black text-white">{product.affiliateIndirectRate || 0}%</span>
+                  <span className="mt-1 block text-[9px] font-semibold text-white/38">Partager le lien</span>
+                </button>
+              </div>
+            </section>
+          )}
+
           {product.authorId === user?.uid && (
             <section className="mt-4 rounded-[1.6rem] border border-[#15EA3E]/18 bg-[#15EA3E]/8 p-4">
               <div className="flex items-start gap-3">
@@ -811,7 +995,7 @@ export default function ProductDetailScreen() {
               </div>
               <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
                 {relatedDigitalProducts.map((item) => (
-                  <Link key={item.id} to={`/zandofy/product/${item.id}`} className="w-[140px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+                  <Link key={item.id} to={getZandofyProductPath(item)} className="w-[140px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
                     <img src={item.coverURL || '/zandofyiconeapp.png'} alt={item.title} className="h-24 w-full object-cover" />
                     <div className="p-2.5">
                       <p className="line-clamp-2 text-[11px] font-black leading-tight">{item.title}</p>

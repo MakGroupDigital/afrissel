@@ -31,6 +31,18 @@ export type Product = {
   shippingPrice?: number;
   shippingRegions?: string[];
   fppRate?: number;
+  affiliateEnabled?: boolean;
+  affiliateDirectRate?: number;
+  affiliateIndirectRate?: number;
+  affiliateRef?: string;
+  affiliateLevel?: 'direct' | 'indirect';
+  orderProcessingMode?: 'automatic' | 'manual';
+  sourceProductId?: string;
+  sourceProductURL?: string;
+  sourceMarketplace?: string;
+  sourceSellerId?: string;
+  sourceSellerName?: string;
+  sourcePrice?: number;
   publishToAfriZia?: boolean;
   publishToZikMart?: boolean;
   supplierType?: 'self' | 'supplier' | 'dropshipper';

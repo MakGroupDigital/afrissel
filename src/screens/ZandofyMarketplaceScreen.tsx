@@ -1,15 +1,16 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { onValue, push, ref, serverTimestamp, set } from 'firebase/database';
 import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
-import { ZandofyTheme, getZandofyStoreURL, useZandofyStore } from '../hooks/useZandofyStore';
+import { ZandofyOrderProcessingMode, ZandofyProductMedia, ZandofyTheme, getZandofyStoreURL, useZandofyStore } from '../hooks/useZandofyStore';
 import { AFRICAN_COUNTRIES_BY_PRIORITY, getCountryByCode, getDeviceCityHint, getDeviceCountryCode } from '../lib/africaLocation';
 import { realtimeDb } from '../lib/firebase';
 import { cn } from '../lib/utils';
+import { shareLink } from '../lib/shareLink';
 import { getZandofyRecommendations, rememberZandofyInterest } from '../domains/commerce/zandofyRecommendations';
 import { recordZandofyAnalyticsEvent, ZandofyAnalyticsSnapshot } from '../domains/commerce/zandofyAnalytics';
-import { toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
+import { AfriMarketContent, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { useAppStore } from '../store/useAppStore';
 
 const themeStyles: Record<ZandofyTheme, string> = {
@@ -39,6 +40,29 @@ const dashboardActions = [
   { label: 'ZikMart', icon: 'market' as const, route: '/zikmart' },
   { label: 'Réglage', icon: 'settings' as const, route: '/zandofy/domain' }
 ];
+
+const zandofyMenu = [
+  { label: 'Accueil', icon: 'home' as const, route: '/zandofy' },
+  { label: 'Produits', icon: 'market' as const, route: '/zandofy/products' },
+  { label: 'Promo', icon: 'signal' as const, route: '/zandofy/promos' },
+  { label: 'Affiliation', icon: 'share' as const, route: '/zandofy/affiliation' },
+  { label: 'À propos', icon: 'app' as const, route: '/zandofy/about' },
+  { label: 'Contacts', icon: 'contact' as const, route: '/zandofy/clients' },
+  { label: 'Mes achats', icon: 'order' as const, route: '/market/orders?module=zandofy&view=purchases' }
+];
+
+function ZandofyMenuBar() {
+  return (
+    <nav aria-label="Navigation Zandofy" className="scrollbar-hide flex gap-2 overflow-x-auto px-4 py-3">
+      {zandofyMenu.map((item) => (
+        <Link key={item.label} to={item.route} className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.045] px-3 py-2 text-[9px] font-black text-white/62">
+          <AfriZiaIcon name={item.icon} size={13} className="text-[#15EA3E]" />
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
 
 type ZandofyOrder = {
   id: string;
@@ -134,7 +158,7 @@ const digitalTypeConfig: Record<DigitalProductType, {
     icon: 'file',
     hint: 'PDF, Word, EPUB ou livre audio associé.',
     accept: 'application/pdf,.pdf,.doc,.docx,.epub,.mobi,audio/*',
-    multiple: false,
+    multiple: true,
     uploadLabel: 'Importer le livre PDF, Word ou EPUB',
     deliveryNote: 'Le fichier du livre est livré automatiquement.'
   },
@@ -170,7 +194,7 @@ const digitalTypeConfig: Record<DigitalProductType, {
     icon: 'lock',
     hint: 'Clé logiciel, accès SaaS, activation ou durée.',
     accept: '.txt,.csv,.xlsx,.pdf',
-    multiple: false,
+    multiple: true,
     uploadLabel: 'Importer fichier de clés ou preuve licence',
     deliveryNote: 'Une clé ou instruction d’activation est fournie au client.'
   },
@@ -179,7 +203,7 @@ const digitalTypeConfig: Record<DigitalProductType, {
     icon: 'scan',
     hint: 'Billet dynamique avec QR, code-barres et référence.',
     accept: 'image/*,application/pdf,.pdf',
-    multiple: false,
+    multiple: true,
     uploadLabel: 'Importer visuel ou plan de billet',
     deliveryNote: 'Chaque acheteur reçoit un billet personnalisé.'
   },
@@ -196,6 +220,19 @@ const digitalTypeConfig: Record<DigitalProductType, {
 
 const digitalTypes = Object.keys(digitalTypeConfig) as DigitalProductType[];
 const zandofyProductDraftKey = (storeId?: string) => `afrisell:zandofy-product-draft:${storeId || 'pending'}`;
+const getZandofyProductPath = (product: { id: string; storeSlug?: string }) => (
+  product.storeSlug
+    ? `/zandofy/${encodeURIComponent(product.storeSlug)}/product/${encodeURIComponent(product.id)}`
+    : `/zandofy/product/${encodeURIComponent(product.id)}`
+);
+
+const getSourceProductURL = (product: AfriMarketContent) => product.storeSlug
+  ? `${window.location.origin}${getZandofyProductPath(product)}`
+  : `${window.location.origin}/market/${encodeURIComponent(product.id)}`;
+
+const getZikMartProductPath = (product: AfriMarketContent) => product.storeId || product.offerModule === 'Zandofy'
+  ? getZandofyProductPath(product)
+  : `/market/${encodeURIComponent(product.id)}`;
 
 const getInitialCountryCode = () => getDeviceCountryCode();
 
@@ -367,11 +404,13 @@ export default function ZandofyMarketplaceScreen() {
           <div className="absolute bottom-4 left-4 right-20">
             <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#15EA3E]">Zandofy</p>
             <p className="mt-2 text-sm font-black leading-snug text-white drop-shadow">
-              Vends formations, fichiers, licences, contenus, billets et produits numériques avec AfriSpay sur Zandofy.
+              Vends tes produits physiques, digitaux et tes offres avec AfriSpay sur Zandofy.
             </p>
           </div>
         </div>
       </header>
+
+      <ZandofyMenuBar />
 
       <section className="px-4">
         <div className="rounded-[1.8rem] border border-[#15EA3E]/16 bg-[#071007] p-3 shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
@@ -408,7 +447,7 @@ export default function ZandofyMarketplaceScreen() {
               <img src={store.logoURL || '/zandofyiconeapp.png'} alt="" className="h-12 w-12 rounded-2xl object-cover" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-black">{store.name}</p>
-                <p className="truncate text-[10px] font-semibold text-white/42">{store.city}, {store.country} - {store.digitalProductsCount} digital</p>
+                <p className="truncate text-[10px] font-semibold text-white/42">{store.city}, {store.country} - {store.digitalProductsCount} digital · {store.physicalProductsCount} physique(s)</p>
               </div>
               <AfriZiaIcon name="arrow" size={14} className="text-[#15EA3E]" />
             </Link>
@@ -431,10 +470,11 @@ export function ZandofyCreateStoreScreen() {
   const detectedCountry = getCountryByCode(detectedCountryCode) || AFRICAN_COUNTRIES_BY_PRIORITY[0];
   const [step, setStep] = useState(0);
   const [name, setName] = useState(profile?.businessName || '');
-  const [tagline, setTagline] = useState('Produits digitaux, livrés instantanément.');
+  const [tagline, setTagline] = useState('Produits physiques et digitaux, vendus simplement.');
   const [countryCode, setCountryCode] = useState(detectedCountry.code);
   const [city, setCity] = useState(getInitialCity(detectedCountry.code));
   const [theme, setTheme] = useState<ZandofyTheme>('emerald');
+  const [orderProcessingMode, setOrderProcessingMode] = useState<ZandofyOrderProcessingMode>('manual');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState(profile?.logoURL || profile?.photoURL || '/zandofyiconeapp.png');
   const [busy, setBusy] = useState(false);
@@ -526,7 +566,8 @@ export function ZandofyCreateStoreScreen() {
         city,
         logoFile,
         logoURL: logoPreview,
-        theme
+        theme,
+        orderProcessingMode
       });
       setStatus('Boutique créée.');
       navigate(`/zandofy/dashboard?created=${encodeURIComponent(store.slug)}`);
@@ -604,6 +645,17 @@ export function ZandofyCreateStoreScreen() {
                 <button key={item} type="button" onClick={() => setTheme(item)} className={cn('h-16 rounded-2xl border bg-gradient-to-br', themeStyles[item], theme === item ? 'border-[#15EA3E]' : 'border-white/10')} />
               ))}
             </div>
+            <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-3">
+              <p className="text-[10px] font-black uppercase tracking-wider text-white/42">Traitement des commandes</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {([['manual', 'Manuel'], ['automatic', 'Automatique']] as Array<[ZandofyOrderProcessingMode, string]>).map(([value, label]) => (
+                  <button key={value} type="button" onClick={() => setOrderProcessingMode(value)} className={cn('rounded-xl border py-3 text-xs font-black', orderProcessingMode === value ? 'border-[#15EA3E] bg-[#15EA3E] text-black' : 'border-white/10 bg-white/[0.04] text-white/56')}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/38">Automatique prépare la commande dès le paiement. Manuel te laisse valider chaque étape.</p>
+            </div>
           </section>
         )}
 
@@ -647,7 +699,7 @@ export function ZandofyDashboardScreen() {
       <main className="flex min-h-full flex-col justify-center bg-[#030604] p-5 text-white">
         <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 text-center">
           <h1 className="text-2xl font-black">Aucune boutique</h1>
-          <p className="mt-2 text-sm font-semibold text-white/48">Crée ta boutique digitale avant d’accéder au dashboard.</p>
+          <p className="mt-2 text-sm font-semibold text-white/48">Crée ta boutique physique, digitale ou mixte avant d’accéder au dashboard.</p>
           <Link to="/zandofy/create" className="mt-5 block rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black">Créer</Link>
         </div>
       </main>
@@ -672,6 +724,8 @@ export function ZandofyDashboardScreen() {
         </Link>
       </header>
 
+      <ZandofyMenuBar />
+
       <section className="px-4 pt-4">
         <div className={cn('relative overflow-hidden rounded-[2rem] border border-[#15EA3E]/18 bg-gradient-to-br p-4', themeStyles[store.theme])}>
           <div className="flex items-center gap-4">
@@ -684,7 +738,7 @@ export function ZandofyDashboardScreen() {
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2">
             {[
-              [products.length || store.digitalProductsCount, 'Produits'],
+              [products.length || store.digitalProductsCount + store.physicalProductsCount, 'Produits'],
               [store.ordersCount, 'Commandes'],
               [store.customDomain ? 'Domaine' : 'Lien', 'Actif']
             ].map(([value, label]) => (
@@ -733,7 +787,7 @@ export function ZandofyDashboardScreen() {
           </div>
           <div className="mt-4 space-y-2">
             {recentProducts.length ? recentProducts.map((product) => (
-              <Link key={product.id} to={`/zandofy/product/${product.id}`} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-2">
+              <Link key={product.id} to={getZandofyProductPath(product)} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-2">
                 <img src={product.coverURL} alt="" className="h-12 w-12 rounded-xl object-cover" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-black">{product.title}</span>
@@ -750,6 +804,74 @@ export function ZandofyDashboardScreen() {
       </section>
     </main>
   );
+}
+
+export function ZandofyAffiliationScreen() {
+  const navigate = useNavigate();
+  const { user } = useFirebaseAuth();
+  const { ownerStore, products, loading } = useZandofyStore();
+  const [status, setStatus] = useState('');
+
+  const shareAffiliate = async (product: typeof products[number], level: 'direct' | 'indirect') => {
+    if (!user) return;
+    const productURL = `${window.location.origin}${getZandofyProductPath(product)}`;
+    const url = new URL(productURL);
+    url.searchParams.set('ref', user.uid);
+    url.searchParams.set('level', level);
+    try {
+      const result = await shareLink({ title: `${product.title} - recommandation`, text: `Découvre ${product.title} sur AfriZia.`, url: url.toString() });
+      setStatus(result === 'copied' ? 'Lien copié.' : 'Lien partagé.');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setStatus(error instanceof Error ? error.message : 'Partage impossible.');
+    }
+  };
+
+  if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement affiliation...</main>;
+  if (!ownerStore) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Boutique introuvable.</main>;
+  const affiliateProducts = products.filter((product) => product.affiliateEnabled);
+
+  return (
+    <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
+      <header className="sticky top-0 z-20 flex items-center justify-between bg-[#030604]/90 px-4 pb-3 pt-4 backdrop-blur-xl">
+        <button type="button" onClick={() => navigate('/zandofy/dashboard')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]"><AfriZiaIcon name="arrow" size={16} className="rotate-180" /></button>
+        <div className="text-center"><p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy</p><h1 className="text-sm font-black">Affiliation</h1></div>
+        <AfriZiaIcon name="share" size={19} className="text-[#15EA3E]" />
+      </header>
+      <ZandofyMenuBar />
+      <section className="px-4 pt-4"><div className="rounded-[1.7rem] border border-sky-300/18 bg-sky-300/7 p-5"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-200">Recommandations</p><h2 className="mt-2 text-xl font-black">Tes liens directs et indirects</h2><p className="mt-2 text-xs font-semibold leading-relaxed text-white/48">Partage un produit et reçois la commission définie par le vendeur après un achat confirmé.</p></div></section>
+      {status && <p className="mx-4 mt-4 rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-3 text-center text-xs font-bold text-[#15EA3E]">{status}</p>}
+      <section className="space-y-3 px-4 pt-5">
+        {affiliateProducts.length ? affiliateProducts.map((product) => (
+          <article key={product.id} className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-3">
+            <div className="flex items-center gap-3"><img src={product.coverURL} alt="" className="h-14 w-14 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{product.title}</p><p className="mt-1 text-[10px] font-bold text-white/42">Direct {product.affiliateDirectRate}% · Indirect {product.affiliateIndirectRate}%</p></div><Link to={getZandofyProductPath(product)} className="text-[9px] font-black uppercase text-[#15EA3E]">Voir</Link></div>
+            <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => void shareAffiliate(product, 'direct')} className="rounded-xl border border-white/10 bg-black/20 py-2.5 text-[9px] font-black uppercase tracking-wider text-white/70">Lien direct</button><button type="button" onClick={() => void shareAffiliate(product, 'indirect')} className="rounded-xl bg-[#15EA3E] py-2.5 text-[9px] font-black uppercase tracking-wider text-black">Lien indirect</button></div>
+          </article>
+        )) : <div className="rounded-[1.4rem] border border-dashed border-white/14 p-6 text-center text-xs font-bold text-white/45">Active les recommandations sur un produit pour générer tes liens.</div>}
+      </section>
+    </main>
+  );
+}
+
+export function ZandofyPromosScreen() {
+  const navigate = useNavigate();
+  const { ownerStore, products, loading } = useZandofyStore();
+  const promos = products.filter((product) => product.salePrice !== undefined && product.salePrice < product.regularPrice);
+  if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement promos...</main>;
+  if (!ownerStore) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Boutique introuvable.</main>;
+  return (
+    <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
+      <header className="sticky top-0 z-20 flex items-center justify-between bg-[#030604]/90 px-4 pb-3 pt-4 backdrop-blur-xl"><button type="button" onClick={() => navigate('/zandofy/dashboard')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]"><AfriZiaIcon name="arrow" size={16} className="rotate-180" /></button><div className="text-center"><p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy</p><h1 className="text-sm font-black">Promos</h1></div><AfriZiaIcon name="signal" size={19} className="text-[#15EA3E]" /></header>
+      <ZandofyMenuBar />
+      <section className="grid grid-cols-2 gap-3 px-4 pt-5">{promos.map((product) => <Link key={product.id} to={getZandofyProductPath(product)} className="overflow-hidden rounded-[1.4rem] border border-white/10 bg-white/[0.04]"><img src={product.coverURL} alt={product.title} className="h-32 w-full object-cover" /><div className="p-3"><p className="line-clamp-2 text-xs font-black">{product.title}</p><p className="mt-2 text-sm font-black text-[#15EA3E]">{product.salePrice} {product.currency}</p><p className="text-[10px] font-bold text-white/35 line-through">{product.regularPrice} {product.currency}</p></div></Link>)}</section>
+      {!promos.length && <p className="mx-4 mt-5 rounded-2xl border border-dashed border-white/14 p-6 text-center text-xs font-bold text-white/45">Aucune promotion active dans cette boutique.</p>}
+    </main>
+  );
+}
+
+export function ZandofyAboutScreen() {
+  const navigate = useNavigate();
+  return <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white"><header className="flex items-center justify-between px-4 pb-3 pt-4"><button type="button" onClick={() => navigate('/zandofy')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]"><AfriZiaIcon name="arrow" size={16} className="rotate-180" /></button><div className="text-center"><p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy</p><h1 className="text-sm font-black">À propos</h1></div><img src="/zandofyiconeapp.png" alt="" className="h-10 w-10 rounded-2xl object-cover" /></header><ZandofyMenuBar /><section className="px-4 pt-5"><div className="rounded-[2rem] border border-[#15EA3E]/18 bg-[#071007] p-5"><img src="/zandofyiconeapp.png" alt="Zandofy" className="h-16 w-16 rounded-2xl object-cover" /><h2 className="mt-5 text-2xl font-black">Une boutique à ton image.</h2><p className="mt-3 text-sm font-semibold leading-relaxed text-white/55">Zandofy permet de vendre des produits digitaux, physiques et des offres issues du sourcing ZikMart, avec AfriSpay, AfriChat, Safari et les recommandations.</p></div></section></main>;
 }
 
 export function ZandofyStatsScreen() {
@@ -948,7 +1070,7 @@ export function ZandofyStatsScreen() {
           <h2 className="text-sm font-black">Produits les plus performants</h2>
           <div className="mt-4 space-y-2">
             {stats.topProducts.length ? stats.topProducts.map(({ product, orders: productOrders, revenue }) => (
-              <Link key={product.id} to={`/zandofy/product/${product.id}`} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-2">
+              <Link key={product.id} to={getZandofyProductPath(product)} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-2">
                 <img src={product.coverURL} alt="" className="h-12 w-12 rounded-xl object-cover" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-black">{product.title}</span>
@@ -1100,7 +1222,14 @@ export function ZandofyClientsScreen() {
 
 export function ZandofyCreateProductScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { marketProducts, zikMartProducts } = useAfriMarket();
   const { ownerStore, loading, createDigitalProduct } = useZandofyStore();
+  const sourceProductId = new URLSearchParams(location.search).get('sourceProductId') || '';
+  const sourceProduct = useMemo(() => {
+    const routeState = location.state as { sourceProduct?: AfriMarketContent } | null;
+    return routeState?.sourceProduct || [...zikMartProducts, ...marketProducts].find((product) => product.id === sourceProductId) || null;
+  }, [location.state, marketProducts, sourceProductId, zikMartProducts]);
   const [step, setStep] = useState(0);
   const [productKind, setProductKind] = useState<'digital' | 'physical'>('digital');
   const [title, setTitle] = useState('');
@@ -1122,6 +1251,11 @@ export function ZandofyCreateProductScreen() {
   const [stockMode, setStockMode] = useState<'unlimited' | 'tracked'>('unlimited');
   const [stock, setStock] = useState('');
   const [fppRate, setFppRate] = useState('0');
+  const [affiliateEnabled, setAffiliateEnabled] = useState(false);
+  const [affiliateDirectRate, setAffiliateDirectRate] = useState('0');
+  const [affiliateIndirectRate, setAffiliateIndirectRate] = useState('0');
+  const [sourceMedia, setSourceMedia] = useState<ZandofyProductMedia[]>([]);
+  const [sourceApplied, setSourceApplied] = useState(false);
   const [sku, setSku] = useState('');
   const [shippingPrice, setShippingPrice] = useState('');
   const [shippingRegions, setShippingRegions] = useState('RDC');
@@ -1148,6 +1282,53 @@ export function ZandofyCreateProductScreen() {
   const [publishing, setPublishing] = useState(false);
   const [draftHydrated, setDraftHydrated] = useState(false);
   const selectedDigitalConfig = digitalType ? digitalTypeConfig[digitalType] : digitalTypeConfig.Formation;
+
+  useEffect(() => {
+    if (!ownerStore?.id || !sourceProduct || !draftHydrated || sourceApplied) return;
+    const media = (sourceProduct.media.length ? sourceProduct.media : [{
+      id: `${sourceProduct.id}_cover`,
+      mediaUrl: sourceProduct.coverURL,
+      secureUrl: sourceProduct.coverURL,
+      publicId: '',
+      resourceType: 'image' as const,
+      provider: 'cloudinary' as const
+    }]).map((item, index) => ({
+      id: item.id || `${sourceProduct.id}_source_${index}`,
+      mediaUrl: item.mediaUrl || item.secureUrl || '',
+      secureUrl: item.secureUrl || item.mediaUrl || '',
+      publicId: item.publicId || '',
+      resourceType: item.resourceType || 'image',
+      provider: item.provider || 'cloudinary'
+    })).filter((item) => item.secureUrl);
+    const sourcePrice = Number(sourceProduct.price || sourceProduct.villagePrice || 0);
+    const suggestedPrice = sourcePrice > 0 ? (Math.ceil(sourcePrice * 1.2 * 100) / 100).toString() : '';
+    setProductKind('physical');
+    setDigitalType('');
+    setTitle(sourceProduct.title);
+    setDescription(sourceProduct.description);
+    setCatalogCategory(sourceProduct.catalogCategory || sourceProduct.category || 'Autres');
+    setPrice(suggestedPrice);
+    setSalePrice('');
+    setPricingMode('paid');
+    setCurrency(sourceProduct.currency || 'USD');
+    setCoverFile(null);
+    setCoverPreview(sourceProduct.coverURL || media[0]?.secureUrl || '/afrimarket.jpeg');
+    setSourceMedia(media);
+    setDeliveryMode('shipping');
+    setStockMode('unlimited');
+    setStock('');
+    setSupplierType('dropshipper');
+    setSupplierId(sourceProduct.authorId);
+    setSupplierName(sourceProduct.authorName);
+    setSupplierSKU(sourceProduct.sku || '');
+    setSupplierCost(sourcePrice > 0 ? sourcePrice.toString() : '');
+    setSupplierLeadTimeDays(sourceProduct.supplierLeadTimeDays?.toString() || '');
+    setDropshippingEnabled(true);
+    setPublishToZikMart(false);
+    setStep(1);
+    setStatus('Produit ZikMart repris. Ajuste ton prix et ta marge avant de publier.');
+    setSourceApplied(true);
+  }, [draftHydrated, ownerStore?.id, sourceApplied, sourceProduct]);
 
   useEffect(() => {
     if (!ownerStore?.id) return;
@@ -1177,6 +1358,9 @@ export function ZandofyCreateProductScreen() {
         stockMode: 'unlimited' | 'tracked';
         stock: string;
         fppRate: string;
+        affiliateEnabled: boolean;
+        affiliateDirectRate: string;
+        affiliateIndirectRate: string;
         sku: string;
         shippingPrice: string;
         shippingRegions: string;
@@ -1219,6 +1403,9 @@ export function ZandofyCreateProductScreen() {
       setStockMode(draft.stockMode || (draft.productKind === 'physical' ? 'tracked' : 'unlimited'));
       setStock(draft.stock || '');
       setFppRate(draft.fppRate || '0');
+      setAffiliateEnabled(draft.affiliateEnabled === true);
+      setAffiliateDirectRate(draft.affiliateDirectRate || '0');
+      setAffiliateIndirectRate(draft.affiliateIndirectRate || '0');
       setSku(draft.sku || '');
       setShippingPrice(draft.shippingPrice || '');
       setShippingRegions(draft.shippingRegions || 'RDC');
@@ -1274,6 +1461,9 @@ export function ZandofyCreateProductScreen() {
       stockMode,
       stock,
       fppRate,
+      affiliateEnabled,
+      affiliateDirectRate,
+      affiliateIndirectRate,
       sku,
       shippingPrice,
       shippingRegions,
@@ -1339,6 +1529,9 @@ export function ZandofyCreateProductScreen() {
     stock,
     stockMode,
     fppRate,
+    affiliateEnabled,
+    affiliateDirectRate,
+    affiliateIndirectRate,
     step,
     templateSoftware,
     ticketPrefix,
@@ -1352,7 +1545,7 @@ export function ZandofyCreateProductScreen() {
       <main className="flex min-h-full flex-col justify-center bg-[#030604] p-5 text-center text-white">
         <img src="/zandofyiconeapp.png" alt="" className="mx-auto h-20 w-20 rounded-[1.5rem] object-cover" />
         <h1 className="mt-5 text-2xl font-black">Crée d’abord ta boutique</h1>
-        <p className="mt-2 text-sm font-semibold text-white/48">Les produits digitaux Zandofy doivent être liés à une boutique.</p>
+        <p className="mt-2 text-sm font-semibold text-white/48">Les produits Zandofy doivent être liés à une boutique.</p>
         <Link to="/zandofy/create" className="mt-5 rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">Créer boutique</Link>
       </main>
     );
@@ -1361,7 +1554,7 @@ export function ZandofyCreateProductScreen() {
   const canContinue = step === 0
     ? productKind === 'physical' || Boolean(digitalType)
     : step === 1
-          ? title.trim().length >= 3 && description.trim().length >= 12 && Boolean(coverFile) &&
+          ? title.trim().length >= 3 && description.trim().length >= 12 && Boolean(coverFile || sourceMedia.length) &&
         (pricingMode === 'free' || Number(price) > 0) &&
         (productKind === 'digital' || stockMode === 'unlimited' || (stock.trim() !== '' && Number(stock) >= 0)) &&
         (!publishToZikMart || supplierCost.trim() !== '')
@@ -1381,9 +1574,17 @@ export function ZandofyCreateProductScreen() {
 
   const handleDeliveryFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    setDeliveryFiles(selectedDigitalConfig.multiple ? files : files.slice(0, 1));
+    setDeliveryFiles((current) => {
+      const nextFiles = selectedDigitalConfig.multiple ? [...current, ...files] : files.slice(0, 1);
+      return Array.from(new Map(nextFiles.map((file) => [`${file.name}:${file.size}:${file.lastModified}`, file])).values());
+    });
     setDeliveryFile(files[0] || null);
     event.target.value = '';
+  };
+
+  const removeDeliveryFile = (fileToRemove: File) => {
+    setDeliveryFiles((current) => current.filter((file) => file !== fileToRemove));
+    setDeliveryFile((current) => current === fileToRemove ? null : current);
   };
 
   const selectDigitalType = (nextType: DigitalProductType) => {
@@ -1437,6 +1638,13 @@ export function ZandofyCreateProductScreen() {
         currency,
         catalogCategory,
         coverFile,
+        sourceProductId: sourceProduct?.id,
+        sourceProductURL: sourceProduct ? getSourceProductURL(sourceProduct) : undefined,
+        sourceMarketplace: sourceProduct ? 'zikmart' : undefined,
+        sourceSellerId: sourceProduct?.authorId,
+        sourceSellerName: sourceProduct?.authorName,
+        sourcePrice: sourceProduct ? Number(sourceProduct.price || sourceProduct.villagePrice || 0) : undefined,
+        sourceMedia,
         deliveryMode,
         deliveryFile,
         deliveryFiles,
@@ -1445,6 +1653,9 @@ export function ZandofyCreateProductScreen() {
         stockMode,
         stock: stockMode === 'tracked' ? Number(stock) : undefined,
         fppRate: Number(fppRate || 0),
+        affiliateEnabled,
+        affiliateDirectRate: Number(affiliateDirectRate || 0),
+        affiliateIndirectRate: Number(affiliateIndirectRate || 0),
         sku,
         shippingPrice: Number(shippingPrice || 0),
         shippingRegions: shippingRegions.split(',').map((region) => region.trim()).filter(Boolean),
@@ -1549,6 +1760,23 @@ export function ZandofyCreateProductScreen() {
           <section className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{productKind === 'physical' ? 'Produit physique' : selectedDigitalConfig.label}</p>
             <h2 className="mt-2 text-2xl font-black leading-tight">Présente et valorise</h2>
+            {sourceProduct && (
+              <div className="mt-4 rounded-2xl border border-sky-300/20 bg-sky-300/8 p-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-300 text-black">
+                    <AfriZiaIcon name="share" size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-sky-200">Produit source ZikMart</p>
+                    <p className="mt-1 truncate text-xs font-black text-white">{sourceProduct.title}</p>
+                    <p className="mt-1 truncate text-[10px] font-semibold text-white/45">{sourceProduct.authorName} · coût {formatZandofyMoney(Number(sourceProduct.price || sourceProduct.villagePrice || 0), sourceProduct.currency)}</p>
+                  </div>
+                </div>
+                {sourceMedia.length > 1 && <div className="mt-3 flex gap-2 overflow-x-auto scrollbar-hide">
+                  {sourceMedia.map((media) => <img key={media.id} src={media.secureUrl || media.mediaUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />)}
+                </div>}
+              </div>
+            )}
             <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`Nom ${productKind === 'physical' ? 'du produit' : selectedDigitalConfig.label.toLowerCase()}`} className="mt-5 w-full rounded-2xl border border-white/10 bg-black/28 px-4 py-4 text-sm font-bold outline-none focus:border-[#15EA3E]/45" />
             <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={4} placeholder="Ce que l’acheteur reçoit, le résultat attendu, le niveau..." className="mt-3 w-full resize-none rounded-2xl border border-white/10 bg-black/28 px-4 py-4 text-sm font-bold outline-none focus:border-[#15EA3E]/45" />
             <input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="Collection" className="mt-3 w-full rounded-2xl border border-white/10 bg-black/28 px-4 py-4 text-sm font-bold outline-none" />
@@ -1596,6 +1824,20 @@ export function ZandofyCreateProductScreen() {
                 <div><p className="text-xs font-black">Contribution FPP</p><p className="mt-1 text-[10px] font-semibold text-white/42">Part volontaire de chaque vente pour les projets FPP.</p></div>
                 <select value={fppRate} onChange={(event) => setFppRate(event.target.value)} className="rounded-xl border border-white/10 bg-black/45 px-2 py-2 text-xs font-black outline-none"><option value="0">0 %</option><option value="1">1 %</option><option value="3">3 %</option><option value="5">5 %</option><option value="10">10 %</option></select>
               </div>
+            </div>
+            <div className="mt-4 rounded-2xl border border-sky-300/18 bg-sky-300/6 p-3">
+              <label className="flex items-center gap-3">
+                <input type="checkbox" checked={affiliateEnabled} onChange={(event) => setAffiliateEnabled(event.target.checked)} className="h-4 w-4 accent-[#15EA3E]" />
+                <span><span className="block text-xs font-black">Activer les recommandations</span><span className="mt-1 block text-[10px] font-semibold text-white/42">Permets à d’autres personnes de partager ton produit avec une commission définie par toi.</span></span>
+              </label>
+              {affiliateEnabled && <div className="mt-3 grid grid-cols-2 gap-2">
+                <label className="text-[9px] font-black uppercase tracking-wider text-white/42">Lien direct
+                  <input value={affiliateDirectRate} onChange={(event) => setAffiliateDirectRate(event.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" placeholder="% commission" className="mt-1 w-full rounded-xl border border-white/10 bg-black/28 px-3 py-3 text-xs font-bold normal-case tracking-normal text-white outline-none" />
+                </label>
+                <label className="text-[9px] font-black uppercase tracking-wider text-white/42">Lien indirect
+                  <input value={affiliateIndirectRate} onChange={(event) => setAffiliateIndirectRate(event.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" placeholder="% commission" className="mt-1 w-full rounded-xl border border-white/10 bg-black/28 px-3 py-3 text-xs font-bold normal-case tracking-normal text-white outline-none" />
+                </label>
+              </div>}
             </div>
             <label className="mt-4 flex items-center gap-3 rounded-2xl border border-[#15EA3E]/18 bg-[#15EA3E]/8 p-3">
               <input type="checkbox" checked={publishToAfriZia} onChange={(event) => setPublishToAfriZia(event.target.checked)} className="h-4 w-4 accent-[#15EA3E]" />
@@ -1692,11 +1934,14 @@ export function ZandofyCreateProductScreen() {
                 )}
                 {deliveryFiles.length > 0 && (
                   <div className="mt-3 space-y-2">
-                    {deliveryFiles.slice(0, 5).map((file) => (
+                    {deliveryFiles.map((file) => (
                       <div key={`${file.name}-${file.size}`} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/22 px-3 py-2">
                         <AfriZiaIcon name="file" size={14} className="text-[#15EA3E]" />
                         <span className="min-w-0 flex-1 truncate text-[10px] font-bold text-white/58">{file.name}</span>
                         <span className="text-[9px] font-black text-white/30">{Math.max(1, Math.round(file.size / 1024))} Ko</span>
+                        <button type="button" onClick={() => removeDeliveryFile(file)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-white/45 hover:text-white" aria-label={`Retirer ${file.name}`}>
+                          <AfriZiaIcon name="close" size={13} />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -1777,6 +2022,9 @@ export function ZandofyEditProductScreen() {
   const [stockMode, setStockMode] = useState<'unlimited' | 'tracked'>('unlimited');
   const [stock, setStock] = useState('');
   const [fppRate, setFppRate] = useState('0');
+  const [affiliateEnabled, setAffiliateEnabled] = useState(false);
+  const [affiliateDirectRate, setAffiliateDirectRate] = useState('0');
+  const [affiliateIndirectRate, setAffiliateIndirectRate] = useState('0');
   const [sku, setSku] = useState('');
   const [deliveryMode, setDeliveryMode] = useState<'shipping' | 'pickup' | 'file' | 'link'>('shipping');
   const [shippingPrice, setShippingPrice] = useState('');
@@ -1807,6 +2055,9 @@ export function ZandofyEditProductScreen() {
     setStockMode(product.stockMode || (product.productKind === 'physical' ? 'tracked' : 'unlimited'));
     setStock(product.stock !== undefined ? String(product.stock) : '');
     setFppRate(String(product.fppRate || 0));
+    setAffiliateEnabled(product.affiliateEnabled === true);
+    setAffiliateDirectRate(String(product.affiliateDirectRate || 0));
+    setAffiliateIndirectRate(String(product.affiliateIndirectRate || 0));
     setSku(product.sku || '');
     setDeliveryMode(product.deliveryMode || (product.productKind === 'physical' ? 'shipping' : 'file'));
     setShippingPrice(String(product.shippingPrice || 0));
@@ -1841,6 +2092,9 @@ export function ZandofyEditProductScreen() {
         stockMode,
         stock: stockMode === 'tracked' ? Number(stock) : undefined,
         fppRate: Number(fppRate || 0),
+        affiliateEnabled,
+        affiliateDirectRate: Number(affiliateDirectRate || 0),
+        affiliateIndirectRate: Number(affiliateIndirectRate || 0),
         sku,
         deliveryMode,
         shippingPrice: Number(shippingPrice || 0),
@@ -1937,6 +2191,20 @@ export function ZandofyEditProductScreen() {
               <select value={fppRate} onChange={(event) => setFppRate(event.target.value)} className="rounded-xl border border-white/10 bg-black/45 px-2 py-2 text-xs font-black outline-none"><option value="0">0 %</option><option value="1">1 %</option><option value="3">3 %</option><option value="5">5 %</option><option value="10">10 %</option></select>
             </div>
           </div>
+          <div className="mt-4 rounded-2xl border border-sky-300/18 bg-sky-300/6 p-3">
+            <label className="flex items-center gap-3">
+              <input type="checkbox" checked={affiliateEnabled} onChange={(event) => setAffiliateEnabled(event.target.checked)} className="h-4 w-4 accent-[#15EA3E]" />
+              <span><span className="block text-xs font-black">Activer les recommandations</span><span className="mt-1 block text-[10px] font-semibold text-white/42">Définis la rémunération des personnes qui recommandent ce produit.</span></span>
+            </label>
+            {affiliateEnabled && <div className="mt-3 grid grid-cols-2 gap-2">
+              <label className="text-[9px] font-black uppercase tracking-wider text-white/42">Direct
+                <input value={affiliateDirectRate} onChange={(event) => setAffiliateDirectRate(event.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" placeholder="% commission" className="mt-1 w-full rounded-xl border border-white/10 bg-black/28 px-3 py-3 text-xs font-bold normal-case tracking-normal text-white outline-none" />
+              </label>
+              <label className="text-[9px] font-black uppercase tracking-wider text-white/42">Indirect
+                <input value={affiliateIndirectRate} onChange={(event) => setAffiliateIndirectRate(event.target.value.replace(/[^\d.]/g, ''))} inputMode="decimal" placeholder="% commission" className="mt-1 w-full rounded-xl border border-white/10 bg-black/28 px-3 py-3 text-xs font-bold normal-case tracking-normal text-white outline-none" />
+              </label>
+            </div>}
+          </div>
         </section>
 
         <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
@@ -2024,7 +2292,7 @@ export function ZandofyProductsScreen() {
       <section className="grid grid-cols-2 gap-3 px-4 pt-5">
         {visibleProducts.length ? visibleProducts.map((product) => (
           <article key={product.id} className="overflow-hidden rounded-[1.4rem] border border-white/10 bg-white/[0.04]">
-            <Link to={`/zandofy/product/${product.id}`} className="block">
+            <Link to={getZandofyProductPath(product)} className="block">
               <img src={product.coverURL} alt="" className="h-32 w-full object-cover" />
               <div className="p-3 pb-2">
                 <p className="line-clamp-2 min-h-[32px] text-xs font-black leading-tight">{product.title}</p>
@@ -2065,6 +2333,7 @@ export function ZandofyDomainScreen() {
   const [name, setName] = useState('');
   const [tagline, setTagline] = useState('');
   const [theme, setTheme] = useState<ZandofyTheme>('emerald');
+  const [orderProcessingMode, setOrderProcessingMode] = useState<ZandofyOrderProcessingMode>('manual');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState('');
   const [status, setStatus] = useState('');
@@ -2075,6 +2344,7 @@ export function ZandofyDomainScreen() {
     setName(ownerStore.name);
     setTagline(ownerStore.tagline);
     setTheme(ownerStore.theme);
+    setOrderProcessingMode(ownerStore.orderProcessingMode || 'manual');
     setLogoPreview(ownerStore.logoURL);
     setDomain(ownerStore.customDomain || '');
   }, [ownerStore]);
@@ -2107,7 +2377,7 @@ export function ZandofyDomainScreen() {
   const saveProfile = async () => {
     setStatus('');
     try {
-      await updateStoreProfile({ name, tagline, theme, logoFile });
+      await updateStoreProfile({ name, tagline, theme, logoFile, orderProcessingMode });
       setLogoFile(null);
       setStatus('Personnalisation enregistrée. La boutique publique est à jour.');
     } catch (error) {
@@ -2159,6 +2429,17 @@ export function ZandofyDomainScreen() {
             ))}
           </div>
           <button type="button" onClick={() => void saveProfile()} className="mt-4 w-full rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black">Enregistrer la vitrine</button>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-white/42">Traitement des commandes</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {([['manual', 'Manuel'], ['automatic', 'Automatique']] as Array<[ZandofyOrderProcessingMode, string]>).map(([value, label]) => (
+                <button key={value} type="button" onClick={() => setOrderProcessingMode(value)} className={cn('rounded-xl border py-3 text-xs font-black', orderProcessingMode === value ? 'border-[#15EA3E] bg-[#15EA3E] text-black' : 'border-white/10 bg-white/[0.04] text-white/56')}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/38">Automatique prépare la commande dès le paiement. Manuel te laisse valider chaque étape.</p>
+          </div>
         </div>
       </section>
 
@@ -2336,16 +2617,11 @@ export function ZandofyPublicStoreScreen() {
     if (!publicStore) return;
     const url = getZandofyStoreURL(publicStore.slug);
     try {
-      if (navigator.share) {
-        await navigator.share({ title: publicStore.name, text: publicStore.tagline, url });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(url);
-        setFeedbackStatus('Lien de la boutique copié.');
-      } else {
-        setFeedbackStatus(url);
-      }
-    } catch {
-      // L’utilisateur peut fermer la feuille de partage sans erreur à afficher.
+      const result = await shareLink({ title: publicStore.name, text: publicStore.tagline, url });
+      setFeedbackStatus(result === 'copied' ? 'Lien de la boutique copié.' : 'Boutique partagée.');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setFeedbackStatus(error instanceof Error ? error.message : 'Partage de la boutique impossible.');
     }
   };
 
@@ -2402,7 +2678,7 @@ export function ZandofyPublicStoreScreen() {
             <p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/42">Suggestions calculées à partir de tes intérêts récents, des collections et de la disponibilité.</p>
             <div className="mt-4 flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
               {recommendedProducts.map((product) => (
-                <Link key={product.id} to={`/zandofy/product/${product.id}`} onClick={() => { rememberZandofyInterest(product); void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="w-[132px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/22">
+                <Link key={product.id} to={getZandofyProductPath(product)} onClick={() => { rememberZandofyInterest(product); void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="w-[132px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/22">
                   <img src={product.coverURL} alt="" className="h-20 w-full object-cover" />
                   <div className="p-2.5">
                     <p className="line-clamp-2 text-[10px] font-black leading-tight">{product.title}</p>
@@ -2496,7 +2772,7 @@ export function ZandofyPublicStoreScreen() {
               </div>
               {visibleProducts.length > 0 ? <div className="mt-4 grid grid-cols-2 gap-3 text-left">
                 {visibleProducts.slice(0, 12).map((product) => (
-                  <Link key={product.id} to={`/zandofy/product/${product.id}`} onClick={() => { void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="overflow-hidden rounded-2xl border border-white/10 bg-black/22">
+                  <Link key={product.id} to={getZandofyProductPath(product)} onClick={() => { void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="overflow-hidden rounded-2xl border border-white/10 bg-black/22">
                     <img src={product.coverURL} alt="" className="h-24 w-full object-cover" />
                     <div className="p-3">
                       <p className="line-clamp-2 min-h-[32px] text-xs font-black leading-tight">{product.title}</p>
@@ -2537,15 +2813,33 @@ export function ZandofyPublicStoreScreen() {
 
 export function ZikMartMarketplaceScreen() {
   const navigate = useNavigate();
-  const { zikMartProducts, loading } = useAfriMarket();
+  const { user } = useFirebaseAuth();
+  const { marketProducts, zikMartProducts, loading } = useAfriMarket();
+  const { ownerStore } = useZandofyStore();
   const openCheckout = useAppStore((state) => state.openCheckout);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('Tout');
-  const categories = Array.from(new Set(zikMartProducts.map((product) => product.catalogCategory || 'Autres')));
-  const products = zikMartProducts.filter((product) => {
+  const availableProducts = Array.from(new Map([
+    ...zikMartProducts,
+    ...marketProducts.filter((product) => product.productKind === 'physical')
+  ].map((product) => [product.id, product])).values());
+  const categories = Array.from(new Set(availableProducts.map((product) => product.catalogCategory || 'Autres')));
+  const products = availableProducts.filter((product) => {
     const text = `${product.title} ${product.description} ${product.supplierName} ${product.catalogCategory}`.toLowerCase();
     return (category === 'Tout' || product.catalogCategory === category) && (!query.trim() || text.includes(query.trim().toLowerCase()));
   });
+
+  const addToStore = (product: AfriMarketContent) => {
+    if (!user) {
+      navigate('/login', { state: { next: `/zikmart?add=${encodeURIComponent(product.id)}` } });
+      return;
+    }
+    if (!ownerStore) {
+      navigate('/zandofy/create');
+      return;
+    }
+    navigate(`/zandofy/products/new?sourceProductId=${encodeURIComponent(product.id)}`, { state: { sourceProduct: product } });
+  };
 
   if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement ZikMart...</main>;
 
@@ -2561,7 +2855,7 @@ export function ZikMartMarketplaceScreen() {
         <div className="scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-1"><button type="button" onClick={() => setCategory('Tout')} className={cn('shrink-0 rounded-full px-3 py-2 text-[9px] font-black', category === 'Tout' ? 'bg-[#15EA3E] text-black' : 'border border-white/10 text-white/50')}>Tout</button>{categories.map((item) => <button key={item} type="button" onClick={() => setCategory(item)} className={cn('shrink-0 rounded-full px-3 py-2 text-[9px] font-black', category === item ? 'bg-[#15EA3E] text-black' : 'border border-white/10 text-white/50')}>{item}</button>)}</div>
       </header>
       <section className="px-4 pt-5"><div className="rounded-[1.7rem] border border-[#15EA3E]/18 bg-[radial-gradient(circle_at_10%_10%,rgba(21,234,62,0.18),transparent_36%),#071007] p-5"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Marketplace fournisseur</p><h2 className="mt-2 text-2xl font-black">Des produits, des sources, une marge claire.</h2><p className="mt-2 text-xs font-semibold leading-relaxed text-white/45">ZikMart rassemble les produits physiques publiés volontairement depuis les boutiques Zandofy.</p></div></section>
-      <section className="grid grid-cols-2 gap-3 px-4 pt-5">{products.map((product) => <article key={product.id} className="overflow-hidden rounded-[1.4rem] border border-white/10 bg-white/[0.04]"><img src={product.coverURL || '/afrimarket.jpeg'} alt="" className="h-32 w-full object-cover" /><div className="p-3"><p className="line-clamp-2 min-h-[32px] text-xs font-black">{product.title}</p><p className="mt-2 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">{product.catalogCategory || 'Autres'}</p><p className="mt-1 text-sm font-black">{formatZandofyMoney(product.price || 0, product.currency)}</p><p className="mt-2 text-[9px] font-semibold text-white/42">{product.supplierName || 'Vendeur direct'}{product.supplierLeadTimeDays ? ` · ${product.supplierLeadTimeDays} j` : ''}</p><button type="button" onClick={() => openCheckout(toCheckoutProduct(product))} className="mt-3 w-full rounded-xl bg-[#15EA3E] py-2.5 text-[9px] font-black uppercase tracking-wider text-black">Acheter</button></div></article>)}</section>
+      <section className="grid grid-cols-2 gap-3 px-4 pt-5">{products.map((product) => <article key={product.id} className="overflow-hidden rounded-[1.4rem] border border-white/10 bg-white/[0.04]"><Link to={getZikMartProductPath(product)} className="block"><img src={product.coverURL || '/afrimarket.jpeg'} alt={product.title} className="h-32 w-full object-cover" /><div className="p-3"><p className="line-clamp-2 min-h-[32px] text-xs font-black">{product.title}</p><p className="mt-2 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">{product.catalogCategory || 'Autres'}</p><p className="mt-1 text-sm font-black">{formatZandofyMoney(product.price || 0, product.currency)}</p><p className="mt-2 text-[9px] font-semibold text-white/42">{product.supplierName || 'Vendeur direct'}{product.supplierLeadTimeDays ? ` · ${product.supplierLeadTimeDays} j` : ''}</p></div></Link><div className="grid grid-cols-2 gap-2 p-3 pt-0"><button type="button" onClick={() => openCheckout(toCheckoutProduct(product))} className="rounded-xl border border-white/10 bg-black/20 py-2.5 text-[9px] font-black uppercase tracking-wider text-white/70">Acheter</button><button type="button" onClick={() => addToStore(product)} className="rounded-xl bg-[#15EA3E] py-2.5 text-[9px] font-black uppercase tracking-wider text-black">Ajouter</button></div></article>)}</section>
       {!products.length && <p className="mx-4 mt-5 rounded-2xl border border-dashed border-white/14 p-6 text-center text-xs font-bold text-white/45">Aucun produit ZikMart ne correspond à ta recherche.</p>}
     </main>
   );

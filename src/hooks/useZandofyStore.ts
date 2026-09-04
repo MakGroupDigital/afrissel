@@ -14,6 +14,16 @@ export type ZandofyStockMode = 'unlimited' | 'tracked';
 export type ZandofyDeliveryMode = 'file' | 'link' | 'shipping' | 'pickup';
 export type ZandofyMarketplaceVisibility = 'zandofy' | 'afrizia' | 'both';
 export type ZandofySupplierType = 'self' | 'supplier' | 'dropshipper';
+export type ZandofyOrderProcessingMode = 'automatic' | 'manual';
+
+export type ZandofyProductMedia = {
+  id: string;
+  mediaUrl?: string;
+  secureUrl?: string;
+  publicId?: string;
+  resourceType?: string;
+  provider?: string;
+};
 
 export type ZandofyStore = {
   id: string;
@@ -37,6 +47,7 @@ export type ZandofyStore = {
   ordersCount: number;
   revenue: number;
   currency: string;
+  orderProcessingMode: ZandofyOrderProcessingMode;
   rating: number;
   createdAt?: unknown;
   updatedAt?: unknown;
@@ -51,6 +62,7 @@ export type ZandofyStoreInput = {
   logoFile?: File | null;
   logoURL?: string;
   theme: ZandofyTheme;
+  orderProcessingMode?: ZandofyOrderProcessingMode;
 };
 
 export type ZandofyStoreUpdateInput = {
@@ -58,6 +70,7 @@ export type ZandofyStoreUpdateInput = {
   tagline: string;
   theme: ZandofyTheme;
   logoFile?: File | null;
+  orderProcessingMode?: ZandofyOrderProcessingMode;
 };
 
 export type ZandofyDomainResult = {
@@ -95,6 +108,16 @@ export type ZandofyProductInput = {
   shippingPrice?: number;
   shippingRegions?: string[];
   fppRate?: number;
+  affiliateEnabled?: boolean;
+  affiliateDirectRate?: number;
+  affiliateIndirectRate?: number;
+  sourceProductId?: string;
+  sourceProductURL?: string;
+  sourceMarketplace?: string;
+  sourceSellerId?: string;
+  sourceSellerName?: string;
+  sourcePrice?: number;
+  sourceMedia?: ZandofyProductMedia[];
   publishToAfriZia?: boolean;
   publishToZikMart?: boolean;
   supplierType?: ZandofySupplierType;
@@ -127,6 +150,16 @@ export type ZandofyProductUpdateInput = {
   shippingPrice?: number;
   shippingRegions?: string[];
   fppRate?: number;
+  affiliateEnabled?: boolean;
+  affiliateDirectRate?: number;
+  affiliateIndirectRate?: number;
+  sourceProductId?: string;
+  sourceProductURL?: string;
+  sourceMarketplace?: string;
+  sourceSellerId?: string;
+  sourceSellerName?: string;
+  sourcePrice?: number;
+  sourceMedia?: ZandofyProductMedia[];
   deliveryMode?: ZandofyDeliveryMode;
   publishToAfriZia: boolean;
   publishToZikMart: boolean;
@@ -161,6 +194,7 @@ export type ZandofyDigitalProduct = {
   villagePrice?: number;
   currency: string;
   coverURL: string;
+  media?: ZandofyProductMedia[];
   deliveryMode: ZandofyDeliveryMode;
   deliveryURL?: string;
   accessNote: string;
@@ -171,6 +205,17 @@ export type ZandofyDigitalProduct = {
   shippingPrice: number;
   shippingRegions: string[];
   fppRate: number;
+  affiliateEnabled: boolean;
+  affiliateDirectRate: number;
+  affiliateIndirectRate: number;
+  sourceProductId?: string;
+  sourceProductURL?: string;
+  sourceMarketplace?: string;
+  sourceSellerId?: string;
+  sourceSellerName?: string;
+  sourcePrice?: number;
+  sourceMedia?: ZandofyProductMedia[];
+  orderProcessingMode: ZandofyOrderProcessingMode;
   marketplaceVisibility: ZandofyMarketplaceVisibility;
   publishToAfriZia: boolean;
   publishToZikMart: boolean;
@@ -212,7 +257,7 @@ const normalizeStore = (id: string, raw: Partial<ZandofyStore>): ZandofyStore =>
   ownerName: raw.ownerName || 'Vendeur Afrizia',
   name: raw.name || 'Boutique Zandofy',
   slug: raw.slug || id,
-  tagline: raw.tagline || 'Produits digitaux prêts à vendre.',
+  tagline: raw.tagline || 'Produits physiques et digitaux prêts à vendre.',
   country: raw.country || fallbackCountry.name,
   countryCode: raw.countryCode || fallbackCountry.code,
   city: raw.city || fallbackCountry.fallbackCities[0],
@@ -228,6 +273,7 @@ const normalizeStore = (id: string, raw: Partial<ZandofyStore>): ZandofyStore =>
   ordersCount: Number(raw.ordersCount || 0),
   revenue: Number(raw.revenue || 0),
   currency: raw.currency || 'USD',
+  orderProcessingMode: raw.orderProcessingMode || 'manual',
   rating: Number(raw.rating || 0),
   createdAt: raw.createdAt,
   updatedAt: raw.updatedAt
@@ -326,6 +372,7 @@ export function useZandofyStore(slug?: string) {
           villagePrice: Number(product.villagePrice ?? effectivePrice),
           currency: product.currency || 'USD',
           coverURL: product.coverURL || '/zandofy/woman-promoting-cloths-from-thrift-store.jpg',
+          media: Array.isArray(product.media) ? product.media : (Array.isArray(product.sourceMedia) ? product.sourceMedia : []),
           deliveryMode: product.deliveryMode || (productKind === 'physical' ? 'shipping' : 'file'),
           deliveryURL: product.deliveryURL || '',
           accessNote: product.accessNote || '',
@@ -336,6 +383,17 @@ export function useZandofyStore(slug?: string) {
           shippingPrice: Number(product.shippingPrice || 0),
           shippingRegions: Array.isArray(product.shippingRegions) ? product.shippingRegions : [],
           fppRate: Math.min(Math.max(Number(product.fppRate || 0), 0), 20),
+          affiliateEnabled: product.affiliateEnabled === true,
+          affiliateDirectRate: Math.min(Math.max(Number(product.affiliateDirectRate || 0), 0), 50),
+          affiliateIndirectRate: Math.min(Math.max(Number(product.affiliateIndirectRate || 0), 0), 50),
+          sourceProductId: product.sourceProductId || '',
+          sourceProductURL: product.sourceProductURL || '',
+          sourceMarketplace: product.sourceMarketplace || '',
+          sourceSellerId: product.sourceSellerId || '',
+          sourceSellerName: product.sourceSellerName || '',
+          sourcePrice: product.sourcePrice !== undefined ? Number(product.sourcePrice) : undefined,
+          sourceMedia: Array.isArray(product.sourceMedia) ? product.sourceMedia : [],
+          orderProcessingMode: product.orderProcessingMode || ownerStore?.orderProcessingMode || publicStore?.orderProcessingMode || 'manual',
           marketplaceVisibility: product.marketplaceVisibility || (publishToAfriZia ? 'both' : 'zandofy'),
           publishToAfriZia,
           publishToZikMart,
@@ -359,7 +417,7 @@ export function useZandofyStore(slug?: string) {
     });
 
     return () => unsubscribe();
-  }, [ownerStore?.id, publicStore?.id]);
+  }, [ownerStore?.id, ownerStore?.orderProcessingMode, publicStore?.id, publicStore?.orderProcessingMode]);
 
   const createStore = async (input: ZandofyStoreInput) => {
     if (!user) throw new Error('Connecte-toi pour créer ta boutique Zandofy.');
@@ -385,7 +443,7 @@ export function useZandofyStore(slug?: string) {
       ownerName: profile?.displayName || user.displayName || 'Vendeur Afrizia',
       name: input.name.trim(),
       slug,
-      tagline: input.tagline.trim() || 'Boutique digitale Zandofy.',
+      tagline: input.tagline.trim() || 'Boutique physique et digitale Zandofy.',
       country: input.country || fallbackCountry.name,
       countryCode: input.countryCode || fallbackCountry.code,
       city: input.city || fallbackCountry.fallbackCities[0],
@@ -401,6 +459,7 @@ export function useZandofyStore(slug?: string) {
       ordersCount: 0,
       revenue: 0,
       currency: 'USD',
+      orderProcessingMode: input.orderProcessingMode || 'manual',
       rating: 0,
       createdAt: now,
       updatedAt: serverTimestamp()
@@ -443,6 +502,7 @@ export function useZandofyStore(slug?: string) {
       [`zandofyStores/${ownerStore.id}/name`]: input.name.trim(),
       [`zandofyStores/${ownerStore.id}/tagline`]: input.tagline.trim(),
       [`zandofyStores/${ownerStore.id}/theme`]: input.theme,
+      ...(input.orderProcessingMode ? { [`zandofyStores/${ownerStore.id}/orderProcessingMode`]: input.orderProcessingMode } : {}),
       ...(logoUpload?.secureUrl ? { [`zandofyStores/${ownerStore.id}/logoURL`]: logoUpload.secureUrl } : {}),
       [`zandofyStores/${ownerStore.id}/updatedAt`]: serverTimestamp()
     });
@@ -454,7 +514,7 @@ export function useZandofyStore(slug?: string) {
     if (!input.title.trim()) throw new Error('Ajoute le nom du produit.');
     if (!input.description.trim()) throw new Error('Ajoute une description.');
     if (!input.productKind) throw new Error('Choisis le type de produit.');
-    if (!input.coverFile) throw new Error('Ajoute une couverture pour ce produit.');
+    if (!input.coverFile && !input.sourceMedia?.length) throw new Error('Ajoute une couverture pour ce produit.');
 
     const pricingMode = input.pricingMode || 'paid';
     const regularPrice = Number(input.regularPrice ?? input.price ?? 0);
@@ -472,6 +532,9 @@ export function useZandofyStore(slug?: string) {
       throw new Error('Ajoute un stock valide.');
     }
     const fppRate = Math.min(Math.max(Number(input.fppRate || 0), 0), 20);
+    const affiliateEnabled = Boolean(input.affiliateEnabled);
+    const affiliateDirectRate = affiliateEnabled ? Math.min(Math.max(Number(input.affiliateDirectRate || 0), 0), 50) : 0;
+    const affiliateIndirectRate = affiliateEnabled ? Math.min(Math.max(Number(input.affiliateIndirectRate || 0), 0), 50) : 0;
     const supplierType: ZandofySupplierType = input.productKind === 'physical' ? (input.supplierType || 'self') : 'self';
     const supplierCost = input.productKind === 'physical' ? Math.max(0, Number(input.supplierCost || 0)) : 0;
     if (!Number.isFinite(supplierCost)) throw new Error('Ajoute un coût fournisseur valide.');
@@ -497,7 +560,8 @@ export function useZandofyStore(slug?: string) {
     const coverUpload = input.coverFile
       ? await uploadMediaToCloudinary(input.coverFile, user.uid)
       : null;
-    const coverURL = coverUpload?.secureUrl || '/zandofy/woman-promoting-cloths-from-thrift-store.jpg';
+    const sourceCoverURL = input.sourceMedia?.[0]?.secureUrl || input.sourceMedia?.[0]?.mediaUrl || '';
+    const coverURL = coverUpload?.secureUrl || sourceCoverURL || '/zandofy/woman-promoting-cloths-from-thrift-store.jpg';
     const now = Date.now();
     const sourceDeliveryFiles = input.productKind === 'digital'
       ? (input.deliveryFiles?.length ? input.deliveryFiles : input.deliveryFile ? [input.deliveryFile] : [])
@@ -524,6 +588,23 @@ export function useZandofyStore(slug?: string) {
       }));
 
     const publishToAfriZia = Boolean(input.publishToAfriZia);
+    const productMedia = input.sourceMedia?.length
+      ? input.sourceMedia.map((media, index) => ({
+          id: media.id || `${productId}_source_${index}`,
+          provider: media.provider || 'cloudinary',
+          mediaUrl: media.mediaUrl || media.secureUrl || '',
+          secureUrl: media.secureUrl || media.mediaUrl || '',
+          publicId: media.publicId || '',
+          resourceType: media.resourceType || 'image'
+        })).filter((media) => media.secureUrl)
+      : [{
+          id: `${productId}_cover`,
+          provider: 'cloudinary',
+          mediaUrl: coverURL,
+          secureUrl: coverURL,
+          publicId: coverUpload?.publicId || '',
+          resourceType: 'image'
+        }];
     const productPayload = {
       id: productId,
       storeId: ownerStore.id,
@@ -547,6 +628,7 @@ export function useZandofyStore(slug?: string) {
       villagePrice: effectivePrice,
       currency: input.currency || 'USD',
       coverURL,
+      media: productMedia,
       deliveryMode: input.deliveryMode,
       // Delivery URLs and asset references stay in the protected manifest below.
       deliveryURL: '',
@@ -561,6 +643,17 @@ export function useZandofyStore(slug?: string) {
       shippingPrice: Number(input.shippingPrice || 0),
       shippingRegions: input.shippingRegions || [],
       fppRate,
+      affiliateEnabled,
+      affiliateDirectRate,
+      affiliateIndirectRate,
+      sourceProductId: input.sourceProductId || '',
+      sourceProductURL: input.sourceProductURL || '',
+      sourceMarketplace: input.sourceMarketplace || '',
+      sourceSellerId: input.sourceSellerId || '',
+      sourceSellerName: input.sourceSellerName || '',
+      sourcePrice: input.sourcePrice !== undefined ? Number(input.sourcePrice) : null,
+      sourceMedia: input.sourceMedia || [],
+      orderProcessingMode: ownerStore.orderProcessingMode || 'manual',
       marketplaceVisibility: publishToAfriZia ? 'both' : 'zandofy',
       publishToAfriZia,
       publishToZikMart,
@@ -671,6 +764,13 @@ export function useZandofyStore(slug?: string) {
       throw new Error('Ajoute un stock valide.');
     }
     const fppRate = Math.min(Math.max(Number(input.fppRate || 0), 0), 20);
+    const affiliateEnabled = input.affiliateEnabled ?? existing.affiliateEnabled === true;
+    const affiliateDirectRate = affiliateEnabled
+      ? Math.min(Math.max(Number(input.affiliateDirectRate ?? existing.affiliateDirectRate ?? 0), 0), 50)
+      : 0;
+    const affiliateIndirectRate = affiliateEnabled
+      ? Math.min(Math.max(Number(input.affiliateIndirectRate ?? existing.affiliateIndirectRate ?? 0), 0), 50)
+      : 0;
     const effectivePrice = pricingMode === 'free' ? 0 : Number(salePrice ?? regularPrice);
     const supplierType: ZandofySupplierType = productKind === 'physical' ? (input.supplierType || 'self') : 'self';
     const supplierCost = productKind === 'physical' ? Math.max(0, Number(input.supplierCost || 0)) : 0;
@@ -710,6 +810,9 @@ export function useZandofyStore(slug?: string) {
       shippingPrice: Number(input.shippingPrice || 0),
       shippingRegions: input.shippingRegions || [],
       fppRate,
+      affiliateEnabled,
+      affiliateDirectRate,
+      affiliateIndirectRate,
       deliveryMode: input.deliveryMode || existing.deliveryMode || (productKind === 'physical' ? 'shipping' : 'file'),
       marketplaceVisibility: publishToAfriZia ? 'both' : 'zandofy',
       publishToAfriZia,
