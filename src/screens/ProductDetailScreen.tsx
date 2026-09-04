@@ -36,6 +36,29 @@ const deliveryOptions: CheckoutDelivery[] = [
   }
 ];
 
+const paymentMethods = [
+  { name: 'AfriMoney', src: '/afrimoneylogo.png' },
+  { name: 'M-Pesa', src: '/m-pesa-logo-png_seeklogo-442995.png' },
+  { name: 'Airtel Money', src: '/logo airtel money.jpg' },
+  { name: 'Orange Money', src: '/Orange_Money-Logo.wine.png' },
+  { name: 'Visa et Mastercard', src: '/[CITYPNG.COM]MasterCard & Visa Cards Logos Icons - 1500x1500.png' }
+] as const;
+
+function PaymentMethodLogos() {
+  return (
+    <div className="mt-4 border-t border-white/10 pt-3">
+      <p className="text-[8px] font-black uppercase tracking-[0.16em] text-white/38">Moyens de paiement disponibles</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {paymentMethods.map((method) => (
+          <div key={method.name} title={method.name} className="flex h-8 min-w-10 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white px-2">
+            <img src={method.src} alt={method.name} className="h-5 max-w-10 object-contain" loading="lazy" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type ProductReview = {
   id: string;
   authorId: string;
@@ -858,6 +881,7 @@ export default function ProductDetailScreen() {
                 </div>
               ))}
             </div>
+            <PaymentMethodLogos />
           </section>
 
           <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-4">
@@ -1338,6 +1362,7 @@ export default function ProductDetailScreen() {
             <AfriZiaIcon name="shield" size={18} className="text-[#15EA3E]" />
             <p className="text-[11px] font-bold text-white/58">Protection commande, livraison suivie et historique conservé.</p>
           </div>
+          <PaymentMethodLogos />
         </section>
 
         <section className="mt-5 rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4">
