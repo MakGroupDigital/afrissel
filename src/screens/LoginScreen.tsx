@@ -2,10 +2,10 @@ import { FormEvent, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { AfriSellIcon } from '../components/AfriSellIcon';
-import { getAfriSellAuthErrorMessage, useFirebaseAuth } from '../hooks/useFirebaseAuth';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
+import { getAfriZiaAuthErrorMessage, useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { AFRICAN_COUNTRIES_BY_PRIORITY, buildInternationalPhone, getDefaultCountry } from '../lib/africaLocation';
-import { AFRISELL_MAIN_LOGO } from '../lib/branding';
+import { AFRIZIA_MAIN_LOGO } from '../lib/branding';
 
 export default function LoginScreen() {
   const navigate = useNavigate();
@@ -90,8 +90,8 @@ export default function LoginScreen() {
         finishAccountSwitch();
       }
     } catch (error) {
-      console.error('Connexion AfriSell impossible:', error);
-      setAuthError(getAfriSellAuthErrorMessage(error));
+      console.error('Connexion AfriZia impossible:', error);
+      setAuthError(getAfriZiaAuthErrorMessage(error));
     } finally {
       setSocialProviderOpening(null);
       setBusy(false);
@@ -159,9 +159,9 @@ export default function LoginScreen() {
       <div className="relative z-10 flex h-full w-full flex-col overflow-hidden px-5 pb-4 pt-4">
         <div className="flex shrink-0 items-center justify-between">
           <Link to="/onboarding" className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-black/30 text-white/60" aria-label="Retour">
-            <AfriSellIcon name="arrow" size={15} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={15} className="rotate-180" />
           </Link>
-          <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Compte AfriSell</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Compte AfriZia</p>
         </div>
 
         <div className="mt-3 flex shrink-0 justify-center">
@@ -186,8 +186,8 @@ export default function LoginScreen() {
             className="relative h-[clamp(4.75rem,15.5vh,6.6rem)] w-[clamp(4.75rem,15.5vh,6.6rem)] overflow-hidden rounded-[1.55rem] border border-[#15EA3E]/25 bg-black/42 shadow-[0_18px_44px_rgba(0,0,0,0.34)]"
           >
             <motion.img
-              src={AFRISELL_MAIN_LOGO}
-              alt="AfriSell"
+              src={AFRIZIA_MAIN_LOGO}
+              alt="AfriZia"
               className="h-full w-full object-cover"
               animate={{ scale: [1, 1.035, 1] }}
               transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
@@ -216,7 +216,7 @@ export default function LoginScreen() {
                   : 'border-white/10 bg-white/[0.04] text-white/45'
               }`}
             >
-              <AfriSellIcon name="mail" size={15} />
+              <AfriZiaIcon name="mail" size={15} />
               Email
             </button>
             <button
@@ -228,7 +228,7 @@ export default function LoginScreen() {
                   : 'border-white/10 bg-white/[0.04] text-white/45'
               }`}
             >
-              <AfriSellIcon name="phone" size={15} />
+              <AfriZiaIcon name="phone" size={15} />
               Téléphone
             </button>
           </div>
@@ -236,7 +236,7 @@ export default function LoginScreen() {
           <form onSubmit={handleSubmit} className="mt-3 flex min-w-0 flex-col gap-2">
           {flow === 'register' && method === 'email' && (
             <label className="flex h-11 min-w-0 items-center gap-2.5 rounded-2xl border border-white/10 bg-black/40 px-3.5 focus-within:border-[#15EA3E]/50">
-              <AfriSellIcon name="profile" size={16} className="text-[#15EA3E]" />
+              <AfriZiaIcon name="profile" size={16} className="text-[#15EA3E]" />
               <input
                 type="text"
                 value={name}
@@ -250,19 +250,19 @@ export default function LoginScreen() {
           {method === 'email' ? (
             <>
               <label className="flex h-11 min-w-0 items-center gap-2.5 rounded-2xl border border-white/10 bg-black/40 px-3.5 focus-within:border-[#15EA3E]/50">
-                <AfriSellIcon name="mail" size={16} className="text-[#15EA3E]" />
+                <AfriZiaIcon name="mail" size={16} className="text-[#15EA3E]" />
                 <input
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   required
-                  placeholder="nom@afrisell.app"
+                  placeholder="nom@afrizia.app"
                   className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-white outline-none placeholder:text-white/28"
                 />
               </label>
 
               <label className="flex h-11 min-w-0 items-center gap-2.5 rounded-2xl border border-white/10 bg-black/40 px-3.5 focus-within:border-[#15EA3E]/50">
-                <AfriSellIcon name="lock" size={16} className="text-[#15EA3E]" />
+                <AfriZiaIcon name="lock" size={16} className="text-[#15EA3E]" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
@@ -278,7 +278,7 @@ export default function LoginScreen() {
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white/42 active:scale-95"
                   aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                 >
-                  <AfriSellIcon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
+                  <AfriZiaIcon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
                 </button>
               </label>
               {flow === 'login' && (
@@ -295,7 +295,7 @@ export default function LoginScreen() {
           ) : (
             <>
               <div className="flex h-11 items-center gap-2 rounded-2xl border border-white/10 bg-black/40 px-3 focus-within:border-[#15EA3E]/50">
-                <AfriSellIcon name="phone" size={16} className="text-[#15EA3E]" />
+                <AfriZiaIcon name="phone" size={16} className="text-[#15EA3E]" />
                 <select
                   value={phoneCountryCode}
                   onChange={(event) => {
@@ -325,7 +325,7 @@ export default function LoginScreen() {
 
               {phoneCodeSent && (
                 <label className="flex h-11 min-w-0 items-center gap-2.5 rounded-2xl border border-white/10 bg-black/40 px-3.5 focus-within:border-[#15EA3E]/50">
-                  <AfriSellIcon name="shield" size={16} className="text-[#15EA3E]" />
+                  <AfriZiaIcon name="shield" size={16} className="text-[#15EA3E]" />
                   <input
                     type="text"
                     value={phoneCode}
@@ -361,7 +361,7 @@ export default function LoginScreen() {
             {method === 'phone'
               ? (phoneCodeSent ? 'Vérifier le code' : 'Recevoir le code')
               : flow === 'login' ? 'Se connecter' : 'Créer le compte'}
-            <AfriSellIcon name="arrow" size={18} />
+            <AfriZiaIcon name="arrow" size={18} />
           </button>
           </form>
         </section>

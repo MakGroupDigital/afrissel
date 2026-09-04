@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
-import { AFRISELL_MAIN_LOGO } from '../lib/branding';
+import { AFRIZIA_MAIN_LOGO } from '../lib/branding';
 
 interface SplashScreenProps {
   autoNavigate?: boolean;
@@ -38,7 +38,7 @@ export default function SplashScreen({ autoNavigate = true, showAction = true }:
             transition={{ duration: 0.7, ease: 'easeOut' }}
             className="relative flex h-44 w-44 items-center justify-center overflow-hidden rounded-[2.2rem] border border-[#15EA3E]/25 bg-black/45 shadow-[0_0_70px_rgba(21,234,62,0.22)]"
           >
-            <img src={AFRISELL_MAIN_LOGO} alt="AfriSell" className="h-full w-full object-cover" />
+            <img src={AFRIZIA_MAIN_LOGO} alt="AfriZia" className="h-full w-full object-cover" />
           </motion.div>
 
         </div>
@@ -49,7 +49,7 @@ export default function SplashScreen({ autoNavigate = true, showAction = true }:
             className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-sm font-black uppercase tracking-[0.16em] text-black shadow-[0_0_32px_rgba(21,234,62,0.24)] active:scale-[0.98]"
           >
             Entrer
-            <AfriSellIcon name="arrow" size={18} />
+            <AfriZiaIcon name="arrow" size={18} />
           </Link>
         )}
       </div>

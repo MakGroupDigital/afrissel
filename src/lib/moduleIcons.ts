@@ -1,7 +1,7 @@
-import type { AfriSellIconName } from '../components/AfriSellIcon';
+import type { AfriZiaIconName } from '../components/AfriZiaIcon';
 
-export function getModuleIconName(id: string): AfriSellIconName {
-  const icons: Record<string, AfriSellIconName> = {
+export function getModuleIconName(id: string): AfriZiaIconName {
+  const icons: Record<string, AfriZiaIconName> = {
     abc: 'video',
     market: 'market',
     chat: 'chat',

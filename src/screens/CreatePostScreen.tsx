@@ -1,6 +1,6 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { AfriMarketContent, formatMarketPrice, useAfriMarket } from '../hooks/useAfriMarket';
 import { cn } from '../lib/utils';
@@ -265,7 +265,7 @@ export default function CreatePostScreen() {
         return;
       } catch (error) {
         lastError = error;
-        console.warn('Tentative caméra AfriSell impossible:', error);
+        console.warn('Tentative caméra AfriZia impossible:', error);
       }
     }
 
@@ -455,28 +455,28 @@ export default function CreatePostScreen() {
 
       <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-5">
         <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md">
-          <AfriSellIcon name="close" size={17} />
+          <AfriZiaIcon name="close" size={17} />
         </button>
         <div className="flex max-w-[78vw] items-center gap-1.5 overflow-x-auto rounded-full bg-black/42 p-1.5 backdrop-blur-md scrollbar-hide">
           <button type="button" onClick={() => navigate('/create/hub')} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
-            <AfriSellIcon name="hub" size={13} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="hub" size={13} className="text-[#15EA3E]" />
             Hub
           </button>
           <button type="button" onClick={() => galleryInputRef.current?.click()} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
-            <AfriSellIcon name="app" size={13} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="app" size={13} className="text-[#15EA3E]" />
             Galerie
           </button>
           <button type="button" onClick={switchCamera} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
-            <AfriSellIcon name="camera" size={13} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="camera" size={13} className="text-[#15EA3E]" />
             {cameraFacing === 'environment' ? 'Selfie' : 'Arrière'}
           </button>
           <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
-            <AfriSellIcon name="clip" size={13} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="clip" size={13} className="text-[#15EA3E]" />
             Memoire
           </button>
           {canAddBusiness && (
             <button type="button" onClick={() => navigate('/business?account=commerce')} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
-              <AfriSellIcon name="market" size={13} className="text-[#15EA3E]" />
+              <AfriZiaIcon name="market" size={13} className="text-[#15EA3E]" />
               Produit
             </button>
           )}
@@ -509,11 +509,11 @@ export default function CreatePostScreen() {
           </button>
           {!isMarketIntent && (
           <button type="button" onClick={toggleRecording} className={cn('flex h-13 w-13 items-center justify-center rounded-full border border-white/20 backdrop-blur-md', isRecording ? 'bg-red-500 text-white' : 'bg-black/45 text-[#15EA3E]')} aria-label={isRecording ? 'Arrêter vidéo' : 'Enregistrer vidéo'}>
-            <AfriSellIcon name={isRecording ? 'close' : 'video'} size={18} />
+            <AfriZiaIcon name={isRecording ? 'close' : 'video'} size={18} />
           </button>
           )}
           <button type="button" onClick={() => cameraCaptureInputRef.current?.click()} className="flex h-13 w-13 items-center justify-center rounded-full border border-white/20 bg-black/45 text-[#15EA3E] backdrop-blur-md" aria-label="Caméra native">
-            <AfriSellIcon name="camera" size={18} />
+            <AfriZiaIcon name="camera" size={18} />
           </button>
         </div>
         )}

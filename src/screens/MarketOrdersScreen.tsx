@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { onValue, ref } from 'firebase/database';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { realtimeDb } from '../lib/firebase';
 import { formatMarketPrice } from '../hooks/useAfriMarket';
@@ -121,7 +121,7 @@ export default function MarketOrdersScreen() {
   if (!user) {
     return (
       <main className="min-h-full bg-black px-4 pb-8 pt-4 text-center text-white">
-        <AfriSellIcon name="order" size={34} className="mx-auto mt-16 text-[#15EA3E]" />
+        <AfriZiaIcon name="order" size={34} className="mx-auto mt-16 text-[#15EA3E]" />
         <h1 className="mt-4 text-xl font-black">Connexion requise</h1>
         <p className="mt-2 text-sm font-semibold text-white/45">Connecte-toi pour voir tes commandes {isZandofyMode ? 'Zandofy' : 'Market'}.</p>
         <Link to="/login" state={{ next: isZandofyMode ? '/market/orders?module=zandofy' : '/market/orders' }} className="mt-5 inline-flex rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">
@@ -135,7 +135,7 @@ export default function MarketOrdersScreen() {
     <main className="min-h-full bg-black px-4 pb-24 pt-4 text-white">
       <header className="flex items-center justify-between">
         <Link to={isZandofyMode ? '/zandofy/dashboard' : '/market'} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Retour">
-          <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
         </Link>
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{isZandofyMode ? 'Zandofy' : 'Market'}</p>
@@ -219,13 +219,13 @@ export default function MarketOrdersScreen() {
             </div>
             {isSeller && (canPrepare || canDispatch) && (
               <button type="button" onClick={() => void updateOrderStage(order.id, canPrepare ? 'preparing' : 'delivering')} disabled={busyOrder === order.id} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#15EA3E] px-3 py-3 text-[9px] font-black uppercase tracking-wider text-black disabled:opacity-50">
-                <AfriSellIcon name={canPrepare ? 'order' : 'send'} size={14} />
+                <AfriZiaIcon name={canPrepare ? 'order' : 'send'} size={14} />
                 {busyOrder === order.id ? 'Mise à jour...' : canPrepare ? 'Marquer en préparation' : 'Remettre à Safari'}
               </button>
             )}
             {isDropshipping && (canConfirmSupplier || canDispatchSupplier) && (
               <button type="button" onClick={() => void updateSupplierStage(order.id, canConfirmSupplier ? 'confirmed' : 'dispatched')} disabled={busyOrder === order.id} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-sky-300/30 bg-sky-300/10 px-3 py-3 text-[9px] font-black uppercase tracking-wider text-sky-100 disabled:opacity-50">
-                <AfriSellIcon name={canConfirmSupplier ? 'contact' : 'send'} size={14} />
+                <AfriZiaIcon name={canConfirmSupplier ? 'contact' : 'send'} size={14} />
                 {busyOrder === order.id ? 'Mise à jour...' : canConfirmSupplier ? 'Confirmer le fournisseur' : 'Confirmer l’expédition fournisseur'}
               </button>
             )}

@@ -1,6 +1,6 @@
 import React, { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import {
   AfriMarketComment,
   AfriMarketContent,
@@ -13,7 +13,7 @@ import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { useAppStore } from '../store/useAppStore';
 import { cn } from '../lib/utils';
 import { shareVillageDealToAfriChat } from '../domains/commerce';
-import type { AfriSellUserProfile } from '../hooks/useFirebaseAuth';
+import type { AfriZiaUserProfile } from '../hooks/useFirebaseAuth';
 
 type QuickPanel = 'cart' | 'orders' | 'following' | null;
 type FeedFilter = 'live' | 'for-you' | 'following' | 'paid' | 'friends';
@@ -24,7 +24,7 @@ const MARKET_BUSINESS_SERVICE_IDS = new Set(['store', 'supplier', 'producer']);
 
 const getFavoriteStorageKey = (uid?: string) => `${ABC_FAVORITES_KEY}:${uid || 'guest'}`;
 
-const hasMarketBusinessAccount = (profile?: AfriSellUserProfile | null) => {
+const hasMarketBusinessAccount = (profile?: AfriZiaUserProfile | null) => {
   if (!profile) return false;
   const accounts = [
     profile.businessAccount,
@@ -325,7 +325,7 @@ function FeedItem({
       {isPausedByUser && isVideo && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-black/45 text-[#15EA3E] backdrop-blur-md">
-            <AfriSellIcon name="play" size={26} />
+            <AfriZiaIcon name="play" size={26} />
           </div>
         </div>
       )}
@@ -348,7 +348,7 @@ function FeedItem({
               )}
               aria-label={soundEnabled ? 'Couper le son' : 'Activer le son'}
             >
-              <AfriSellIcon name="signal" size={14} />
+              <AfriZiaIcon name="signal" size={14} />
             </button>
           </div>
         )}
@@ -452,7 +452,7 @@ function FeedItem({
               }}
               className="group flex flex-col items-center gap-1"
             >
-              <AfriSellIcon
+              <AfriZiaIcon
                 name="heart"
                 size={25}
                 className={cn(
@@ -472,7 +472,7 @@ function FeedItem({
               }}
               className="group flex flex-col items-center gap-1"
             >
-              <AfriSellIcon name="comment" size={25} className="text-gray-400 transition-colors group-hover:text-white" />
+              <AfriZiaIcon name="comment" size={25} className="text-gray-400 transition-colors group-hover:text-white" />
               <span className="text-[10px] font-mono text-gray-400">{content.commentsCount || 0}</span>
             </button>
             <button
@@ -483,7 +483,7 @@ function FeedItem({
               }}
               className="group flex flex-col items-center gap-1"
             >
-              <AfriSellIcon name="share" size={25} className="text-gray-400 transition-colors group-hover:text-white" />
+              <AfriZiaIcon name="share" size={25} className="text-gray-400 transition-colors group-hover:text-white" />
               <span className="text-[10px] font-mono text-gray-400">{content.sharesCount || 0}</span>
             </button>
             <button
@@ -496,7 +496,7 @@ function FeedItem({
               aria-label={content.linkedProductId ? 'Ajouter au panier' : 'Ajouter aux favoris'}
               title={content.linkedProductId ? 'Ajouter au panier' : 'Favori'}
             >
-              <AfriSellIcon
+              <AfriZiaIcon
                 name={content.linkedProductId ? 'cart' : 'star'}
                 size={25}
                 className={cn(
@@ -520,7 +520,7 @@ function FeedItem({
           <div className="abc-like-ring absolute left-1/2 top-1/2 h-72 w-72 rounded-full border-2 border-[#15EA3E]/70" />
           <div className="abc-like-ring absolute left-1/2 top-1/2 h-48 w-48 rounded-full border border-[#15EA3E]/70 [animation-delay:90ms]" />
           <div className="abc-like-pop absolute left-1/2 top-1/2 flex h-24 w-24 items-center justify-center rounded-full bg-[#15EA3E] text-black shadow-[0_0_46px_rgba(21,234,62,0.88)]">
-            <AfriSellIcon name="heart" size={42} />
+            <AfriZiaIcon name="heart" size={42} />
           </div>
           {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
             <span
@@ -610,7 +610,7 @@ function PublishPanel({
             <h2 className="mt-1 text-lg font-black text-white">Nouvelle publication</h2>
           </div>
           <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-800 text-gray-500">
-            <AfriSellIcon name="close" size={19} />
+            <AfriZiaIcon name="close" size={19} />
           </button>
         </div>
 
@@ -622,7 +622,7 @@ function PublishPanel({
 
         <div className="rounded-2xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 p-3">
           <div className="flex items-center gap-2 text-[#15EA3E]">
-            <AfriSellIcon name="video" size={18} />
+            <AfriZiaIcon name="video" size={18} />
             <span className="text-xs font-black uppercase tracking-wider">Contenu ABC</span>
           </div>
           <p className="mt-2 text-[11px] font-semibold leading-relaxed text-white/60">
@@ -658,7 +658,7 @@ function PublishPanel({
             className="flex h-14 w-full items-center justify-between rounded-2xl border border-dashed border-gray-700 bg-[#050505] px-4 text-left text-sm font-black text-white"
           >
             <span>{fileLabel}</span>
-            <AfriSellIcon name="clip" size={18} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="clip" size={18} className="text-[#15EA3E]" />
           </button>
 
           {canAssociateProduct ? (
@@ -746,7 +746,7 @@ function CommentPanel({
             <h2 className="mt-1 truncate text-sm font-black text-white">{content.title}</h2>
           </div>
           <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-800 text-gray-500">
-            <AfriSellIcon name="close" size={19} />
+            <AfriZiaIcon name="close" size={19} />
           </button>
         </div>
 
@@ -767,7 +767,7 @@ function CommentPanel({
             </div>
           ) : (
             <div className="flex min-h-[190px] flex-col items-center justify-center text-center">
-              <AfriSellIcon name="comment" size={30} className="text-gray-700" />
+              <AfriZiaIcon name="comment" size={30} className="text-gray-700" />
               <p className="mt-3 text-sm font-black text-white">Aucun commentaire</p>
               <p className="mt-1 text-xs text-gray-500">Sois le premier à reagir.</p>
             </div>
@@ -788,7 +788,7 @@ function CommentPanel({
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black disabled:bg-gray-800 disabled:text-gray-500"
             aria-label="Envoyer le commentaire"
           >
-            <AfriSellIcon name="send" size={18} />
+            <AfriZiaIcon name="send" size={18} />
           </button>
         </form>
       </section>
@@ -829,7 +829,7 @@ function QuickPanelSheet({
             <h2 className="mt-1 text-lg font-black text-white">{title}</h2>
           </div>
           <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-800 text-gray-500">
-            <AfriSellIcon name="close" size={19} />
+            <AfriZiaIcon name="close" size={19} />
           </button>
         </div>
 
@@ -864,7 +864,7 @@ function QuickPanelSheet({
             </div>
           ) : (
             <div className="flex min-h-[170px] flex-col items-center justify-center text-center">
-              <AfriSellIcon name="market" size={30} className="text-gray-700" />
+              <AfriZiaIcon name="market" size={30} className="text-gray-700" />
               <p className="mt-3 text-sm font-black text-white">Panier vide</p>
               <p className="mt-1 text-xs leading-relaxed text-gray-500">Like une vidéo ou publication vendable pour l'ajouter automatiquement.</p>
             </div>
@@ -873,7 +873,7 @@ function QuickPanelSheet({
 
         {panel === 'orders' && (
           <div className="flex min-h-[170px] flex-col items-center justify-center text-center">
-            <AfriSellIcon name="check" size={30} className="text-gray-700" />
+            <AfriZiaIcon name="check" size={30} className="text-gray-700" />
             <p className="mt-3 text-sm font-black text-white">Aucune commande</p>
             <p className="mt-1 text-xs leading-relaxed text-gray-500">Les commandes confirmees depuis AfriSpay seront listees ici.</p>
           </div>
@@ -881,7 +881,7 @@ function QuickPanelSheet({
 
         {panel === 'following' && (
           <div className="flex min-h-[170px] flex-col items-center justify-center text-center">
-            <AfriSellIcon name="profile" size={30} className="text-gray-700" />
+            <AfriZiaIcon name="profile" size={30} className="text-gray-700" />
             <p className="mt-3 text-sm font-black text-white">{followedCount ? 'Profils suivis' : 'Aucun suivi'}</p>
             <p className="mt-1 text-xs leading-relaxed text-gray-500">
               {followedCount ? 'Tes médias suivis sont bien gardés.' : 'Appuie sur Suivre dans ABC pour garder un créateur ou vendeur.'}
@@ -1072,7 +1072,7 @@ export default function VideoFeed() {
 
   const handleShare = async (content: AfriMarketContent) => {
     const shareUrl = `${window.location.origin}/feed?post=${content.id}`;
-    const shareText = `${content.title} - AfriSell`;
+    const shareText = `${content.title} - AfriZia`;
 
     try {
       if (navigator.share) {
@@ -1188,7 +1188,7 @@ export default function VideoFeed() {
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[#15EA3E] transition-colors active:bg-white/10"
             aria-label="Rechercher dans ABC"
           >
-            <AfriSellIcon name="search" size={16} />
+            <AfriZiaIcon name="search" size={16} />
           </button>
           <button
             type="button"
@@ -1202,7 +1202,7 @@ export default function VideoFeed() {
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[#15EA3E] transition-colors active:bg-white/10"
             aria-label="Notifications"
           >
-            <AfriSellIcon name="notifications" size={17} />
+            <AfriZiaIcon name="notifications" size={17} />
           </button>
           </div>
       </div>
@@ -1222,7 +1222,7 @@ export default function VideoFeed() {
             className="rounded-[1.35rem] border border-[#15EA3E]/24 bg-[#050705] p-3 shadow-[0_18px_42px_rgba(0,0,0,0.48)]"
           >
             <div className="flex items-center gap-2">
-              <AfriSellIcon name="search" size={17} className="text-[#15EA3E]" />
+              <AfriZiaIcon name="search" size={17} className="text-[#15EA3E]" />
               <input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
@@ -1239,7 +1239,7 @@ export default function VideoFeed() {
                 className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/62"
                 aria-label="Fermer la recherche"
               >
-                <AfriSellIcon name="close" size={14} />
+                <AfriZiaIcon name="close" size={14} />
               </button>
             </div>
           </form>
@@ -1259,19 +1259,19 @@ export default function VideoFeed() {
                     className="flex items-center gap-3 rounded-2xl p-2.5 text-left active:bg-white/[0.06]"
                   >
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.05] text-[#15EA3E]">
-                      {result.image ? <img src={result.image} alt="" className="h-full w-full object-cover" /> : <AfriSellIcon name="search" size={16} />}
+                      {result.image ? <img src={result.image} alt="" className="h-full w-full object-cover" /> : <AfriZiaIcon name="search" size={16} />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-black text-white">{result.title}</span>
                       <span className="mt-0.5 block truncate text-[10px] font-bold text-white/42">{result.type} - {result.meta}</span>
                     </span>
-                    <AfriSellIcon name="arrow" size={13} className="text-[#15EA3E]" />
+                    <AfriZiaIcon name="arrow" size={13} className="text-[#15EA3E]" />
                   </button>
                 ))}
               </div>
             ) : (
               <div className="flex min-h-[180px] flex-col items-center justify-center text-center">
-                <AfriSellIcon name="search" size={28} className="text-white/20" />
+                <AfriZiaIcon name="search" size={28} className="text-white/20" />
                 <p className="mt-3 text-sm font-black text-white">{searchQuery.trim() ? 'Aucun résultat' : 'Recherche ABC'}</p>
                 <p className="mt-1 max-w-[240px] text-xs font-semibold leading-relaxed text-white/42">
                   Trouve une publication, un utilisateur, une publicité, un produit ou une offre.
@@ -1301,7 +1301,7 @@ export default function VideoFeed() {
 
       {loading ? (
         <div className="flex h-full flex-col items-center justify-center px-10 text-center">
-          <AfriSellIcon name="video" size={42} className="text-[#15EA3E]" />
+          <AfriZiaIcon name="video" size={42} className="text-[#15EA3E]" />
           <p className="mt-4 text-sm font-black uppercase tracking-wide text-white">Chargement ABC</p>
         </div>
       ) : filteredContents.length ? (
@@ -1348,7 +1348,7 @@ export default function VideoFeed() {
       ) : (
         <div className="flex h-full flex-col items-center justify-center px-10 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-gray-800 bg-[#050505] text-[#15EA3E]">
-            <AfriSellIcon name="video" size={28} />
+            <AfriZiaIcon name="video" size={28} />
           </div>
           <h2 className="mt-5 text-lg font-black text-white">{feedFilter === 'live' ? 'Aucun live pour le moment' : 'Aucune publication'}</h2>
           <p className="mt-2 text-sm leading-relaxed text-gray-500">

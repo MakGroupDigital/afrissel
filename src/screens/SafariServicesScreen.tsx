@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { onValue, ref } from 'firebase/database';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { realtimeDb } from '../lib/firebase';
 import { SafariServiceType, createSafariRequest } from '../domains/logistics';
@@ -14,7 +14,7 @@ type SafariService = {
   title: string;
   shortTitle: string;
   body: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   action: string;
   titlePlaceholder: string;
   originLabel: string;
@@ -234,7 +234,7 @@ export default function SafariServicesScreen() {
     <main className="min-h-full bg-[#050705] px-4 pb-7 pt-4 text-white">
       <header className="flex items-center justify-between">
         <Link to="/ecosystem" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Retour">
-          <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
         </Link>
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Safari</p>
@@ -268,7 +268,7 @@ export default function SafariServicesScreen() {
             }`}
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/24">
-              <AfriSellIcon name={service.icon} size={17} />
+              <AfriZiaIcon name={service.icon} size={17} />
             </span>
             <span className="mt-2 block truncate text-[9px] font-black uppercase tracking-[0.08em]">{service.shortTitle}</span>
           </button>
@@ -312,7 +312,7 @@ export default function SafariServicesScreen() {
 
         <button disabled={busy} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black disabled:opacity-60">
           {busy ? 'Création...' : activeService.action}
-          <AfriSellIcon name="arrow" size={16} />
+          <AfriZiaIcon name="arrow" size={16} />
         </button>
       </form>
 
@@ -354,10 +354,10 @@ export default function SafariServicesScreen() {
               <article key={delivery.orderId} className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-black">{delivery.productName || 'Commande AfriSell'}</p>
+                    <p className="truncate text-sm font-black">{delivery.productName || 'Commande AfriZia'}</p>
                     <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-[#15EA3E]">{delivery.delivery?.title || 'Safari'}</p>
                     <p className="mt-2 text-[11px] font-semibold text-white/45">
-                      {delivery.buyerId === user?.uid ? `Vendeur: ${delivery.sellerName || 'AfriSell'}` : `Client: ${delivery.buyerName || 'AfriSell'}`}
+                      {delivery.buyerId === user?.uid ? `Vendeur: ${delivery.sellerName || 'AfriZia'}` : `Client: ${delivery.buyerName || 'AfriZia'}`}
                     </p>
                   </div>
                   <span className="shrink-0 rounded-full border border-[#15EA3E]/20 bg-[#15EA3E]/10 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">

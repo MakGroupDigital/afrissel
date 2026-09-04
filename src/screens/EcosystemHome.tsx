@@ -4,13 +4,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { get, onValue, ref, remove, set } from 'firebase/database';
 import { Building2, CalendarDays, UtensilsCrossed } from 'lucide-react';
 import { ecosystemModules } from '../data/ecosystem';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { InvertedAfricaLogo } from '../components/InvertedAfricaLogo';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { AfriMarketContent, formatMarketPrice, useAfriMarket } from '../hooks/useAfriMarket';
 import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
 import { realtimeDb } from '../lib/firebase';
-import { AFRISELL_MAIN_LOGO } from '../lib/branding';
+import { AFRIZIA_MAIN_LOGO } from '../lib/branding';
 import { cn } from '../lib/utils';
 import { executeWalletOperation, WalletOperationType } from '../domains/payment';
 
@@ -201,7 +201,7 @@ const normalizeFreelancer = (uid: string, rawProfile: Record<string, unknown>): 
 
   if (!isFreelance) return null;
 
-  const displayName = getProfileText(rawProfile.displayName) || getProfileText(rawProfile.businessName) || 'Freelance AfriSell';
+  const displayName = getProfileText(rawProfile.displayName) || getProfileText(rawProfile.businessName) || 'Freelance AfriZia';
   const role = getProfileText(freelanceAccount?.segmentLabel) || getProfileText(freelanceAccount?.serviceLabel) || 'Freelance';
   const score = Number(rawProfile.freelanceScore || rawProfile.rating || rawProfile.recommendations || 0);
   const ratingValue = Number(rawProfile.rating || 0);
@@ -210,7 +210,7 @@ const normalizeFreelancer = (uid: string, rawProfile: Record<string, unknown>): 
     id: uid,
     name: displayName,
     role,
-    city: getProfileText(rawProfile.city) || getProfileText(rawProfile.country) || 'AfriSell',
+    city: getProfileText(rawProfile.city) || getProfileText(rawProfile.country) || 'AfriZia',
     rating: ratingValue ? ratingValue.toFixed(1) : 'Nouveau',
     image: getProfileText(rawProfile.photoURL) || getProfileText(rawProfile.logoURL) || '/a-freelance.jpeg',
     skill: getProfileText(rawProfile.bio) || getProfileText(freelanceAccount?.serviceLabel) || 'Services professionnels sur A-Freelance.',
@@ -233,7 +233,7 @@ const normalizeSupplier = (uid: string, rawProfile: Record<string, unknown>): Su
 
   if (!isSupplier) return null;
 
-  const displayName = getProfileText(rawProfile.businessName) || getProfileText(rawProfile.displayName) || 'Fournisseur AfriSell';
+  const displayName = getProfileText(rawProfile.businessName) || getProfileText(rawProfile.displayName) || 'Fournisseur AfriZia';
   const role = getProfileText(supplierAccount?.segmentLabel) || getProfileText(supplierAccount?.serviceLabel) || 'Fournisseur';
   const score = Number(rawProfile.supplierScore || rawProfile.recommendations || rawProfile.rating || 0);
 
@@ -241,7 +241,7 @@ const normalizeSupplier = (uid: string, rawProfile: Record<string, unknown>): Su
     id: uid,
     name: displayName,
     role,
-    city: getProfileText(rawProfile.city) || getProfileText(rawProfile.country) || 'AfriSell',
+    city: getProfileText(rawProfile.city) || getProfileText(rawProfile.country) || 'AfriZia',
     rating: 'Reel',
     image: getProfileText(rawProfile.logoURL) || getProfileText(rawProfile.photoURL) || '/afrimarket.jpeg',
     skill: getProfileText(rawProfile.bio) || 'Approvisionnement, distribution et offres business.',
@@ -424,11 +424,11 @@ export default function EcosystemHome() {
     ));
   };
   const handleShareFreelance = async (freelance: TopFreelancer) => {
-    const text = `${freelance.name} - ${freelance.role} sur AfriSell`;
+    const text = `${freelance.name} - ${freelance.role} sur AfriZia`;
 
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Freelance AfriSell', text, url: window.location.origin + '/ecosystem' });
+        await navigator.share({ title: 'Freelance AfriZia', text, url: window.location.origin + '/ecosystem' });
         setFreelanceFeedback((current) => ({ ...current, [freelance.id]: 'Partage ouvert' }));
         return;
       }
@@ -756,13 +756,13 @@ export default function EcosystemHome() {
         <div className="flex items-center justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <img src="/logo du haut de page d'acceuil.png" alt="AfriSell" className="h-10 w-auto max-w-[156px] object-contain" />
+              <img src="/logo du haut de page d'acceuil.png" alt="AfriZia" className="h-10 w-auto max-w-[156px] object-contain" />
               <h1 className="truncate text-[11px] font-black text-white/78">{timeGreeting} {firstName}</h1>
             </div>
           </div>
           <div className="flex shrink-0 items-center">
             <Link to="/profile" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Profil">
-              <AfriSellIcon name="profile" size={19} />
+              <AfriZiaIcon name="profile" size={19} />
             </Link>
           </div>
         </div>
@@ -771,7 +771,7 @@ export default function EcosystemHome() {
       <section className="mt-2 shrink-0 px-4">
         <form onSubmit={submitUniversalSearch} className="relative">
           <label className="flex h-11 items-center gap-3 rounded-[1.15rem] border border-white/10 bg-white/[0.05] px-3.5 shadow-[0_10px_24px_rgba(0,0,0,0.18)]">
-            <AfriSellIcon name="search" size={17} className="shrink-0 text-[#15EA3E]" />
+            <AfriZiaIcon name="search" size={17} className="shrink-0 text-[#15EA3E]" />
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -784,7 +784,7 @@ export default function EcosystemHome() {
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black disabled:bg-white/10 disabled:text-white/30"
               aria-label="Lancer la recherche"
             >
-              <AfriSellIcon name="arrow" size={14} />
+              <AfriZiaIcon name="arrow" size={14} />
             </button>
           </label>
 
@@ -802,14 +802,14 @@ export default function EcosystemHome() {
                     {item.image ? (
                       <img src={item.image} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <AfriSellIcon name="search" size={15} />
+                      <AfriZiaIcon name="search" size={15} />
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-xs font-black text-white">{item.title}</span>
                     <span className="mt-0.5 block truncate text-[10px] font-bold text-white/45">{item.type} - {item.meta}</span>
                   </span>
-                  <AfriSellIcon name="arrow" size={13} className="text-[#15EA3E]" />
+                  <AfriZiaIcon name="arrow" size={13} className="text-[#15EA3E]" />
                 </Link>
               ))}
             </div>
@@ -855,7 +855,7 @@ export default function EcosystemHome() {
             </Link>
 
             <div className="flex items-start gap-2">
-              <AfriSellIcon name="signal" size={20} className="mt-1 text-white/55" />
+              <AfriZiaIcon name="signal" size={20} className="mt-1 text-white/55" />
               <div className="relative flex h-8 w-11 flex-col items-center justify-center gap-[2px] overflow-hidden rounded border border-gray-700/50 bg-gray-900/80">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#15EA3E]/10 to-transparent" />
                 <div className="h-[1px] w-full bg-gray-700/50" />
@@ -885,7 +885,7 @@ export default function EcosystemHome() {
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.055] text-[#15EA3E]"
                     aria-label={showWalletBalance ? 'Masquer le solde' : 'Afficher le solde'}
                   >
-                    <AfriSellIcon name={showWalletBalance ? 'eyeOff' : 'eye'} size={13} />
+                    <AfriZiaIcon name={showWalletBalance ? 'eyeOff' : 'eye'} size={13} />
                   </button>
                 )}
               </div>
@@ -907,10 +907,10 @@ export default function EcosystemHome() {
                 className="h-8 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/50 px-3 text-[11px] font-bold text-white outline-none placeholder:text-white/28 focus:border-[#15EA3E]/50"
               />
               <button type="submit" disabled={!hasWalletPin} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black disabled:bg-white/10 disabled:text-white/30">
-                <AfriSellIcon name="check" size={13} />
+                <AfriZiaIcon name="check" size={13} />
               </button>
               <button type="button" onClick={unlockWalletWithBiometric} disabled={!canUseBiometric} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.055] text-[#15EA3E] disabled:text-white/25">
-                <AfriSellIcon name="shield" size={13} />
+                <AfriZiaIcon name="shield" size={13} />
               </button>
             </form>
           )}
@@ -933,7 +933,7 @@ export default function EcosystemHome() {
                 )}
                 aria-label={action.label}
               >
-                <AfriSellIcon name={action.icon} size={12} />
+                <AfriZiaIcon name={action.icon} size={12} />
                 <span className="max-w-full truncate text-[7px] font-black leading-none">{action.label}</span>
               </button>
             ))}
@@ -982,7 +982,7 @@ export default function EcosystemHome() {
               </p>
             </div>
             <span className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black shadow-[0_10px_22px_rgba(21,234,62,0.25)]">
-              <AfriSellIcon name="arrow" size={16} />
+              <AfriZiaIcon name="arrow" size={16} />
             </span>
           </div>
         </Link>
@@ -998,7 +998,7 @@ export default function EcosystemHome() {
                 <h2 className="mt-1 text-xl font-black leading-tight">Vitrines, Stands et Villages en mouvement</h2>
               </div>
               <Link to="/market" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-                <AfriSellIcon name="arrow" size={17} />
+                <AfriZiaIcon name="arrow" size={17} />
               </Link>
             </div>
 
@@ -1049,7 +1049,7 @@ export default function EcosystemHome() {
                 )}
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_35%,rgba(0,0,0,0.86))]" />
                 <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 backdrop-blur">
-                  <AfriSellIcon name={isVideo ? 'video' : 'market'} size={12} className="text-[#15EA3E]" />
+                  <AfriZiaIcon name={isVideo ? 'video' : 'market'} size={12} className="text-[#15EA3E]" />
                   <span className="text-[8px] font-black uppercase tracking-[0.12em] text-white/72">{isVideo ? 'Vidéo' : 'Photo'}</span>
                 </div>
                 <div className="absolute inset-x-0 bottom-0 p-3">
@@ -1120,11 +1120,11 @@ export default function EcosystemHome() {
                   <img src={freelance.image} alt={freelance.name} className="h-full w-full object-cover" />
                   <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_30%,rgba(0,0,0,0.92))]" />
                   <span className="absolute left-1.5 top-1.5 flex items-center gap-0.5 rounded-full bg-[#15EA3E] px-1.5 py-0.5 text-[8px] font-black text-black">
-                    <AfriSellIcon name="heart" size={9} className="fill-current" />
+                    <AfriZiaIcon name="heart" size={9} className="fill-current" />
                     {formatCompactCount(stats.likes)}
                   </span>
                   <span className="absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[8px] font-black text-white">
-                    <AfriSellIcon name="star" size={9} className="fill-current text-[#FFD84D]" />
+                    <AfriZiaIcon name="star" size={9} className="fill-current text-[#FFD84D]" />
                     {stats.ratingCount ? stats.ratingAverage.toFixed(1) : freelance.rating}
                   </span>
                   <span className="absolute inset-x-0 bottom-0 p-2">
@@ -1140,7 +1140,7 @@ export default function EcosystemHome() {
             <div className="relative z-10 mt-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1 text-[9px] font-black text-white/62">
-                  <AfriSellIcon name="star" size={11} className="fill-current text-[#FFD84D]" />
+                  <AfriZiaIcon name="star" size={11} className="fill-current text-[#FFD84D]" />
                   <span>{activeStats.ratingCount ? activeStats.ratingAverage.toFixed(1) : '0.0'}</span>
                   <span>{formatCompactCount(activeStats.ratingCount)} notes</span>
                 </div>
@@ -1153,7 +1153,7 @@ export default function EcosystemHome() {
                       className="flex h-6 w-6 items-center justify-center active:scale-[0.94]"
                       aria-label={`Noter ${rating} etoile${rating > 1 ? 's' : ''}`}
                     >
-                      <AfriSellIcon
+                      <AfriZiaIcon
                         name="star"
                         size={13}
                         className={rating <= activeUserRating ? 'fill-current text-[#FFD84D]' : 'text-white/28'}
@@ -1165,16 +1165,16 @@ export default function EcosystemHome() {
 
               <div className="mt-2 grid grid-cols-5 gap-1.5">
                 <button type="button" onClick={moveFreelanceStack} className="flex h-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-white/60" aria-label="Profil suivant" title="Profil suivant">
-                  <AfriSellIcon name="arrow" size={13} />
+                  <AfriZiaIcon name="arrow" size={13} />
                 </button>
                 <Link to={user ? getContactChatRoute(activeFreelance) : '/login'} state={!user ? { next: getContactChatRoute(activeFreelance) } : undefined} className="flex h-8 items-center justify-center rounded-xl bg-[#15EA3E] text-black" aria-label="Contacter" title="Contacter">
-                  <AfriSellIcon name="chat" size={13} />
+                  <AfriZiaIcon name="chat" size={13} />
                 </Link>
                 <button type="button" onClick={() => void handleLikeFreelance(activeFreelance)} className={`flex h-8 items-center justify-center rounded-xl border ${activeUserLiked ? 'border-[#15EA3E] bg-[#15EA3E] text-black' : 'border-[#15EA3E]/30 bg-[#15EA3E]/10 text-[#15EA3E]'}`} aria-label="Liker" title="Liker">
-                  <AfriSellIcon name="heart" size={13} className={activeUserLiked ? 'fill-current' : ''} />
+                  <AfriZiaIcon name="heart" size={13} className={activeUserLiked ? 'fill-current' : ''} />
                 </button>
                 <button type="button" onClick={() => void handleShareFreelance(activeFreelance)} className="flex h-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-white/70" aria-label="Partager" title="Partager">
-                  <AfriSellIcon name="share" size={13} />
+                  <AfriZiaIcon name="share" size={13} />
                 </button>
                 <button
                   type="button"
@@ -1186,7 +1186,7 @@ export default function EcosystemHome() {
                   aria-label="Recommandér"
                   title="Recommandér"
                 >
-                  <AfriSellIcon name="follow" size={13} />
+                  <AfriZiaIcon name="follow" size={13} />
                 </button>
               </div>
 
@@ -1238,7 +1238,7 @@ export default function EcosystemHome() {
                       state={!user ? { next: chatRoute } : undefined}
                       className="mt-2 flex h-8 items-center justify-center gap-1.5 rounded-xl bg-[#15EA3E] text-[9px] font-black uppercase tracking-wider text-black active:scale-[0.98]"
                     >
-                      <AfriSellIcon name="chat" size={12} />
+                      <AfriZiaIcon name="chat" size={12} />
                       Contacter
                     </Link>
                   </div>
@@ -1272,7 +1272,7 @@ export default function EcosystemHome() {
                 </p>
               </div>
               <button type="button" onClick={resetHomeWalletSheet} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.055] text-white/55" aria-label="Fermer">
-                <AfriSellIcon name="close" size={16} />
+                <AfriZiaIcon name="close" size={16} />
               </button>
             </div>
 
@@ -1309,7 +1309,7 @@ export default function EcosystemHome() {
                   {homeWalletAction.type === 'transfer' ? 'Wallet bénéficiaire' : 'Numéro Mobile Money'}
                 </span>
                 <div className="mt-2 flex h-14 items-center gap-2 rounded-2xl border border-white/10 bg-black px-4 focus-within:border-[#15EA3E]/50">
-                  <AfriSellIcon name={homeWalletAction.type === 'transfer' ? 'profile' : 'phone'} size={17} className="text-[#15EA3E]" />
+                  <AfriZiaIcon name={homeWalletAction.type === 'transfer' ? 'profile' : 'phone'} size={17} className="text-[#15EA3E]" />
                   <input
                     value={homeWalletRecipient}
                     onChange={(event) => setHomeWalletRecipient(event.target.value)}
@@ -1372,7 +1372,7 @@ export default function EcosystemHome() {
                 className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-[11px] font-black uppercase tracking-[0.14em] text-black disabled:opacity-60"
               >
                 {homeWalletBusy ? 'Traitement...' : homeWalletStep === 'confirm' ? 'Confirmer' : 'Continuer'}
-                <AfriSellIcon name="arrow" size={15} />
+                <AfriZiaIcon name="arrow" size={15} />
               </button>
             </div>
           </form>

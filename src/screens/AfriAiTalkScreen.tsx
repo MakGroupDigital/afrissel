@@ -1,7 +1,7 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AfriSellIcon } from '../components/AfriSellIcon';
-import type { AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
+import type { AfriZiaIconName } from '../components/AfriZiaIcon';
 import { cn } from '../lib/utils';
 
 type ConversationMode = 'voice' | 'text' | 'task';
@@ -14,12 +14,12 @@ const quickPrompts = [
 ];
 
 const settings = [
-  { id: 'search', label: 'Recherche', body: 'Acces aux resultats et services AfriSell.' },
+  { id: 'search', label: 'Recherche', body: 'Acces aux resultats et services AfriZia.' },
   { id: 'pro', label: 'Mode Pro', body: 'Reponses plus strategiques et detaillees.' },
   { id: 'memory', label: 'Memoire', body: 'Contexte de conversation active.' }
 ];
 
-const conversationModes: Array<{ id: ConversationMode; label: string; icon: AfriSellIconName }> = [
+const conversationModes: Array<{ id: ConversationMode; label: string; icon: AfriZiaIconName }> = [
   { id: 'voice', label: 'Vocal', icon: 'signal' },
   { id: 'text', label: 'Texte', icon: 'keyboard' },
   { id: 'task', label: 'Taches', icon: 'flash' }
@@ -58,7 +58,7 @@ export default function AfriAiTalkScreen() {
       { role: 'user', text: cleanMessage },
       {
         role: 'assistant',
-        text: 'Je garde le contexte et je prépare la meilleure action AfriSell pour cette demande. Les connexions aux services seront activées progressivement.'
+        text: 'Je garde le contexte et je prépare la meilleure action AfriZia pour cette demande. Les connexions aux services seront activées progressivement.'
       }
     ]);
     setMessage('');
@@ -83,14 +83,14 @@ export default function AfriAiTalkScreen() {
 
       <header className="relative z-10 flex shrink-0 items-center justify-between px-4 pt-5">
         <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-black/45 text-white/70 backdrop-blur-xl">
-          <AfriSellIcon name="arrow" size={17} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={17} className="rotate-180" />
         </button>
         <div className="text-center">
           <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#15EA3E]">AfriAI</p>
           <h1 className="text-sm font-black text-white">{modeTitle}</h1>
         </div>
         <button type="button" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-black/45 text-[#15EA3E] backdrop-blur-xl">
-          <AfriSellIcon name="account" size={16} />
+          <AfriZiaIcon name="account" size={16} />
         </button>
       </header>
 
@@ -124,7 +124,7 @@ export default function AfriAiTalkScreen() {
                 mode === item.id ? 'bg-[#15EA3E] text-black' : 'text-white/55'
               )}
             >
-              <AfriSellIcon name={item.icon} size={13} />
+              <AfriZiaIcon name={item.icon} size={13} />
               {item.label}
             </button>
           ))}
@@ -144,7 +144,7 @@ export default function AfriAiTalkScreen() {
                 'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border',
                 enabledSettings[setting.id] ? 'border-[#15EA3E]/45 bg-[#15EA3E]/14 text-[#15EA3E]' : 'border-white/10 bg-white/[0.04] text-white/38'
               )}>
-                <AfriSellIcon name={setting.id === 'search' ? 'search' : setting.id === 'pro' ? 'flash' : 'shield'} size={15} />
+                <AfriZiaIcon name={setting.id === 'search' ? 'search' : setting.id === 'pro' ? 'flash' : 'shield'} size={15} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-xs font-black text-white">{setting.label}</span>
@@ -186,7 +186,7 @@ export default function AfriAiTalkScreen() {
       <form onSubmit={submitMessage} className="relative z-10 shrink-0 border-t border-white/10 bg-black/70 px-4 pb-4 pt-3 backdrop-blur-2xl">
         <div className="flex items-end gap-2">
           <button type="button" onClick={() => setIsListening((current) => !current)} className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border', isListening ? 'border-[#15EA3E] bg-[#15EA3E] text-black' : 'border-white/10 bg-white/[0.05] text-[#15EA3E]')}>
-            <AfriSellIcon name="signal" size={17} />
+            <AfriZiaIcon name="signal" size={17} />
           </button>
           <div className="flex min-h-[44px] flex-1 items-center rounded-2xl border border-white/10 bg-white/[0.06] px-4 focus-within:border-[#15EA3E]/50">
             <textarea
@@ -198,7 +198,7 @@ export default function AfriAiTalkScreen() {
             />
           </div>
           <button type="submit" disabled={!message.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black disabled:bg-white/10 disabled:text-white/30">
-            <AfriSellIcon name="send" size={17} />
+            <AfriZiaIcon name="send" size={17} />
           </button>
         </div>
       </form>

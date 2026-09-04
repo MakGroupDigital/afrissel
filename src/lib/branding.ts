@@ -1,2 +1,2 @@
-export const AFRISELL_MAIN_LOGO = '/afrisell-super-app-icon.png';
-export const AFRISELL_WORDMARK_LOGO = "/logo du haut de page d'acceuil.png";
+export const AFRIZIA_MAIN_LOGO = '/afrizia-super-app-icon.png';
+export const AFRIZIA_WORDMARK_LOGO = "/logo du haut de page d'acceuil.png";

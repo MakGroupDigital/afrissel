@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAppStore } from '../store/useAppStore';
-import { AfriSellIcon } from './AfriSellIcon';
+import { AfriZiaIcon } from './AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
 import { completeCommerceOrder } from '../domains/commerce';
@@ -92,7 +92,7 @@ export default function BottomSheet() {
         orderId: confirmedOrder.orderId,
         product: selectedProduct,
         delivery: selectedDelivery,
-        buyerName: profile?.displayName || user?.displayName || 'Client AfriSell',
+        buyerName: profile?.displayName || user?.displayName || 'Client AfriZia',
         totalAmount: confirmedOrder.totalAmount,
         currency: confirmedOrder.currency,
         verificationUrl
@@ -131,7 +131,7 @@ export default function BottomSheet() {
                 className="flex w-full flex-col items-center justify-center py-8 text-center"
               >
                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#15EA3E]/15">
-                  <AfriSellIcon name="check" size={32} className="text-[#15EA3E]" />
+                  <AfriZiaIcon name="check" size={32} className="text-[#15EA3E]" />
                 </div>
                 <h3 className="mb-2 text-sm font-bold uppercase tracking-widest text-white">
                   {confirmedOrder?.documentType === 'invoice' ? 'Facture créée' : 'Commande confirmée'}
@@ -175,7 +175,7 @@ export default function BottomSheet() {
                 <div className="flex justify-between items-center w-full mb-2">
                   <h2 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Checkout</h2>
                   <button onClick={handleClose} className="text-gray-500 hover:text-white transition-colors">
-                    <AfriSellIcon name="close" size={20} />
+                    <AfriZiaIcon name="close" size={20} />
                   </button>
                 </div>
                 

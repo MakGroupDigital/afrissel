@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { downloadDigitalAsset, getDigitalDelivery, DigitalDelivery } from '../lib/digitalDelivery';
 
 const formatBytes = (value: number) => {
@@ -48,18 +48,18 @@ export default function DigitalAccessScreen() {
     <main className="min-h-full overflow-y-auto bg-[#030604] px-4 pb-24 pt-5 text-white">
       <header className="flex items-center justify-between">
         <Link to="/market/orders?module=zandofy" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]" aria-label="Retour">
-          <AfriSellIcon name="arrow" size={16} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={16} className="rotate-180" />
         </Link>
         <div className="text-center">
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriZia</p>
           <h1 className="text-sm font-black">Accès digital</h1>
         </div>
-        <AfriSellIcon name="lock" size={18} className="text-[#15EA3E]" />
+        <AfriZiaIcon name="lock" size={18} className="text-[#15EA3E]" />
       </header>
 
       {error ? (
         <section className="mt-8 rounded-[1.8rem] border border-red-400/20 bg-red-500/10 p-5 text-center">
-          <AfriSellIcon name="lock" size={30} className="mx-auto text-red-200" />
+          <AfriZiaIcon name="lock" size={30} className="mx-auto text-red-200" />
           <h2 className="mt-4 text-lg font-black">Accès protégé</h2>
           <p className="mt-2 text-sm font-semibold leading-relaxed text-red-100/70">{error}</p>
         </section>
@@ -73,16 +73,16 @@ export default function DigitalAccessScreen() {
 
           {delivery.deliveryURL && (
             <a href={delivery.deliveryURL} target="_blank" rel="noreferrer" className="mt-4 flex items-center gap-3 rounded-2xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 p-4">
-              <AfriSellIcon name="send" size={20} className="text-[#15EA3E]" />
+              <AfriZiaIcon name="send" size={20} className="text-[#15EA3E]" />
               <span className="flex-1 text-sm font-black">Ouvrir l’accès privé</span>
-              <AfriSellIcon name="arrow" size={14} className="text-[#15EA3E]" />
+              <AfriZiaIcon name="arrow" size={14} className="text-[#15EA3E]" />
             </a>
           )}
 
           <section className="mt-4 space-y-2">
             {delivery.assets.length ? delivery.assets.map((asset) => (
               <button key={asset.id} type="button" onClick={() => void handleDownload(asset)} disabled={Boolean(downloading)} className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] p-4 text-left disabled:opacity-60">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#15EA3E] text-black"><AfriSellIcon name="file" size={17} /></span>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#15EA3E] text-black"><AfriZiaIcon name="file" size={17} /></span>
                 <span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{asset.name}</span><span className="mt-1 block text-[10px] font-semibold text-white/38">{asset.type} {formatBytes(asset.size)}</span></span>
                 <span className="text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">{downloading === asset.id ? 'Préparation' : 'Télécharger'}</span>
               </button>

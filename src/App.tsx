@@ -44,7 +44,7 @@ function OfflineQueueSync() {
   useEffect(() => {
     const sync = () => {
       void flushOfflineQueue(realtimeDb).catch((error) => {
-        console.error('Synchronisation offline AfriSell impossible:', error);
+        console.error('Synchronisation offline AfriZia impossible:', error);
       });
     };
 

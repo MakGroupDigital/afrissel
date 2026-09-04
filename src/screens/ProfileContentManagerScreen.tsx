@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ref, update } from 'firebase/database';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { AfriMarketContent, formatMarketPrice, formatMarketTime, useAfriMarket } from '../hooks/useAfriMarket';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { realtimeDb } from '../lib/firebase';
@@ -61,7 +61,7 @@ export default function ProfileContentManagerScreen({ kind }: { kind: ManagerKin
   const shareItem = async (item: AfriMarketContent) => {
     const path = isStorefront || item.isSellable ? `/market/${item.id}` : `/feed?post=${item.id}`;
     const url = `${window.location.origin}${path}`;
-    const text = `${item.title} - AfriSell`;
+    const text = `${item.title} - AfriZia`;
     try {
       if (navigator.share) {
         await navigator.share({ title: item.title, text, url });
@@ -93,14 +93,14 @@ export default function ProfileContentManagerScreen({ kind }: { kind: ManagerKin
       <header className="shrink-0 px-4 pb-3 pt-4">
         <div className="flex items-center justify-between">
           <button type="button" onClick={() => navigate('/profile')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70">
-            <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
           </button>
           <div className="text-center">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{isStorefront ? 'Vitrines' : 'Contenus'}</p>
             <h1 className="mt-1 text-lg font-black">{isStorefront ? 'Mes vitrines' : 'Mes contenus'}</h1>
           </div>
           <Link to="/create" className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-            <AfriSellIcon name="plus" size={18} />
+            <AfriZiaIcon name="plus" size={18} />
           </Link>
         </div>
       </header>
@@ -143,7 +143,7 @@ export default function ProfileContentManagerScreen({ kind }: { kind: ManagerKin
                   <img src={item.coverURL} alt={item.title} className="h-full w-full object-cover transition-transform duration-300 group-active:scale-105" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-[#071007] text-[#15EA3E]">
-                    <AfriSellIcon name={item.format === 'video' ? 'video' : 'market'} size={22} />
+                    <AfriZiaIcon name={item.format === 'video' ? 'video' : 'market'} size={22} />
                   </div>
                 )}
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/82 to-transparent p-2">
@@ -157,7 +157,7 @@ export default function ProfileContentManagerScreen({ kind }: { kind: ManagerKin
           </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-            <AfriSellIcon name={isStorefront ? 'market' : 'video'} size={34} className="text-white/22" />
+            <AfriZiaIcon name={isStorefront ? 'market' : 'video'} size={34} className="text-white/22" />
             <h2 className="mt-4 text-xl font-black">{isStorefront ? 'Aucune vitrine' : 'Aucun contenu'}</h2>
             <p className="mt-2 text-sm font-semibold leading-relaxed text-white/45">
               {isStorefront ? 'Tes produits et services apparaîtront ici.' : 'Tes vidéos, photos et publications apparaîtront ici.'}
@@ -173,7 +173,7 @@ export default function ProfileContentManagerScreen({ kind }: { kind: ManagerKin
         <div className="absolute inset-0 z-50 flex flex-col bg-black">
           <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-4">
             <button type="button" onClick={() => setSelectedItem(null)} className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/55 text-white backdrop-blur-xl">
-              <AfriSellIcon name="close" size={18} />
+              <AfriZiaIcon name="close" size={18} />
             </button>
             <button type="button" onClick={() => openRoute(selectedItem)} className="rounded-2xl bg-white/12 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-white backdrop-blur-xl">
               Voir
@@ -185,7 +185,7 @@ export default function ProfileContentManagerScreen({ kind }: { kind: ManagerKin
               <img src={selectedItem.coverURL} alt={selectedItem.title} className="h-full w-full object-contain" />
             ) : (
               <div className="flex h-full items-center justify-center text-[#15EA3E]">
-                <AfriSellIcon name={selectedItem.format === 'video' ? 'video' : 'market'} size={48} />
+                <AfriZiaIcon name={selectedItem.format === 'video' ? 'video' : 'market'} size={48} />
               </div>
             )}
           </div>
@@ -228,7 +228,7 @@ export default function ProfileContentManagerScreen({ kind }: { kind: ManagerKin
                     action.danger ? 'border-red-500/24 bg-red-500/10 text-red-100' : 'border-white/10 bg-white/[0.055] text-[#15EA3E]'
                   )}
                 >
-                  <AfriSellIcon name={action.icon} size={14} />
+                  <AfriZiaIcon name={action.icon} size={14} />
                   <span className="max-w-full truncate">{action.label}</span>
                 </button>
               ))}

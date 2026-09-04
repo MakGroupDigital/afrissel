@@ -42,7 +42,7 @@ export async function joinSchoolClass(input: SchoolTrackInput) {
     [`schoolClasses/${classId}/trackId`]: input.trackId,
     [`schoolClasses/${classId}/members/${input.user.uid}`]: {
       uid: input.user.uid,
-      name: input.user.displayName || 'Apprenant AfriSell',
+      name: input.user.displayName || 'Apprenant AfriZia',
       avatar: input.user.photoURL || '',
       joinedAt: now
     },

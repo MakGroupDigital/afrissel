@@ -1,4 +1,4 @@
-export type AfriSellServiceName =
+export type AfriZiaServiceName =
   | 'identity'
   | 'commerce'
   | 'payment'
@@ -9,7 +9,7 @@ export type AfriSellServiceName =
   | 'impact';
 
 type ApiRequestOptions = RequestInit & {
-  service?: AfriSellServiceName;
+  service?: AfriZiaServiceName;
 };
 
 type ApiErrorPayload = {
@@ -18,7 +18,7 @@ type ApiErrorPayload = {
   message?: unknown;
 };
 
-const serviceEnvKeys: Record<AfriSellServiceName, string> = {
+const serviceEnvKeys: Record<AfriZiaServiceName, string> = {
   identity: 'VITE_AFRISELL_IDENTITY_API_URL',
   commerce: 'VITE_AFRISELL_COMMERCE_API_URL',
   payment: 'VITE_AFRISELL_PAYMENT_API_URL',
@@ -29,14 +29,14 @@ const serviceEnvKeys: Record<AfriSellServiceName, string> = {
   impact: 'VITE_AFRISELL_IMPACT_API_URL'
 };
 
-const getServiceBaseUrl = (service?: AfriSellServiceName) => {
+const getServiceBaseUrl = (service?: AfriZiaServiceName) => {
   if (!service) return import.meta.env.VITE_AFRISELL_API_BASE_URL || '';
 
   const explicitUrl = import.meta.env[serviceEnvKeys[service]] as string | undefined;
   return explicitUrl || import.meta.env.VITE_AFRISELL_API_BASE_URL || '';
 };
 
-const buildApiUrl = (path: string, service?: AfriSellServiceName) => {
+const buildApiUrl = (path: string, service?: AfriZiaServiceName) => {
   if (/^https?:\/\//i.test(path)) return path;
   const baseUrl = getServiceBaseUrl(service).replace(/\/$/, '');
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
@@ -81,7 +81,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const payload = await response.json().catch(() => null) as (T & ApiErrorPayload) | null;
 
   if (!response.ok) {
-    const message = getPayloadMessage(payload?.error) || getPayloadMessage(payload?.detail) || getPayloadMessage(payload?.message) || `API AfriSell indisponible (${response.status})`;
+    const message = getPayloadMessage(payload?.error) || getPayloadMessage(payload?.detail) || getPayloadMessage(payload?.message) || `API AfriZia indisponible (${response.status})`;
     throw new Error(message);
   }
 

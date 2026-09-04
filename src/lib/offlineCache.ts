@@ -21,7 +21,7 @@ export type OfflineQueueEntry = {
   lastError?: string;
 };
 
-class AfriSellOfflineDb extends Dexie {
+class AfriZiaOfflineDb extends Dexie {
   cache!: Table<CacheEntry, string>;
   queue!: Table<OfflineQueueEntry, number>;
 
@@ -34,7 +34,7 @@ class AfriSellOfflineDb extends Dexie {
   }
 }
 
-export const afriSellOfflineDb = new AfriSellOfflineDb();
+export const afriSellOfflineDb = new AfriZiaOfflineDb();
 
 const memoryCache = new Map<string, unknown>();
 

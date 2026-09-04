@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { onValue, push, ref, serverTimestamp, set } from 'firebase/database';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { ZandofyTheme, getZandofyStoreURL, useZandofyStore } from '../hooks/useZandofyStore';
 import { AFRICAN_COUNTRIES_BY_PRIORITY, getCountryByCode, getDeviceCityHint, getDeviceCountryCode } from '../lib/africaLocation';
@@ -113,7 +113,7 @@ type DigitalProductType = 'Formation' | 'E-book' | 'Template' | 'Audio' | 'Vidé
 
 const digitalTypeConfig: Record<DigitalProductType, {
   label: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   hint: string;
   accept: string;
   multiple: boolean;
@@ -355,7 +355,7 @@ export default function ZandofyMarketplaceScreen() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_8%,rgba(21,234,62,0.32),transparent_34%),linear-gradient(180deg,#071407,#030604)]" />
         <div className="relative z-20 flex items-center justify-between">
           <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-black/34 text-[#15EA3E] backdrop-blur">
-            <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
           </button>
           <img src="/zandofyiconeapp.png" alt="Zandofy" className="h-11 w-11 rounded-2xl object-cover shadow-[0_12px_32px_rgba(21,234,62,0.22)]" />
         </div>
@@ -410,7 +410,7 @@ export default function ZandofyMarketplaceScreen() {
                 <p className="truncate text-sm font-black">{store.name}</p>
                 <p className="truncate text-[10px] font-semibold text-white/42">{store.city}, {store.country} - {store.digitalProductsCount} digital</p>
               </div>
-              <AfriSellIcon name="arrow" size={14} className="text-[#15EA3E]" />
+              <AfriZiaIcon name="arrow" size={14} className="text-[#15EA3E]" />
             </Link>
           )) : (
             <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-4 text-sm font-semibold text-white/45">
@@ -542,7 +542,7 @@ export function ZandofyCreateStoreScreen() {
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
       <header className="sticky top-0 z-20 flex items-center justify-between bg-[#030604]/88 px-4 pb-3 pt-4 backdrop-blur-xl">
         <button type="button" onClick={() => step ? setStep(step - 1) : navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white/72">
-          <AfriSellIcon name="arrow" size={16} className={step ? 'rotate-180' : 'rotate-180'} />
+          <AfriZiaIcon name="arrow" size={16} className={step ? 'rotate-180' : 'rotate-180'} />
         </button>
         <div className="text-center">
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy</p>
@@ -596,7 +596,7 @@ export function ZandofyCreateStoreScreen() {
                 <span className="block text-sm font-black">Importer un logo</span>
                 <span className="mt-1 block text-[10px] font-semibold text-white/42">PNG ou JPG recommandé.</span>
               </span>
-              <AfriSellIcon name="gallery" size={18} className="text-[#15EA3E]" />
+              <AfriZiaIcon name="gallery" size={18} className="text-[#15EA3E]" />
               <input type="file" accept="image/*" className="hidden" onChange={handleLogo} />
             </label>
             <div className="mt-4 grid grid-cols-4 gap-2">
@@ -661,14 +661,14 @@ export function ZandofyDashboardScreen() {
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
       <header className="sticky top-0 z-20 flex items-center justify-between bg-[#030604]/88 px-4 pb-3 pt-4 backdrop-blur-xl">
         <button type="button" onClick={() => navigate('/zandofy')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]">
-          <AfriSellIcon name="arrow" size={16} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={16} className="rotate-180" />
         </button>
         <div className="text-center">
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy</p>
           <h1 className="text-sm font-black">Dashboard</h1>
         </div>
         <Link to={`/zandofy/${store.slug}`} className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-          <AfriSellIcon name="eye" size={16} />
+          <AfriZiaIcon name="eye" size={16} />
         </Link>
       </header>
 
@@ -717,7 +717,7 @@ export function ZandofyDashboardScreen() {
           {dashboardActions.map((action) => (
             <Link key={action.label} to={action.route} className="min-h-[92px] rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-3 text-center active:scale-[0.98]">
               <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-                <AfriSellIcon name={action.icon} size={17} />
+                <AfriZiaIcon name={action.icon} size={17} />
               </span>
               <span className="mt-2 block text-[9px] font-black leading-tight text-white/62">{action.label}</span>
             </Link>
@@ -860,13 +860,13 @@ export function ZandofyStatsScreen() {
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
       <header className="sticky top-0 z-20 flex items-center justify-between bg-[#030604]/90 px-4 pb-3 pt-4 backdrop-blur-xl">
         <button type="button" onClick={() => navigate('/zandofy/dashboard')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]">
-          <AfriSellIcon name="arrow" size={16} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={16} className="rotate-180" />
         </button>
         <div className="text-center">
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy</p>
           <h1 className="text-sm font-black">Statistique</h1>
         </div>
-        <AfriSellIcon name="signal" size={20} className="text-[#15EA3E]" />
+        <AfriZiaIcon name="signal" size={20} className="text-[#15EA3E]" />
       </header>
 
       <section className="px-4 pt-5">
@@ -1054,13 +1054,13 @@ export function ZandofyClientsScreen() {
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
       <header className="sticky top-0 z-20 flex items-center justify-between bg-[#030604]/90 px-4 pb-3 pt-4 backdrop-blur-xl">
         <button type="button" onClick={() => navigate('/zandofy/dashboard')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]">
-          <AfriSellIcon name="arrow" size={16} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={16} className="rotate-180" />
         </button>
         <div className="text-center">
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy</p>
           <h1 className="text-sm font-black">Mes clients</h1>
         </div>
-        <AfriSellIcon name="contact" size={20} className="text-[#15EA3E]" />
+        <AfriZiaIcon name="contact" size={20} className="text-[#15EA3E]" />
       </header>
 
       <section className="px-4 pt-5">
@@ -1075,7 +1075,7 @@ export function ZandofyClientsScreen() {
         {clients.length ? clients.map((client) => (
           <article key={client.id} className="rounded-[1.45rem] border border-white/10 bg-white/[0.045] p-3">
             <div className="flex items-center gap-3">
-              <img src={client.avatar || '/Logo-afriSell-Super App icône.png'} alt="" className="h-12 w-12 rounded-2xl object-cover" />
+              <img src={client.avatar || '/Logo-AfriZia-Super-App-icone.png'} alt="" className="h-12 w-12 rounded-2xl object-cover" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-black">{client.name}</p>
                 <p className="mt-1 text-[10px] font-bold text-white/40">{client.orders} commande(s) · {formatZandofyMoney(client.spent, ownerStore.currency)}</p>
@@ -1088,7 +1088,7 @@ export function ZandofyClientsScreen() {
           </article>
         )) : (
           <div className="rounded-[1.45rem] border border-dashed border-white/14 p-6 text-center">
-            <AfriSellIcon name="contact" size={28} className="mx-auto text-[#15EA3E]" />
+            <AfriZiaIcon name="contact" size={28} className="mx-auto text-[#15EA3E]" />
             <p className="mt-3 text-sm font-black">Aucun client Zandofy</p>
             <p className="mt-2 text-xs font-semibold text-white/44">Les clients apparaîtront après commande ou interaction avec ta boutique.</p>
           </div>
@@ -1484,7 +1484,7 @@ export function ZandofyCreateProductScreen() {
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
       <header className="sticky top-0 z-20 flex items-center justify-between bg-[#030604]/90 px-4 pb-3 pt-4 backdrop-blur-xl">
         <button type="button" onClick={() => step ? setStep(step - 1) : navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]">
-          <AfriSellIcon name="arrow" size={16} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={16} className="rotate-180" />
         </button>
         <div className="text-center">
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy Studio</p>
@@ -1514,7 +1514,7 @@ export function ZandofyCreateProductScreen() {
                   onClick={() => selectProductKind(value as 'digital' | 'physical')}
                   className={cn('rounded-2xl border p-3 text-left active:scale-[0.98]', productKind === value ? 'border-[#15EA3E] bg-[#15EA3E]/12' : 'border-white/10 bg-black/22')}
                 >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#15EA3E] text-black"><AfriSellIcon name={icon as AfriSellIconName} size={15} /></span>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#15EA3E] text-black"><AfriZiaIcon name={icon as AfriZiaIconName} size={15} /></span>
                   <span className="mt-2 block text-xs font-black text-white">{label}</span>
                   <span className="mt-1 block text-[9px] font-semibold leading-tight text-white/42">{hint}</span>
                 </button>
@@ -1533,7 +1533,7 @@ export function ZandofyCreateProductScreen() {
                         onClick={() => selectDigitalType(item)}
                         className={cn('rounded-2xl border p-3 text-left active:scale-[0.98]', digitalType === item ? 'border-[#15EA3E] bg-[#15EA3E]/12' : 'border-white/10 bg-black/22')}
                       >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#15EA3E] text-black"><AfriSellIcon name={config.icon} size={15} /></span>
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#15EA3E] text-black"><AfriZiaIcon name={config.icon} size={15} /></span>
                         <span className="mt-2 block text-xs font-black text-white">{config.label}</span>
                         <span className="mt-1 block text-[9px] font-semibold leading-tight text-white/42">{config.hint}</span>
                       </button>
@@ -1557,7 +1557,7 @@ export function ZandofyCreateProductScreen() {
               <img src={coverPreview} alt="" className="h-40 w-full object-cover" />
               <span className="flex items-center justify-between px-4 py-3 text-xs font-black text-white/62">
                 Couverture du produit obligatoire
-                <AfriSellIcon name="gallery" size={16} className="text-[#15EA3E]" />
+                <AfriZiaIcon name="gallery" size={16} className="text-[#15EA3E]" />
               </span>
               <input type="file" accept="image/*" className="hidden" onChange={handleCover} />
             </label>
@@ -1680,7 +1680,7 @@ export function ZandofyCreateProductScreen() {
                 </div>
                 {deliveryMode === 'file' ? (
                   <label className="mt-4 flex items-center gap-3 rounded-[1.4rem] border border-white/10 bg-black/28 p-4">
-                    <AfriSellIcon name={selectedDigitalConfig.icon} size={22} className="text-[#15EA3E]" />
+                    <AfriZiaIcon name={selectedDigitalConfig.icon} size={22} className="text-[#15EA3E]" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-black">{deliveryFiles.length ? `${deliveryFiles.length} fichier(s) sélectionné(s)` : selectedDigitalConfig.uploadLabel}</span>
                       <span className="mt-1 block text-[10px] font-semibold text-white/38">{selectedDigitalConfig.hint}</span>
@@ -1694,7 +1694,7 @@ export function ZandofyCreateProductScreen() {
                   <div className="mt-3 space-y-2">
                     {deliveryFiles.slice(0, 5).map((file) => (
                       <div key={`${file.name}-${file.size}`} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/22 px-3 py-2">
-                        <AfriSellIcon name="file" size={14} className="text-[#15EA3E]" />
+                        <AfriZiaIcon name="file" size={14} className="text-[#15EA3E]" />
                         <span className="min-w-0 flex-1 truncate text-[10px] font-bold text-white/58">{file.name}</span>
                         <span className="text-[9px] font-black text-white/30">{Math.max(1, Math.round(file.size / 1024))} Ko</span>
                       </div>
@@ -1872,7 +1872,7 @@ export function ZandofyEditProductScreen() {
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
       <header className="sticky top-0 z-20 flex items-center justify-between bg-[#030604]/90 px-4 pb-3 pt-4 backdrop-blur-xl">
         <button type="button" onClick={() => navigate('/zandofy/products')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]">
-          <AfriSellIcon name="arrow" size={16} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={16} className="rotate-180" />
         </button>
         <div className="text-center">
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy Studio</p>
@@ -1992,14 +1992,14 @@ export function ZandofyProductsScreen() {
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
       <header className="sticky top-0 z-20 flex items-center justify-between bg-[#030604]/90 px-4 pb-3 pt-4 backdrop-blur-xl">
         <button type="button" onClick={() => navigate('/zandofy/dashboard')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]">
-          <AfriSellIcon name="arrow" size={16} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={16} className="rotate-180" />
         </button>
         <div className="text-center">
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy</p>
           <h1 className="text-sm font-black">Catalogue Zandofy</h1>
         </div>
         <Link to="/zandofy/products/new" className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-          <AfriSellIcon name="plus" size={16} />
+          <AfriZiaIcon name="plus" size={16} />
         </Link>
       </header>
 
@@ -2042,12 +2042,12 @@ export function ZandofyProductsScreen() {
                   <button type="button" aria-label="Augmenter le stock" disabled={stockBusy === product.id} onClick={async (event) => { event.preventDefault(); setStockBusy(product.id); setStockStatus(''); try { await setProductStock(product.id, Number(product.stock || 0) + 1); } catch (error) { setStockStatus(error instanceof Error ? error.message : 'Stock impossible.'); } finally { setStockBusy(''); } }} className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#15EA3E] text-xs font-black text-black">+</button>
                 </div>}
               </div>
-              <button type="button" aria-label="Modifier le produit" onClick={() => navigate(`/zandofy/products/${product.id}/edit`)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 text-[#15EA3E]"><AfriSellIcon name="edit" size={14} /></button>
+              <button type="button" aria-label="Modifier le produit" onClick={() => navigate(`/zandofy/products/${product.id}/edit`)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 text-[#15EA3E]"><AfriZiaIcon name="edit" size={14} /></button>
             </div>
           </article>
         )) : (
           <div className="col-span-2 rounded-[1.6rem] border border-dashed border-white/14 p-6 text-center">
-            <AfriSellIcon name="file" size={28} className="mx-auto text-[#15EA3E]" />
+            <AfriZiaIcon name="file" size={28} className="mx-auto text-[#15EA3E]" />
             <p className="mt-3 text-sm font-black">Aucun produit dans le catalogue</p>
             <Link to="/zandofy/products/new" className="mt-4 inline-flex rounded-2xl bg-[#15EA3E] px-4 py-3 text-[10px] font-black uppercase tracking-wider text-black">Ajouter</Link>
           </div>
@@ -2119,7 +2119,7 @@ export function ZandofyDomainScreen() {
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
       <header className="sticky top-0 z-20 flex items-center justify-between bg-[#030604]/90 px-4 pb-3 pt-4 backdrop-blur-xl">
         <button type="button" onClick={() => navigate('/zandofy/dashboard')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]">
-          <AfriSellIcon name="arrow" size={16} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={16} className="rotate-180" />
         </button>
         <div className="text-center">
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy</p>
@@ -2276,7 +2276,7 @@ export function ZandofyPublicStoreScreen() {
       await set(ref(realtimeDb, `zandofyStoreReviews/${publicStore.id}/${reviewId}`), {
         id: reviewId,
         authorId: user.uid,
-        authorName: profile?.displayName || user.displayName || 'Client AfriSell',
+        authorName: profile?.displayName || user.displayName || 'Client AfriZia',
         rating: reviewRating,
         text,
         createdAt: Date.now()
@@ -2286,7 +2286,7 @@ export function ZandofyPublicStoreScreen() {
         {
           id: reviewId,
           authorId: user.uid,
-          authorName: profile?.displayName || user.displayName || 'Client AfriSell',
+          authorName: profile?.displayName || user.displayName || 'Client AfriZia',
           rating: reviewRating,
           text,
           createdAt: Date.now()
@@ -2317,7 +2317,7 @@ export function ZandofyPublicStoreScreen() {
       await set(reportRef, {
         id: reportRef.key,
         reporterId: user.uid,
-        reporterName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        reporterName: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
         storeId: publicStore.id,
         storeName: publicStore.name,
         reason: 'signalement_utilisateur',
@@ -2363,7 +2363,7 @@ export function ZandofyPublicStoreScreen() {
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
       <header className={cn('relative overflow-hidden px-4 pb-8 pt-4 bg-gradient-to-br', themeStyles[publicStore.theme])}>
         <button type="button" onClick={() => navigate(-1)} className="relative z-10 flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-black/28">
-          <AfriSellIcon name="arrow" size={16} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={16} className="rotate-180" />
         </button>
         <div className="relative z-10 mt-8 text-center">
           <img src={publicStore.logoURL} alt="" className="mx-auto h-24 w-24 rounded-[1.8rem] border border-white/12 object-cover shadow-[0_24px_60px_rgba(0,0,0,0.35)]" />
@@ -2397,7 +2397,7 @@ export function ZandofyPublicStoreScreen() {
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">AfriAI</p>
                 <h2 className="mt-1 text-sm font-black">Sélection pour toi</h2>
               </div>
-              <AfriSellIcon name="signal" size={18} className="text-[#15EA3E]" />
+              <AfriZiaIcon name="signal" size={18} className="text-[#15EA3E]" />
             </div>
             <p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/42">Suggestions calculées à partir de tes intérêts récents, des collections et de la disponibilité.</p>
             <div className="mt-4 flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
@@ -2423,7 +2423,7 @@ export function ZandofyPublicStoreScreen() {
               <p className="mt-1 text-[11px] font-semibold text-white/45">{reviews.length} avis · {reviewAverage ? reviewAverage.toFixed(1) : '0.0'}/5</p>
             </div>
             <div className="flex items-center gap-1 text-[#FFD84D]">
-              <AfriSellIcon name="star" size={16} className="fill-current" />
+              <AfriZiaIcon name="star" size={16} className="fill-current" />
               <span className="text-sm font-black">{reviewAverage ? reviewAverage.toFixed(1) : '0.0'}</span>
             </div>
           </div>
@@ -2436,7 +2436,7 @@ export function ZandofyPublicStoreScreen() {
                 className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/22"
                 aria-label={`Noter ${rating}`}
               >
-                <AfriSellIcon name="star" size={16} className={rating <= reviewRating ? 'fill-current text-[#FFD84D]' : 'text-white/24'} />
+                <AfriZiaIcon name="star" size={16} className={rating <= reviewRating ? 'fill-current text-[#FFD84D]' : 'text-white/24'} />
               </button>
             ))}
           </div>
@@ -2462,7 +2462,7 @@ export function ZandofyPublicStoreScreen() {
                   <div className="flex items-center justify-between gap-3">
                     <p className="truncate text-xs font-black">{review.authorName}</p>
                     <span className="flex items-center gap-1 text-[10px] font-black text-[#FFD84D]">
-                      <AfriSellIcon name="star" size={11} className="fill-current" />
+                      <AfriZiaIcon name="star" size={11} className="fill-current" />
                       {review.rating}
                     </span>
                   </div>
@@ -2476,7 +2476,7 @@ export function ZandofyPublicStoreScreen() {
 
       <section className="px-4 pt-5">
         <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 text-center">
-          <AfriSellIcon name="file" size={32} className="mx-auto text-[#15EA3E]" />
+          <AfriZiaIcon name="file" size={32} className="mx-auto text-[#15EA3E]" />
           <h2 className="mt-3 text-xl font-black">{products.length ? 'Catalogue de la boutique' : 'Catalogue bientôt disponible'}</h2>
           <p className="mt-2 text-sm font-semibold leading-relaxed text-white/46">
             {products.length ? 'Produits digitaux et physiques disponibles sur cette boutique.' : 'Les produits de cette boutique apparaîtront ici.'}
@@ -2484,7 +2484,7 @@ export function ZandofyPublicStoreScreen() {
           {products.length > 0 && (
             <div className="mt-5">
               <div className="relative">
-                <AfriSellIcon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" />
+                <AfriZiaIcon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" />
                 <input value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} placeholder="Rechercher dans la boutique" className="h-11 w-full rounded-2xl border border-white/10 bg-black/22 pl-9 pr-3 text-xs font-bold outline-none focus:border-[#15EA3E]/45" />
               </div>
               <div className="scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -2553,11 +2553,11 @@ export function ZikMartMarketplaceScreen() {
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
       <header className="sticky top-0 z-20 bg-[#030604]/92 px-4 pb-4 pt-4 backdrop-blur-xl">
         <div className="flex items-center justify-between gap-3">
-          <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]"><AfriSellIcon name="arrow" size={16} className="rotate-180" /></button>
+          <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]"><AfriZiaIcon name="arrow" size={16} className="rotate-180" /></button>
           <div className="text-center"><p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">ZikMart</p><h1 className="text-sm font-black">Sourcing physique</h1></div>
-          <AfriSellIcon name="market" size={20} className="text-[#15EA3E]" />
+          <AfriZiaIcon name="market" size={20} className="text-[#15EA3E]" />
         </div>
-        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-[#15EA3E]/18 bg-[#071007] px-3 py-2"><AfriSellIcon name="search" size={16} className="text-[#15EA3E]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un produit ou fournisseur" className="h-9 min-w-0 flex-1 bg-transparent text-xs font-bold outline-none placeholder:text-white/30" /></div>
+        <div className="mt-4 flex items-center gap-2 rounded-2xl border border-[#15EA3E]/18 bg-[#071007] px-3 py-2"><AfriZiaIcon name="search" size={16} className="text-[#15EA3E]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher un produit ou fournisseur" className="h-9 min-w-0 flex-1 bg-transparent text-xs font-bold outline-none placeholder:text-white/30" /></div>
         <div className="scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-1"><button type="button" onClick={() => setCategory('Tout')} className={cn('shrink-0 rounded-full px-3 py-2 text-[9px] font-black', category === 'Tout' ? 'bg-[#15EA3E] text-black' : 'border border-white/10 text-white/50')}>Tout</button>{categories.map((item) => <button key={item} type="button" onClick={() => setCategory(item)} className={cn('shrink-0 rounded-full px-3 py-2 text-[9px] font-black', category === item ? 'bg-[#15EA3E] text-black' : 'border border-white/10 text-white/50')}>{item}</button>)}</div>
       </header>
       <section className="px-4 pt-5"><div className="rounded-[1.7rem] border border-[#15EA3E]/18 bg-[radial-gradient(circle_at_10%_10%,rgba(21,234,62,0.18),transparent_36%),#071007] p-5"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Marketplace fournisseur</p><h2 className="mt-2 text-2xl font-black">Des produits, des sources, une marge claire.</h2><p className="mt-2 text-xs font-semibold leading-relaxed text-white/45">ZikMart rassemble les produits physiques publiés volontairement depuis les boutiques Zandofy.</p></div></section>

@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { get, onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { AfriMarketContent, formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { CheckoutDelivery, useAppStore } from '../store/useAppStore';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
@@ -63,7 +63,7 @@ const normalizeContactValue = (value: string) => value.trim().toLowerCase().repl
 
 const digitalDetailMeta: Record<string, {
   label: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   promise: string;
   steps: string[];
 }> = {
@@ -94,7 +94,7 @@ const digitalDetailMeta: Record<string, {
   Vidéo: {
     label: 'Vidéo digitale',
     icon: 'video',
-    promise: 'Vidéo, masterclass ou série courte accessible dans ton espace AfriSell.',
+    promise: 'Vidéo, masterclass ou série courte accessible dans ton espace AfriZia.',
     steps: ['Achat', 'Accès vidéo', 'Support vendeur']
   },
   Licence: {
@@ -173,7 +173,7 @@ function EmptyDetail() {
   return (
     <div className="flex min-h-full flex-col items-center justify-center bg-black px-8 text-center text-white">
       <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-gray-800 bg-[#050505] text-[#15EA3E]">
-        <AfriSellIcon name="market" size={28} />
+        <AfriZiaIcon name="market" size={28} />
       </div>
       <h1 className="mt-5 text-lg font-black">Produit introuvable</h1>
       <p className="mt-2 text-sm leading-relaxed text-gray-500">Cet article n'est plus disponible dans le Market.</p>
@@ -287,7 +287,7 @@ export default function ProductDetailScreen() {
   if (loading) {
     return (
       <div className="flex min-h-full flex-col items-center justify-center bg-black px-8 text-center text-white">
-        <AfriSellIcon name="market" size={36} className="text-[#15EA3E]" />
+        <AfriZiaIcon name="market" size={36} className="text-[#15EA3E]" />
         <p className="mt-4 text-sm font-black uppercase tracking-wide">Chargement du produit</p>
       </div>
     );
@@ -375,7 +375,7 @@ export default function ProductDetailScreen() {
       if (!threadId) throw new Error('Création du Village impossible.');
 
       const now = Date.now();
-      const buyerName = profile?.displayName || user.displayName || 'Client AfriSell';
+      const buyerName = profile?.displayName || user.displayName || 'Client AfriZia';
       const buyerAvatar = profile?.photoURL || user.photoURL || '';
       const title = `Village ${product.title}`;
       const inviteLink = `${window.location.origin}/chat?village=${encodeURIComponent(threadId)}&product=${encodeURIComponent(product.id)}`;
@@ -518,7 +518,7 @@ export default function ProductDetailScreen() {
       }
 
       const [targetId, targetProfile] = match;
-      const targetName = targetProfile.businessName || targetProfile.displayName || 'Utilisateur AfriSell';
+      const targetName = targetProfile.businessName || targetProfile.displayName || 'Utilisateur AfriZia';
       const updates: Record<string, unknown> = {
         [`chatThreads/${purchaseVillage.threadId}/members/${targetId}`]: true,
         [`chatThreads/${purchaseVillage.threadId}/memberNames/${targetId}`]: targetName,
@@ -588,7 +588,7 @@ export default function ProductDetailScreen() {
       await set(reviewRef, {
         id: reviewRef.key,
         authorId: user.uid,
-        authorName: profile?.displayName || user.displayName || 'Client AfriSell',
+        authorName: profile?.displayName || user.displayName || 'Client AfriZia',
         rating: reviewRating,
         text,
         createdAt: Date.now()
@@ -639,7 +639,7 @@ export default function ProductDetailScreen() {
               className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white/72"
               aria-label="Retour"
             >
-              <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+              <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
             </button>
             <div className="min-w-0 text-center">
               <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#15EA3E]">Zandofy</p>
@@ -651,7 +651,7 @@ export default function ProductDetailScreen() {
               className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 text-[#15EA3E]"
               aria-label="Partager"
             >
-              <AfriSellIcon name="share" size={18} />
+              <AfriZiaIcon name="share" size={18} />
             </button>
           </div>
         </header>
@@ -662,7 +662,7 @@ export default function ProductDetailScreen() {
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/18 to-transparent" />
             <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-white/12 bg-black/45 px-3 py-2 backdrop-blur">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#15EA3E] text-black">
-                <AfriSellIcon name={digitalMeta.icon} size={14} />
+                <AfriZiaIcon name={digitalMeta.icon} size={14} />
               </span>
               <span className="text-[9px] font-black uppercase tracking-wider text-white">{digitalMeta.label}</span>
             </div>
@@ -692,9 +692,9 @@ export default function ProductDetailScreen() {
                 { label: 'Livraison', value: product.deliveryMode === 'link' ? 'Lien' : 'Fichier', icon: product.deliveryMode === 'link' ? 'lock' : 'file' },
                 { label: 'Boutique', value: product.storeName || product.authorName, icon: 'market' as const },
                 { label: 'Support', value: 'AfriChat', icon: 'chat' as const }
-              ] as Array<{ label: string; value: string; icon: AfriSellIconName }>).map((item) => (
+              ] as Array<{ label: string; value: string; icon: AfriZiaIconName }>).map((item) => (
                 <div key={item.label} className="rounded-2xl border border-white/10 bg-black/24 p-3 text-center">
-                  <AfriSellIcon name={item.icon} size={16} className="mx-auto text-[#15EA3E]" />
+                  <AfriZiaIcon name={item.icon} size={16} className="mx-auto text-[#15EA3E]" />
                   <p className="mt-2 truncate text-[10px] font-black text-white">{item.value}</p>
                   <p className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-white/36">{item.label}</p>
                 </div>
@@ -705,7 +705,7 @@ export default function ProductDetailScreen() {
           <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-4">
             <div className="flex items-start gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-                <AfriSellIcon name={digitalMeta.icon} size={21} />
+                <AfriZiaIcon name={digitalMeta.icon} size={21} />
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-black leading-tight">Expérience {digitalMeta.label.toLowerCase()}</h2>
@@ -747,7 +747,7 @@ export default function ProductDetailScreen() {
             <section className="mt-4 rounded-[1.6rem] border border-[#15EA3E]/18 bg-[#15EA3E]/8 p-4">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-                  <AfriSellIcon name="video" size={18} />
+                  <AfriZiaIcon name="video" size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h2 className="text-sm font-black">Présenter dans ABC</h2>
@@ -780,10 +780,10 @@ export default function ProductDetailScreen() {
               <p className="truncate text-sm font-black">{product.storeName || product.authorName}</p>
               <p className="mt-0.5 text-[11px] font-semibold text-white/42">Boutique Zandofy, support client et catalogue digital.</p>
             </div>
-            <AfriSellIcon name="arrow" size={16} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="arrow" size={16} className="text-[#15EA3E]" />
           </Link>
           <Link to={`/chat?contact=${encodeURIComponent(product.authorId)}&name=${encodeURIComponent(product.authorName)}&product=${encodeURIComponent(product.id)}`} className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 py-3 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">
-            <AfriSellIcon name="chat" size={15} />
+            <AfriZiaIcon name="chat" size={15} />
             Ouvrir AfriChat avec le vendeur
           </Link>
 
@@ -796,7 +796,7 @@ export default function ProductDetailScreen() {
                 { label: 'Support', icon: 'shield' as const }
               ].map((item) => (
                 <div key={item.label} className="rounded-2xl border border-white/10 bg-black/20 p-3 text-center">
-                  <AfriSellIcon name={item.icon} size={17} className="mx-auto text-[#15EA3E]" />
+                  <AfriZiaIcon name={item.icon} size={17} className="mx-auto text-[#15EA3E]" />
                   <p className="mt-2 text-[10px] font-black text-white/58">{item.label}</p>
                 </div>
               ))}
@@ -865,7 +865,7 @@ export default function ProductDetailScreen() {
             className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70"
             aria-label="Retour"
           >
-            <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
           </button>
           <p className="truncate text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Détail produit</p>
           <button
@@ -877,7 +877,7 @@ export default function ProductDetailScreen() {
             )}
             aria-label="Ajouter au panier"
           >
-            <AfriSellIcon name="cart" size={18} />
+            <AfriZiaIcon name="cart" size={18} />
             {cart.length > 0 && (
               <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#15EA3E] px-1 text-[8px] font-black text-black">
                 {cart.length}
@@ -904,7 +904,7 @@ export default function ProductDetailScreen() {
               <div key={badge.label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
                 <div className="flex items-center gap-2">
                   <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#15EA3E]/10 text-[#15EA3E]">
-                    <AfriSellIcon name={badge.icon} size={15} />
+                    <AfriZiaIcon name={badge.icon} size={15} />
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-[11px] font-black text-white">{badge.value}</p>
@@ -918,7 +918,7 @@ export default function ProductDetailScreen() {
           <div className="mt-4 rounded-[1.4rem] border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-4">
             <div className="flex items-end justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Prix AfriSell</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Prix AfriZia</p>
                 <p className="mt-1 text-2xl font-black text-white">{formatMarketPrice(product.villagePrice || product.price, product.currency)}</p>
               </div>
               {product.price && product.villagePrice && product.price > product.villagePrice && (
@@ -957,7 +957,7 @@ export default function ProductDetailScreen() {
         {product.storeId && product.authorId === user?.uid && (
           <section className="mt-4 rounded-[1.5rem] border border-[#15EA3E]/18 bg-[#15EA3E]/8 p-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#15EA3E] text-black"><AfriSellIcon name="video" size={18} /></span>
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#15EA3E] text-black"><AfriZiaIcon name="video" size={18} /></span>
               <div className="min-w-0 flex-1"><h2 className="text-sm font-black">Présenter dans ABC</h2><p className="mt-1 text-[11px] font-semibold text-white/48">Ce produit sera publié avec son accès Acheter.</p></div>
             </div>
             <button type="button" onClick={() => void publishProductToABC()} disabled={abcPublishing || Boolean(product.abcPostId)} className="mt-3 w-full rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-45">{abcPublishing ? 'Publication...' : product.abcPostId ? 'Déjà présenté dans ABC' : 'Publier dans ABC'}</button>
@@ -967,7 +967,7 @@ export default function ProductDetailScreen() {
         <section className="mt-5 rounded-[1.55rem] border border-[#15EA3E]/22 bg-[#071007] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-              <AfriSellIcon name="hub" size={20} />
+              <AfriZiaIcon name="hub" size={20} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Village d’achat</p>
@@ -1075,7 +1075,7 @@ export default function ProductDetailScreen() {
         <Link to={`/market/stand/${product.authorId}`} className="mt-5 block rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4 active:scale-[0.99]">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
-              <AfriSellIcon name="profile" size={19} />
+              <AfriZiaIcon name="profile" size={19} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-black">{product.authorName}</p>
@@ -1094,7 +1094,7 @@ export default function ProductDetailScreen() {
             { label: 'FPP', value: formatMarketPrice(fppValue, product.currency), icon: 'heart' as const }
           ].map((item) => (
             <div key={item.label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
-              <AfriSellIcon name={item.icon} size={17} className="mx-auto text-[#15EA3E]" />
+              <AfriZiaIcon name={item.icon} size={17} className="mx-auto text-[#15EA3E]" />
               <p className="mt-2 truncate text-[11px] font-black text-white">{item.value}</p>
               <p className="mt-0.5 text-[8px] font-bold uppercase tracking-wider text-white/38">{item.label}</p>
             </div>
@@ -1118,7 +1118,7 @@ export default function ProductDetailScreen() {
                 )}
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black/30 text-[#15EA3E]">
-                  <AfriSellIcon name={option.price === 0 ? 'check' : 'flash'} size={17} />
+                  <AfriZiaIcon name={option.price === 0 ? 'check' : 'flash'} size={17} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-black text-white">{option.title}</p>
@@ -1151,7 +1151,7 @@ export default function ProductDetailScreen() {
             Paiement direct avec ton wallet AfriSpay. AfriCoin, FPP et vendeur sont notifiés après confirmation.
           </p>
           <div className="mt-3 flex items-center gap-2 rounded-2xl bg-black/35 p-3">
-            <AfriSellIcon name="shield" size={18} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="shield" size={18} className="text-[#15EA3E]" />
             <p className="text-[11px] font-bold text-white/58">Protection commande, livraison suivie et historique conservé.</p>
           </div>
         </section>
@@ -1185,7 +1185,7 @@ export default function ProductDetailScreen() {
               </p>
             </div>
             <div className="flex items-center gap-1 text-[#FFD84D]">
-              <AfriSellIcon name="star" size={16} className="fill-current" />
+              <AfriZiaIcon name="star" size={16} className="fill-current" />
               <span className="text-sm font-black">{reviewAverage ? reviewAverage.toFixed(1) : '0.0'}</span>
             </div>
           </div>
@@ -1200,7 +1200,7 @@ export default function ProductDetailScreen() {
                   className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-black/24"
                   aria-label={`Noter ${rating}`}
                 >
-                  <AfriSellIcon name="star" size={15} className={rating <= reviewRating ? 'fill-current text-[#FFD84D]' : 'text-white/25'} />
+                  <AfriZiaIcon name="star" size={15} className={rating <= reviewRating ? 'fill-current text-[#FFD84D]' : 'text-white/25'} />
                 </button>
               ))}
             </div>
@@ -1227,7 +1227,7 @@ export default function ProductDetailScreen() {
                   <div className="flex items-center justify-between gap-3">
                     <p className="truncate text-xs font-black">{review.authorName}</p>
                     <span className="flex items-center gap-1 text-[10px] font-black text-[#FFD84D]">
-                      <AfriSellIcon name="star" size={11} className="fill-current" />
+                      <AfriZiaIcon name="star" size={11} className="fill-current" />
                       {review.rating}
                     </span>
                   </div>

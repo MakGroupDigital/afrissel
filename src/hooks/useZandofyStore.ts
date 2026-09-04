@@ -209,7 +209,7 @@ export const normalizeZandofySlug = (value: string) => {
 const normalizeStore = (id: string, raw: Partial<ZandofyStore>): ZandofyStore => ({
   id,
   ownerId: raw.ownerId || '',
-  ownerName: raw.ownerName || 'AfriSeller',
+  ownerName: raw.ownerName || 'Vendeur Afrizia',
   name: raw.name || 'Boutique Zandofy',
   slug: raw.slug || id,
   tagline: raw.tagline || 'Produits digitaux prêts à vendre.',
@@ -382,7 +382,7 @@ export function useZandofyStore(slug?: string) {
 
     const store: Omit<ZandofyStore, 'id'> = {
       ownerId: user.uid,
-      ownerName: profile?.displayName || user.displayName || 'AfriSeller',
+      ownerName: profile?.displayName || user.displayName || 'Vendeur Afrizia',
       name: input.name.trim(),
       slug,
       tagline: input.tagline.trim() || 'Boutique digitale Zandofy.',

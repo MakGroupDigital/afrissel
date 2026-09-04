@@ -44,7 +44,7 @@ export async function createSafariRequest(input: SafariRequestInput) {
   const request = {
     id: requestId,
     userId: input.user.uid,
-    userName: input.user.displayName || 'Utilisateur AfriSell',
+    userName: input.user.displayName || 'Utilisateur AfriZia',
     userAvatar: input.user.photoURL || '',
     serviceType: input.serviceType,
     serviceLabel: serviceLabels[input.serviceType],

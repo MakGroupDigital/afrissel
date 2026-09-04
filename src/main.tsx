@@ -25,7 +25,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
         });
       })
       .catch((error) => {
-        console.warn('Service worker AfriSell non disponible:', error);
+        console.warn('Service worker AfriZia non disponible:', error);
       });
   });
 } else if ('serviceWorker' in navigator) {
@@ -35,7 +35,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
       .then(() => caches.keys())
       .then((keys) => Promise.all(keys.filter((key) => key.startsWith('afrisell-')).map((key) => caches.delete(key))))
       .catch((error) => {
-        console.warn('Nettoyage service worker AfriSell impossible:', error);
+        console.warn('Nettoyage service worker AfriZia impossible:', error);
       });
   });
 }

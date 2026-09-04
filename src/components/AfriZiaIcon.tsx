@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../lib/utils';
 
-export type AfriSellIconName =
+export type AfriZiaIconName =
   | 'hub'
   | 'market'
   | 'cart'
@@ -58,13 +58,13 @@ export type AfriSellIconName =
   | 'settings'
   | 'edit';
 
-interface AfriSellIconProps {
-  name: AfriSellIconName;
+interface AfriZiaIconProps {
+  name: AfriZiaIconName;
   size?: number;
   className?: string;
 }
 
-const paths: Record<AfriSellIconName, React.ReactNode> = {
+const paths: Record<AfriZiaIconName, React.ReactNode> = {
   home: (
     <>
       <path d="M4.5 11.2 12 5l7.5 6.2" />
@@ -447,7 +447,7 @@ const paths: Record<AfriSellIconName, React.ReactNode> = {
   ),
 };
 
-export function AfriSellIcon({ name, size = 20, className }: AfriSellIconProps) {
+export function AfriZiaIcon({ name, size = 20, className }: AfriZiaIconProps) {
   return (
     <svg
       viewBox="0 0 24 24"

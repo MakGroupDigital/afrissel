@@ -1,13 +1,13 @@
 import React from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { AfriSellIcon, AfriSellIconName } from './AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from './AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 
 type NavigationItem = {
   label: string;
   path: string;
-  icon?: AfriSellIconName;
+  icon?: AfriZiaIconName;
   image?: string;
   imageClassName?: string;
   iconSize?: number;
@@ -51,7 +51,7 @@ export default function BottomNavigation() {
             )}
             aria-label="Ajouter"
           >
-            <AfriSellIcon name="plus" size={19} />
+            <AfriZiaIcon name="plus" size={19} />
           </button>
 
           {navItems.slice(2).map((item) => (
@@ -112,7 +112,7 @@ function NavigationLink({ item, pathname }: { key?: React.Key; item: NavigationI
             )}
           />
         ) : (
-          <AfriSellIcon
+          <AfriZiaIcon
             name={item.icon || 'app'}
             size={item.iconSize || 22}
             className={cn(

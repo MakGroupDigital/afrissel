@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 
 export default function SellerStandScreen() {
@@ -14,7 +14,7 @@ export default function SellerStandScreen() {
     <main className="min-h-full bg-black px-4 pb-24 pt-4 text-white">
       <header className="flex items-center justify-between">
         <Link to="/market" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Retour">
-          <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
         </Link>
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Stand vendeur</p>
@@ -29,12 +29,12 @@ export default function SellerStandScreen() {
             {seller?.authorAvatar ? (
               <img src={seller.authorAvatar} alt="" className="h-full w-full object-cover" />
             ) : (
-              <AfriSellIcon name="market" size={26} />
+              <AfriZiaIcon name="market" size={26} />
             )}
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Stand vérifie</p>
-            <h2 className="mt-1 truncate text-2xl font-black">{seller?.authorName || 'Stand AfriSell'}</h2>
+            <h2 className="mt-1 truncate text-2xl font-black">{seller?.authorName || 'Stand AfriZia'}</h2>
             <p className="mt-1 text-xs font-semibold text-white/48">{products.length} Vitrine{products.length > 1 ? 's' : ''} active{products.length > 1 ? 's' : ''}</p>
           </div>
         </div>

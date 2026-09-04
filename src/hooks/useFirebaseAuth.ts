@@ -33,7 +33,7 @@ import { AccountRole } from '../lib/accountTypes';
 import { isOfflineNow, offlineCacheKey, readOfflineCache, readOfflineCacheAsync, writeOfflineCache } from '../lib/offlineCache';
 import { isTauriAndroid, signInWithNativeGoogle } from '../lib/nativePlatform';
 
-export interface AfriSellUserProfile {
+export interface AfriZiaUserProfile {
   uid: string;
   email: string;
   displayName: string;
@@ -73,7 +73,7 @@ export interface AfriSellUserProfile {
     kycStatus?: 'none' | 'pending' | 'verified' | 'rejected';
     updatedAt?: unknown;
   };
-  businessAccounts?: Record<string, NonNullable<AfriSellUserProfile['businessAccount']>>;
+  businessAccounts?: Record<string, NonNullable<AfriZiaUserProfile['businessAccount']>>;
   logoURL?: string;
   mediaURL?: string;
   kycStatus?: 'none' | 'pending' | 'verified' | 'rejected';
@@ -84,7 +84,7 @@ export interface AfriSellUserProfile {
 }
 
 export type AccountSetupDraft = Partial<Pick<
-  AfriSellUserProfile,
+  AfriZiaUserProfile,
   | 'primaryRole'
   | 'primarySubtype'
   | 'accountSetupStep'
@@ -106,7 +106,7 @@ export type AccountSetupDraft = Partial<Pick<
 
 type AuthStoreState = {
   user: User | null;
-  profile: AfriSellUserProfile | null;
+  profile: AfriZiaUserProfile | null;
   loading: boolean;
   authError: string;
 };
@@ -185,7 +185,7 @@ const withDatabaseTimeout = <T,>(operation: Promise<T>, label: string): Promise<
       });
   });
 
-export const getAfriSellDataErrorMessage = (error: unknown) => {
+export const getAfriZiaDataErrorMessage = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
 
   if (
@@ -204,13 +204,13 @@ export const getAfriSellDataErrorMessage = (error: unknown) => {
     message.includes('Client is offline') ||
     message.includes('a pris trop de temps')
   ) {
-    return "La base de données AfriSell n'est pas disponible. Vérifie Realtime Database puis recharge l'app.";
+    return "La base de données AfriZia n'est pas disponible. Vérifie Realtime Database puis recharge l'app.";
   }
 
   return "Impossible d'enregistrer pour le moment. Réessaie dans quelques instants.";
 };
 
-export const getAfriSellAuthErrorMessage = (error: unknown) => {
+export const getAfriZiaAuthErrorMessage = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
 
   if (message.includes('auth/invalid-email')) {
@@ -320,19 +320,19 @@ const stripUndefined = <T,>(value: T): T => {
   return value;
 };
 
-const buildProfile = (user: User, existing?: Partial<AfriSellUserProfile>): AfriSellUserProfile => ({
+const buildProfile = (user: User, existing?: Partial<AfriZiaUserProfile>): AfriZiaUserProfile => ({
   ...existing,
   uid: user.uid,
   email: user.email || existing?.email || '',
-  displayName: user.displayName || existing?.displayName || 'Utilisateur AfriSell',
+  displayName: user.displayName || existing?.displayName || 'Utilisateur AfriZia',
   photoURL: user.photoURL || existing?.photoURL || '',
   providerIds: user.providerData.map((provider) => provider.providerId)
 });
 
-const syncUserProfile = async (user: User): Promise<AfriSellUserProfile> => {
+const syncUserProfile = async (user: User): Promise<AfriZiaUserProfile> => {
   const userRef = ref(realtimeDb, `users/${user.uid}`);
   const snap = await withDatabaseTimeout(get(userRef), 'Lecture du profil');
-  const existing = snap.exists() ? snap.val() as Partial<AfriSellUserProfile> : {};
+  const existing = snap.exists() ? snap.val() as Partial<AfriZiaUserProfile> : {};
   const hasDemographics = Boolean(existing.dateOfBirth && existing.gender);
   const profile = buildProfile(user, existing);
   const demographicsSetupCompleted = Boolean(existing.demographicsSetupCompleted && hasDemographics) || hasDemographics;
@@ -366,7 +366,7 @@ const startProfileListener = (user: User) => {
   stopProfileListener();
   unsubscribeProfileState = onValue(ref(realtimeDb, `users/${user.uid}`), (snapshot) => {
     if (!snapshot.exists() || firebaseAuth.currentUser?.uid !== user.uid) return;
-    const liveProfile = buildProfile(user, snapshot.val() as Partial<AfriSellUserProfile>);
+    const liveProfile = buildProfile(user, snapshot.val() as Partial<AfriZiaUserProfile>);
     writeOfflineCache(profileCacheKey(user.uid), liveProfile);
     updateAuthStore({
       user,
@@ -375,7 +375,7 @@ const startProfileListener = (user: User) => {
       authError: ''
     });
   }, (error) => {
-    console.error('Ecoute profil AfriSell impossible:', error);
+    console.error('Ecoute profil AfriZia impossible:', error);
   });
 };
 
@@ -384,19 +384,19 @@ const cleanText = (value?: string) => value?.trim() || '';
 const saveAccountSetupPatch = async (
   user: User,
   patch: AccountSetupDraft & { accountSetupCompleted?: boolean }
-): Promise<AfriSellUserProfile> => {
+): Promise<AfriZiaUserProfile> => {
   const userRef = ref(realtimeDb, `users/${user.uid}`);
   const existing = authStore.profile || buildProfile(user);
   const primaryRole = patch.primaryRole || existing.primaryRole;
   const primarySubtype = patch.primarySubtype !== undefined ? patch.primarySubtype : existing.primarySubtype;
-  const displayName = cleanText(patch.displayName) || existing.displayName || user.displayName || 'Utilisateur AfriSell';
+  const displayName = cleanText(patch.displayName) || existing.displayName || user.displayName || 'Utilisateur AfriZia';
   const isCompleting = Boolean(patch.accountSetupCompleted);
 
   if (patch.displayName !== undefined && displayName !== user.displayName) {
     await updateProfile(user, { displayName });
   }
 
-  const nextProfile: Partial<AfriSellUserProfile> = {
+  const nextProfile: Partial<AfriZiaUserProfile> = {
     ...patch,
     uid: user.uid,
     email: user.email || existing.email || '',
@@ -439,13 +439,13 @@ const saveAccountSetupPatch = async (
   return profile;
 };
 
-export const updateAfriSellUserPhoto = async (user: User, photoURL: string) => {
+export const updateAfriZiaUserPhoto = async (user: User, photoURL: string) => {
   await updateProfile(user, { photoURL });
   await withDatabaseTimeout(update(ref(realtimeDb, `users/${user.uid}`), {
     photoURL,
     updatedAt: serverTimestamp()
   }), 'Mise à jour de la photo');
-  const cachedProfile = readOfflineCache<AfriSellUserProfile | null>(profileCacheKey(user.uid), null);
+  const cachedProfile = readOfflineCache<AfriZiaUserProfile | null>(profileCacheKey(user.uid), null);
   if (cachedProfile) {
     writeOfflineCache(profileCacheKey(user.uid), {
       ...cachedProfile,
@@ -454,7 +454,7 @@ export const updateAfriSellUserPhoto = async (user: User, photoURL: string) => {
   }
 };
 
-export const saveAfriSellMediaRecord = async (user: User, upload: CloudinaryUploadResult, file: File) => {
+export const saveAfriZiaMediaRecord = async (user: User, upload: CloudinaryUploadResult, file: File) => {
   const record = {
     ownerId: user.uid,
     provider: upload.provider,
@@ -530,15 +530,15 @@ const syncCurrentUser = async (currentUser: User | null) => {
   } catch (error) {
     console.error('Erreur profil Realtime Database:', error);
     if (syncVersion !== authSyncVersion) return;
-    const cachedProfile = await readOfflineCacheAsync<AfriSellUserProfile | null>(
+    const cachedProfile = await readOfflineCacheAsync<AfriZiaUserProfile | null>(
       profileCacheKey(currentUser.uid),
-      readOfflineCache<AfriSellUserProfile | null>(profileCacheKey(currentUser.uid), null)
+      readOfflineCache<AfriZiaUserProfile | null>(profileCacheKey(currentUser.uid), null)
     );
     updateAuthStore({
       user: currentUser,
       profile: buildProfile(currentUser, cachedProfile || authStore.profile || undefined),
       loading: false,
-      authError: cachedProfile && isOfflineNow() ? '' : getAfriSellDataErrorMessage(error)
+      authError: cachedProfile && isOfflineNow() ? '' : getAfriZiaDataErrorMessage(error)
     });
     startProfileListener(currentUser);
   }
@@ -697,7 +697,7 @@ const consumeGoogleRedirectResult = async () => {
       });
     }
   } catch (error) {
-    console.error('Retour Google AfriSell impossible:', error);
+    console.error('Retour Google AfriZia impossible:', error);
     const restoredUser = wasPendingRedirect ? await waitForRedirectRestoredUser() : null;
     clearPendingGoogleRedirect();
 
@@ -708,7 +708,7 @@ const consumeGoogleRedirectResult = async () => {
 
     updateAuthStore({
       loading: false,
-      authError: isSilentRedirectError(error) ? '' : getAfriSellAuthErrorMessage(error)
+      authError: isSilentRedirectError(error) ? '' : getAfriZiaAuthErrorMessage(error)
     });
   }
 };
@@ -800,7 +800,7 @@ export const useFirebaseAuth = () => {
       updateAuthStore({ authError: '' });
       await setPersistence(firebaseAuth, browserLocalPersistence);
       const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
-      const displayName = name.trim() || email.split('@')[0] || 'Utilisateur AfriSell';
+      const displayName = name.trim() || email.split('@')[0] || 'Utilisateur AfriZia';
       await updateProfile(credential.user, { displayName });
       await syncCurrentUser(credential.user);
     },
@@ -852,7 +852,7 @@ export const useFirebaseAuth = () => {
       updateAuthStore({ profile: syncedProfile, authError: '' });
       return syncedProfile;
     },
-    completeDemographicsSetup: async (patch: { dateOfBirth: string; gender: NonNullable<AfriSellUserProfile['gender']> }) => {
+    completeDemographicsSetup: async (patch: { dateOfBirth: string; gender: NonNullable<AfriZiaUserProfile['gender']> }) => {
       if (!firebaseAuth.currentUser) return null;
       const user = firebaseAuth.currentUser;
       const existing = authStore.profile || buildProfile(user);

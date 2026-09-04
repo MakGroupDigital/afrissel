@@ -44,7 +44,7 @@ export default function PhoneWrapper({ children }: PhoneWrapperProps) {
       </div>
 
       <div className="pointer-events-none absolute left-10 top-10 hidden opacity-[0.18] md:block">
-        <h1 className="text-6xl font-black text-[#15EA3E] leading-none tracking-normal" style={{ fontFamily: 'Quicksand' }}>AFRISELL</h1>
+        <h1 className="text-6xl font-black text-[#15EA3E] leading-none tracking-normal" style={{ fontFamily: 'Quicksand' }}>AFRIZIA</h1>
       </div>
 
       <div className={cn(

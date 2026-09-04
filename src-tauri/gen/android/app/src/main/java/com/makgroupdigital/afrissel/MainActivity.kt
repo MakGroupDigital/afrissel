@@ -63,10 +63,10 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
     afriSellWebView = webView
-    webView.addJavascriptInterface(AfriSellNativeAuthBridge(), "AfriSellNativeAuth")
+    webView.addJavascriptInterface(AfriZiaNativeAuthBridge(), "AfriZiaNativeAuth")
   }
 
-  inner class AfriSellNativeAuthBridge {
+  inner class AfriZiaNativeAuthBridge {
     @JavascriptInterface
     fun signInWithGoogle(requestId: String, webClientId: String) {
       runOnUiThread {

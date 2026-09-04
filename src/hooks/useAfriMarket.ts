@@ -236,9 +236,9 @@ export const normalizeContent = (id: string, content: RawContent): AfriMarketCon
   return {
     id,
     authorId: content.authorId || '',
-    authorName: content.authorName || content.seller || 'AfriSeller',
+    authorName: content.authorName || content.seller || 'Vendeur Afrizia',
     authorAvatar: content.authorAvatar || '',
-    title: content.title || content.name || 'Publication AfriSell',
+    title: content.title || content.name || 'Publication AfriZia',
     description: content.description || '',
     category: content.category || 'Services',
     format: content.format || (isSellable ? 'article' : media.some((item) => item.resourceType === 'video') ? 'video' : 'gallery'),
@@ -311,7 +311,7 @@ const normalizeComment = (id: string, comment: RawComment): AfriMarketComment =>
   id,
   postId: comment.postId || '',
   authorId: comment.authorId || '',
-  authorName: comment.authorName || 'Utilisateur AfriSell',
+  authorName: comment.authorName || 'Utilisateur AfriZia',
   authorAvatar: comment.authorAvatar || '',
   text: comment.text || '',
   createdAt: comment.createdAt
@@ -613,7 +613,7 @@ export const useAfriMarket = () => {
       id: `${postId}_${index}`
     }));
     const now = Date.now();
-    const authorName = profile?.businessName || profile?.displayName || user.displayName || 'Utilisateur AfriSell';
+    const authorName = profile?.businessName || profile?.displayName || user.displayName || 'Utilisateur AfriZia';
     const authorAvatar = profile?.logoURL || profile?.photoURL || user.photoURL || '';
     const isVideo = media.some((item) => item.resourceType === 'video');
     const linkedProduct = input.linkedProductId
@@ -714,7 +714,7 @@ export const useAfriMarket = () => {
       },
       [`followers/${content.authorId}/${user.uid}`]: {
         uid: user.uid,
-        displayName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        displayName: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
         followedAt: serverTimestamp()
       }
     });
@@ -869,7 +869,7 @@ export const useAfriMarket = () => {
       id: commentId,
       postId: content.id,
       authorId: user.uid,
-      authorName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+      authorName: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
       authorAvatar: profile?.photoURL || user.photoURL || '',
       text: trimmedText,
       createdAt: Date.now()
