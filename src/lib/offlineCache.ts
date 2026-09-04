@@ -21,15 +21,35 @@ export type OfflineQueueEntry = {
   lastError?: string;
 };
 
+export type OfflineUploadEntry = {
+  id?: number;
+  ownerId: string;
+  resourceType: 'image' | 'video' | 'raw';
+  file: Blob;
+  fileName: string;
+  mimeType: string;
+  status: 'queued' | 'uploading' | 'failed';
+  attempts: number;
+  createdAt: number;
+  updatedAt: number;
+  lastError?: string;
+};
+
 class AfriZiaOfflineDb extends Dexie {
   cache!: Table<CacheEntry, string>;
   queue!: Table<OfflineQueueEntry, number>;
+  uploads!: Table<OfflineUploadEntry, number>;
 
   constructor() {
     super('afrisell_offline_db');
     this.version(1).stores({
       cache: 'key, savedAt',
       queue: '++id, type, status, createdAt, updatedAt'
+    });
+    this.version(2).stores({
+      cache: 'key, savedAt',
+      queue: '++id, type, status, createdAt, updatedAt',
+      uploads: '++id, ownerId, status, createdAt, updatedAt'
     });
   }
 }
@@ -94,6 +114,40 @@ export const enqueueFirebaseUpdate = async (payload: Record<string, unknown>) =>
 export const getQueuedOfflineCount = async () => {
   if (typeof window === 'undefined') return 0;
   return afriSellOfflineDb.queue.where('status').anyOf('queued', 'failed').count();
+};
+
+export const createOfflineUpload = async (input: Omit<OfflineUploadEntry, 'id' | 'status' | 'attempts' | 'createdAt' | 'updatedAt'>) => {
+  if (typeof window === 'undefined') return undefined;
+
+  try {
+    return await afriSellOfflineDb.uploads.add({
+      ...input,
+      status: 'queued',
+      attempts: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+  } catch {
+    return undefined;
+  }
+};
+
+export const updateOfflineUpload = async (id: number | undefined, patch: Partial<OfflineUploadEntry>) => {
+  if (!id || typeof window === 'undefined') return;
+  try {
+    await afriSellOfflineDb.uploads.update(id, { ...patch, updatedAt: Date.now() });
+  } catch {
+    // Uploading must still work when IndexedDB is unavailable.
+  }
+};
+
+export const removeOfflineUpload = async (id: number | undefined) => {
+  if (!id || typeof window === 'undefined') return;
+  try {
+    await afriSellOfflineDb.uploads.delete(id);
+  } catch {
+    // The remote upload remains valid when local cleanup fails.
+  }
 };
 
 export const flushOfflineQueue = async (database: Database) => {

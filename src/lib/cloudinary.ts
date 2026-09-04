@@ -1,5 +1,7 @@
 import { apiRequest } from '../domains/shared/apiClient';
 import { isTauriNative } from './nativePlatform';
+import { createOfflineUpload, removeOfflineUpload, updateOfflineUpload } from './offlineCache';
+import { getMediaFileKind, isBrowserCompressibleImage } from './mediaFile';
 
 export type CloudinaryResourceType = 'image' | 'video' | 'raw';
 
@@ -49,16 +51,56 @@ const getCloudinarySignUploadEndpoint = () => {
 };
 
 const getResourceType = (file: File): CloudinaryResourceType => {
-  if (file.type.startsWith('image/')) return 'image';
-  if (file.type.startsWith('video/')) return 'video';
+  const mediaKind = getMediaFileKind(file);
+  if (mediaKind) return mediaKind;
   throw new Error('Le fichier doit être une image ou une video.');
 };
 
 const getUploadResourceType = (file: File, allowRaw: boolean): CloudinaryResourceType => {
-  if (file.type.startsWith('image/')) return 'image';
-  if (file.type.startsWith('video/')) return 'video';
+  const mediaKind = getMediaFileKind(file);
+  if (mediaKind) return mediaKind;
   if (allowRaw) return 'raw';
   throw new Error('Le fichier doit être une image ou une video.');
+};
+
+const UPLOAD_ATTEMPTS = 3;
+const UPLOAD_TIMEOUT_MS = 60_000;
+
+const pause = (milliseconds: number) => new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
+
+const waitForConnection = async (timeoutMs = 15_000) => {
+  if (typeof navigator === 'undefined' || navigator.onLine !== false) return true;
+
+  return new Promise<boolean>((resolve) => {
+    const timer = window.setTimeout(() => finish(false), timeoutMs);
+    const finish = (connected: boolean) => {
+      window.clearTimeout(timer);
+      window.removeEventListener('online', onOnline);
+      resolve(connected);
+    };
+    const onOnline = () => finish(true);
+    window.addEventListener('online', onOnline, { once: true });
+  });
+};
+
+const fetchWithUploadTimeout = async (input: RequestInfo | URL, init: RequestInit, timeoutMs = UPLOAD_TIMEOUT_MS) => {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error('Le transfert a pris trop de temps. Vérifie ta connexion puis réessaie.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
+};
+
+const isRetryableUploadError = (error: unknown) => {
+  const message = error instanceof Error ? error.message.toLowerCase() : '';
+  return !/(invalid|format|non pris en charge|doit être|cloudinary doit)/.test(message);
 };
 
 const uploadChunkedToCloudinary = async (
@@ -90,7 +132,7 @@ const uploadChunkedToCloudinary = async (
     formData.append('folder', signedUpload.folder);
     formData.append('public_id', signedUpload.publicId);
 
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${signedUpload.cloudName}/${resourceType}/upload`, {
+    const response = await fetchWithUploadTimeout(`https://api.cloudinary.com/v1_1/${signedUpload.cloudName}/${resourceType}/upload`, {
       method: 'POST',
       headers: {
         'X-Unique-Upload-Id': uploadId,
@@ -112,7 +154,7 @@ const uploadChunkedToCloudinary = async (
 };
 
 export async function compressImageForCloudinary(file: File, maxBytes = 9 * 1024 * 1024): Promise<File> {
-  if (!file.type.startsWith('image/') || file.size <= maxBytes) return file;
+  if (!isBrowserCompressibleImage(file) || file.size <= maxBytes) return file;
 
   const image = new Image();
   const objectUrl = URL.createObjectURL(file);
@@ -181,7 +223,7 @@ async function uploadCloudinaryFile(file: File, ownerId: string, resourceType: C
       formData.append('folder', signedUpload.folder);
       formData.append('public_id', signedUpload.publicId);
 
-      const response = await fetch(`https://api.cloudinary.com/v1_1/${signedUpload.cloudName}/${resourceType}/upload`, {
+      const response = await fetchWithUploadTimeout(`https://api.cloudinary.com/v1_1/${signedUpload.cloudName}/${resourceType}/upload`, {
         method: 'POST',
         body: formData
       });
@@ -241,10 +283,90 @@ async function uploadCloudinaryFile(file: File, ownerId: string, resourceType: C
   };
 }
 
+async function uploadWithRecovery(file: File, ownerId: string, resourceType: CloudinaryResourceType): Promise<CloudinaryUploadResult> {
+  const uploadId = await createOfflineUpload({
+    ownerId,
+    resourceType,
+    file,
+    fileName: file.name || `${resourceType}-${Date.now()}`,
+    mimeType: file.type || 'application/octet-stream'
+  });
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= UPLOAD_ATTEMPTS; attempt += 1) {
+    const connected = await waitForConnection();
+    if (!connected) {
+      lastError = new Error('Connexion indisponible. Le fichier reste prêt à être renvoyé.');
+    } else {
+      await updateOfflineUpload(uploadId, { status: 'uploading', attempts: attempt, lastError: '' });
+      try {
+        // A new signature is obtained on every attempt because Cloudinary signatures expire.
+        const result = await uploadCloudinaryFile(file, ownerId, resourceType);
+        await removeOfflineUpload(uploadId);
+        return result;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    await updateOfflineUpload(uploadId, {
+      status: 'failed',
+      attempts: attempt,
+      lastError: lastError instanceof Error ? lastError.message : 'Transfert impossible'
+    });
+
+    if (attempt < UPLOAD_ATTEMPTS && isRetryableUploadError(lastError)) {
+      await pause(attempt * 900);
+      continue;
+    }
+    break;
+  }
+
+  const detail = lastError instanceof Error ? lastError.message : 'Transfert impossible.';
+  throw new Error(`${detail} Le fichier est conservé localement pour une nouvelle tentative.`);
+}
+
 export async function uploadMediaToCloudinary(file: File, ownerId: string): Promise<CloudinaryUploadResult> {
-  return uploadCloudinaryFile(file, ownerId, getResourceType(file));
+  return uploadWithRecovery(file, ownerId, getResourceType(file));
 }
 
 export async function uploadDigitalAssetToCloudinary(file: File, ownerId: string): Promise<CloudinaryUploadResult> {
-  return uploadCloudinaryFile(file, ownerId, getUploadResourceType(file, true));
+  return uploadWithRecovery(file, ownerId, getUploadResourceType(file, true));
 }
+
+type UploadBatchOptions = {
+  concurrency?: number;
+  onProgress?: (completed: number, total: number) => void;
+};
+
+const uploadBatch = async (
+  files: File[],
+  upload: (file: File) => Promise<CloudinaryUploadResult>,
+  options: UploadBatchOptions = {}
+) => {
+  const results = new Array<CloudinaryUploadResult>(files.length);
+  const concurrency = Math.max(1, Math.min(options.concurrency || 2, 2));
+  let cursor = 0;
+  let completed = 0;
+
+  const worker = async () => {
+    while (cursor < files.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await upload(files[index]);
+      completed += 1;
+      options.onProgress?.(completed, files.length);
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, files.length) }, () => worker()));
+  return results;
+};
+
+export const uploadMediaBatchToCloudinary = (files: File[], ownerId: string, options?: UploadBatchOptions) => (
+  uploadBatch(files, (file) => uploadMediaToCloudinary(file, ownerId), options)
+);
+
+export const uploadDigitalAssetBatchToCloudinary = (files: File[], ownerId: string, options?: UploadBatchOptions) => (
+  uploadBatch(files, (file) => uploadDigitalAssetToCloudinary(file, ownerId), options)
+);

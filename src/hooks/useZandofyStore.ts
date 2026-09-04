@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { get, onValue, push, ref, runTransaction, serverTimestamp, update } from 'firebase/database';
 import { realtimeDb } from '../lib/firebase';
-import { uploadDigitalAssetToCloudinary, uploadMediaToCloudinary } from '../lib/cloudinary';
+import { uploadDigitalAssetBatchToCloudinary, uploadMediaToCloudinary } from '../lib/cloudinary';
 import { useFirebaseAuth } from './useFirebaseAuth';
 import { getDefaultCountry } from '../lib/africaLocation';
 import { apiRequest } from '../domains/shared/apiClient';
@@ -128,6 +128,7 @@ export type ZandofyProductInput = {
   supplierLeadTimeDays?: number;
   dropshippingEnabled?: boolean;
   productSpec?: Record<string, unknown>;
+  onUploadProgress?: (completed: number, total: number) => void;
 };
 
 // Kept as an alias so existing callers keep compiling while Zandofy supports
@@ -557,17 +558,22 @@ export function useZandofyStore(slug?: string) {
     const productId = productRef.key;
     if (!productId) throw new Error('Publication Zandofy impossible.');
 
-    const coverUpload = input.coverFile
-      ? await uploadMediaToCloudinary(input.coverFile, user.uid)
-      : null;
-    const sourceCoverURL = input.sourceMedia?.[0]?.secureUrl || input.sourceMedia?.[0]?.mediaUrl || '';
-    const coverURL = coverUpload?.secureUrl || sourceCoverURL || '/zandofy/woman-promoting-cloths-from-thrift-store.jpg';
-    const now = Date.now();
     const sourceDeliveryFiles = input.productKind === 'digital'
       ? (input.deliveryFiles?.length ? input.deliveryFiles : input.deliveryFile ? [input.deliveryFile] : [])
       : [];
-    const deliveryAssets = await Promise.all(sourceDeliveryFiles.map(async (file) => {
-      const upload = await uploadDigitalAssetToCloudinary(file, user.uid);
+    const uploadTotal = sourceDeliveryFiles.length + (input.coverFile ? 1 : 0);
+    const coverUpload = input.coverFile
+      ? await uploadMediaToCloudinary(input.coverFile, user.uid)
+      : null;
+    if (coverUpload) input.onUploadProgress?.(1, uploadTotal);
+    const sourceCoverURL = input.sourceMedia?.[0]?.secureUrl || input.sourceMedia?.[0]?.mediaUrl || '';
+    const coverURL = coverUpload?.secureUrl || sourceCoverURL || '/zandofy/woman-promoting-cloths-from-thrift-store.jpg';
+    const now = Date.now();
+    const uploadedDeliveryFiles = await uploadDigitalAssetBatchToCloudinary(sourceDeliveryFiles, user.uid, {
+      onProgress: (completed, total) => input.onUploadProgress?.(completed + (coverUpload ? 1 : 0), total + (coverUpload ? 1 : 0))
+    });
+    const deliveryAssets = uploadedDeliveryFiles.map((upload, index) => {
+      const file = sourceDeliveryFiles[index];
       return {
         name: file.name,
         type: file.type || upload.format || 'application/octet-stream',
@@ -578,7 +584,7 @@ export function useZandofyStore(slug?: string) {
         resourceType: upload.resourceType,
         format: upload.format || ''
       };
-    }));
+    });
     const deliveryFiles = sourceDeliveryFiles
       .map((file) => ({
         name: file.name,

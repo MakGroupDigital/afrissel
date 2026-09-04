@@ -6,6 +6,7 @@ import { AfriChatContact, AfriChatMessage, AfriChatThread, formatChatTime, useAf
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { isCloudinaryReady, uploadMediaToCloudinary } from '../lib/cloudinary';
 import { realtimeDb } from '../lib/firebase';
+import { getMediaFileKind } from '../lib/mediaFile';
 import { cn } from '../lib/utils';
 
 type ChatSpace = 'chat' | 'story' | 'village' | 'call';
@@ -1584,7 +1585,7 @@ export default function ChatRoom() {
     event.target.value = '';
     if (!file) return;
 
-    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+    if (!getMediaFileKind(file)) {
       setStoryStatus('Choisis une image ou une vidéo.');
       return;
     }
@@ -1831,7 +1832,8 @@ export default function ChatRoom() {
   const sendChatAttachment = async (file: File) => {
     if (!activeThread || !user || attaching) return;
 
-    const isMedia = file.type.startsWith('image/') || file.type.startsWith('video/');
+    const mediaKind = getMediaFileKind(file);
+    const isMedia = Boolean(mediaKind);
     setAttaching(true);
     clearActionStatus();
 
@@ -1845,7 +1847,7 @@ export default function ChatRoom() {
         if (!mediaUrl) {
           throw new Error('Fichier trop lourd pour l’envoi local. Active Cloudinary ou choisis un média plus léger.');
         }
-        const messageType = (upload?.resourceType || (file.type.startsWith('video/') ? 'video' : 'image')) === 'video' ? 'video' : 'image';
+        const messageType = (upload?.resourceType || mediaKind) === 'video' ? 'video' : 'image';
         await sendMessage(
           activeThread,
           `${messageType === 'video' ? 'Vidéo' : 'Photo'}: ${file.name}`,

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { get, off, onValue, push, ref, runTransaction, serverTimestamp, update } from 'firebase/database';
 import { Product } from '../store/useAppStore';
-import { CloudinaryUploadResult, uploadMediaToCloudinary } from '../lib/cloudinary';
+import { CloudinaryUploadResult, uploadMediaBatchToCloudinary } from '../lib/cloudinary';
 import { realtimeDb } from '../lib/firebase';
+import { getMediaFileKind } from '../lib/mediaFile';
 import { useFirebaseAuth } from './useFirebaseAuth';
 import { isOfflineNow, offlineCacheKey, readOfflineCache, readOfflineCacheAsync, writeOfflineCache } from '../lib/offlineCache';
 
@@ -130,6 +131,7 @@ export type AfriMarketPostInput = {
   location?: string;
   offerModule?: string;
   textStyle?: string;
+  onUploadProgress?: (completed: number, total: number) => void;
 };
 
 type RawContent = Omit<AfriMarketContent, 'id'> & {
@@ -610,15 +612,15 @@ export const useAfriMarket = () => {
     const title = input.title.trim();
     const description = input.description.trim();
     const files = (input.files || []).filter(Boolean);
-    const hasVideo = files.some((file) => file.type.startsWith('video/'));
-    const hasImage = files.some((file) => file.type.startsWith('image/'));
+    const hasVideo = files.some((file) => getMediaFileKind(file) === 'video');
+    const hasImage = files.some((file) => getMediaFileKind(file) === 'image');
     const isTextPost = input.target === 'text';
     const isDirectMarketItem = input.target === 'market' || input.target === 'offer';
 
     if (!title) throw new Error('Ajoute un titre.');
     if (!description) throw new Error('Ajoute une description.');
     if (!files.length && !isTextPost) throw new Error('Ajoute une video ou des photos.');
-    if (files.filter((file) => file.type.startsWith('image/')).length > 7) {
+    if (files.filter((file) => getMediaFileKind(file) === 'image').length > 7) {
       throw new Error('Un poste photo accepte maximum 7 photos.');
     }
     if (hasVideo && (files.length > 1 || hasImage)) {
@@ -631,7 +633,9 @@ export const useAfriMarket = () => {
     const postId = postRef.key;
     if (!postId) throw new Error('Publication impossible pour le moment.');
 
-    const uploads = files.length ? await Promise.all(files.map((file) => uploadMediaToCloudinary(file, user.uid))) : [];
+    const uploads = files.length
+      ? await uploadMediaBatchToCloudinary(files, user.uid, { onProgress: input.onUploadProgress })
+      : [];
     const media: AfriMarketMedia[] = uploads.map((upload, index) => ({
       ...upload,
       id: `${postId}_${index}`

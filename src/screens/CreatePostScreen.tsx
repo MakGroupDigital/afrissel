@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { AfriMarketContent, formatMarketPrice, useAfriMarket } from '../hooks/useAfriMarket';
+import { getMediaFileKind, isVideoMediaFile } from '../lib/mediaFile';
 import { cn } from '../lib/utils';
 
 type CreationIntent = 'media' | 'text' | 'product' | 'offer';
@@ -285,8 +286,6 @@ export default function CreatePostScreen() {
   };
 
   useEffect(() => {
-    void startCamera('environment', false);
-
     return () => {
       stopCamera();
       if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -300,17 +299,17 @@ export default function CreatePostScreen() {
   }, [previewUrl]);
 
   const setFilesForPublish = (files: File[]) => {
-    const mediaFiles = files.filter((file) => file.type.startsWith('image/') || file.type.startsWith('video/'));
+    const mediaFiles = files.filter((file) => getMediaFileKind(file));
     if (!mediaFiles.length) {
       setStatus('Choisis une image ou une vidéo compatible.');
       return;
     }
-    const hasVideo = mediaFiles.some((file) => file.type.startsWith('video/'));
+    const hasVideo = mediaFiles.some((file) => getMediaFileKind(file) === 'video');
     if (isMarketIntent && hasVideo) {
       setStatus('Produit et offre utilisent des photos. Choisis une ou plusieurs images.');
       return;
     }
-    const normalizedFiles = hasVideo ? [mediaFiles.find((file) => file.type.startsWith('video/')) as File] : mediaFiles.slice(0, 7);
+    const normalizedFiles = hasVideo ? [mediaFiles.find((file) => getMediaFileKind(file) === 'video') as File] : mediaFiles.slice(0, 7);
     if (!hasVideo && mediaFiles.length > 7) {
       setStatus('Maximum 7 photos par publication.');
     }
@@ -331,7 +330,7 @@ export default function CreatePostScreen() {
   const capturePhoto = () => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) {
-      setStatus('Caméra pas encore prête.');
+      void startCamera(cameraFacing, true);
       return;
     }
 
@@ -365,7 +364,13 @@ export default function CreatePostScreen() {
     }
 
     chunksRef.current = [];
-    const recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : undefined });
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : undefined });
+    } catch {
+      setStatus('Enregistrement vidéo indisponible sur cet appareil. Utilise la caméra native ou la galerie.');
+      return;
+    }
     recorderRef.current = recorder;
     recorder.ondataavailable = (event) => {
       if (event.data.size) chunksRef.current.push(event.data);
@@ -431,7 +436,8 @@ export default function CreatePostScreen() {
         stock: stock ? Number(stock) : undefined,
         location,
         offerModule,
-        textStyle: isTextIntent ? textStyle : undefined
+        textStyle: isTextIntent ? textStyle : undefined,
+        onUploadProgress: (completed, total) => setStatus(`Envoi du média ${completed}/${total}...`)
       });
       navigate(isMarketIntent ? '/market' : '/feed');
     } catch (error) {
@@ -445,7 +451,7 @@ export default function CreatePostScreen() {
     <main className="relative h-full overflow-hidden bg-black text-white">
       <video ref={videoRef} muted playsInline autoPlay className={cn('absolute inset-0 h-full w-full object-cover', cameraFacing === 'user' && '-scale-x-100')} />
       {previewUrl && (
-        selectedFiles[0]?.type.startsWith('video/') ? (
+        selectedFiles[0] && isVideoMediaFile(selectedFiles[0]) ? (
           <video src={previewUrl} controls playsInline className="absolute inset-0 h-full w-full object-cover" />
         ) : (
           <img src={previewUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />

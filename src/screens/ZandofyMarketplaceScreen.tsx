@@ -1667,6 +1667,7 @@ export function ZandofyCreateProductScreen() {
         supplierCost: Number(supplierCost || 0),
         supplierLeadTimeDays: Number(supplierLeadTimeDays || 0),
         dropshippingEnabled,
+        onUploadProgress: (completed, total) => setStatus(`Envoi du fichier ${completed}/${total}...`),
         productSpec: {
           courseLevel,
           courseDuration,
