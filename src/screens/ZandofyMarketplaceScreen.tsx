@@ -2541,6 +2541,11 @@ export function ZandofyPublicStoreScreen() {
     () => getZandofyRecommendations(products, { collection: activeCollection, query: catalogQuery }).slice(0, 4),
     [activeCollection, catalogQuery, products]
   );
+  const promotionProducts = useMemo(
+    () => products.filter((product) => product.salePrice !== undefined && product.salePrice < product.regularPrice),
+    [products]
+  );
+  const heroImage = products[0]?.coverURL || '/zandofy/group-five-african-american-woman-with-shopping-carts-having-fun-together-outdoor.jpg';
 
   const submitStoreReview = async () => {
     if (!publicStore) return;
@@ -2637,53 +2642,113 @@ export function ZandofyPublicStoreScreen() {
 
   return (
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
-      <header className={cn('relative overflow-hidden px-4 pb-8 pt-4 bg-gradient-to-br', themeStyles[publicStore.theme])}>
-        <button type="button" onClick={() => navigate(-1)} className="relative z-10 flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-black/28">
-          <AfriZiaIcon name="arrow" size={16} className="rotate-180" />
-        </button>
-        <div className="relative z-10 mt-8 text-center">
-          <img src={publicStore.logoURL} alt="" className="mx-auto h-24 w-24 rounded-[1.8rem] border border-white/12 object-cover shadow-[0_24px_60px_rgba(0,0,0,0.35)]" />
-          <p className="mt-4 text-[10px] font-black uppercase tracking-[0.24em] text-[#15EA3E]">Zandofy Store</p>
-          <h1 className="mt-2 text-3xl font-black leading-none">{publicStore.name}</h1>
-          <p className="mx-auto mt-3 max-w-[300px] text-sm font-semibold leading-relaxed text-white/56">{publicStore.tagline}</p>
-          <p className="mt-3 text-xs font-black text-white/38">{publicStore.city}, {publicStore.country}</p>
+      <style>{`
+        @keyframes zandofy-store-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes zandofy-store-shine { 0%, 100% { transform: translateX(-120%); } 50% { transform: translateX(120%); } }
+        @keyframes zandofy-store-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+      `}</style>
+
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#030604]/92 backdrop-blur-xl">
+        <div className="mx-auto flex h-[62px] max-w-6xl items-center gap-3 px-4">
+          <button type="button" onClick={() => navigate(-1)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05]" aria-label="Retour">
+            <AfriZiaIcon name="arrow" size={15} className="rotate-180" />
+          </button>
+          <a href="#store-top" className="flex min-w-0 items-center gap-2.5">
+            <img src={publicStore.logoURL} alt={`${publicStore.name} logo`} className="h-9 w-9 shrink-0 rounded-xl object-cover" />
+            <span className="min-w-0">
+              <span className="block truncate text-[11px] font-black">{publicStore.name}</span>
+              <span className="block text-[8px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Boutique Zandofy</span>
+            </span>
+          </a>
+          <nav aria-label="Navigation de la boutique" className="scrollbar-hide ml-auto hidden items-center gap-5 overflow-x-auto lg:flex">
+            {[['Accueil', '#store-top'], ['Produits', '#products'], ['Promo', '#promos'], ['À propos', '#about'], ['Contact', '#contact']].map(([label, href]) => (
+              <a key={label} href={href} className="whitespace-nowrap text-[10px] font-black text-white/58 transition-colors hover:text-[#15EA3E]">{label}</a>
+            ))}
+          </nav>
+          <a href="/market/orders?module=zandofy&view=purchases" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05]" aria-label="Mes achats">
+            <AfriZiaIcon name="order" size={15} className="text-[#15EA3E]" />
+          </a>
+          <button type="button" onClick={() => void shareStore()} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black" aria-label="Partager la boutique">
+            <AfriZiaIcon name="share" size={15} />
+          </button>
         </div>
+        <nav aria-label="Raccourcis boutique" className="scrollbar-hide flex gap-4 overflow-x-auto px-4 pb-2 lg:hidden">
+          {[['Accueil', '#store-top'], ['Produits', '#products'], ['Promo', '#promos'], ['À propos', '#about'], ['Contact', '#contact']].map(([label, href]) => (
+            <a key={label} href={href} className="shrink-0 text-[9px] font-black text-white/54">{label}</a>
+          ))}
+        </nav>
       </header>
 
-      <section className="px-4 pt-5">
-        <div className="grid grid-cols-3 gap-2">
+      <section id="store-top" className={cn('relative isolate overflow-hidden border-b border-white/10 bg-gradient-to-br', themeStyles[publicStore.theme])}>
+        <div className="absolute inset-0 -z-10 bg-black/40" />
+        <div className="absolute right-0 top-0 -z-10 h-full w-full max-w-3xl opacity-40 lg:w-1/2 lg:opacity-65">
+          <img src={heroImage} alt="" className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#030604] via-[#030604]/70 to-transparent" />
+        </div>
+        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-10 sm:px-6 lg:min-h-[390px] lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:py-12">
+          <div className="relative" style={{ animation: 'zandofy-store-rise .7s ease-out both' }}>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#15EA3E]/28 bg-black/30 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#15EA3E] shadow-[0_0_12px_rgba(21,234,62,.9)]" />
+              Boutique ouverte
+            </div>
+            <h1 className="mt-5 max-w-xl text-4xl font-black leading-[0.98] tracking-tight sm:text-5xl">{publicStore.name}</h1>
+            <p className="mt-4 max-w-lg text-sm font-semibold leading-relaxed text-white/68 sm:text-base">{publicStore.tagline}</p>
+            <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] font-bold text-white/48">
+              <span className="flex items-center gap-1.5"><AfriZiaIcon name="location" size={13} className="text-[#15EA3E]" />{publicStore.city}, {publicStore.country}</span>
+              <span className="flex items-center gap-1.5"><AfriZiaIcon name="star" size={13} className="fill-current text-[#FFD84D]" />{reviewAverage ? reviewAverage.toFixed(1) : Number(publicStore.rating || 0).toFixed(1)} · {reviews.length} avis</span>
+            </div>
+            <div className="mt-7 flex flex-wrap gap-2.5">
+              <a href="#products" className="rounded-2xl bg-[#15EA3E] px-5 py-3 text-[10px] font-black uppercase tracking-wider text-black transition-transform hover:-translate-y-0.5">Voir les produits</a>
+              <a href="#contact" className="rounded-2xl border border-white/18 bg-black/28 px-5 py-3 text-[10px] font-black uppercase tracking-wider text-white/80">Contacter la boutique</a>
+            </div>
+          </div>
+          <div className="relative hidden min-h-[260px] items-end justify-end lg:flex" style={{ animation: 'zandofy-store-rise .8s .12s ease-out both' }}>
+            <div className="relative w-[min(100%,390px)] overflow-hidden rounded-[2rem] border border-white/18 bg-black/30 p-2 shadow-[0_28px_80px_rgba(0,0,0,.5)] backdrop-blur-sm">
+              <div className="relative aspect-[4/3] overflow-hidden rounded-[1.5rem]">
+                <img src={heroImage} alt="" className="h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
+                  <div><p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">La sélection du moment</p><p className="mt-1 text-sm font-black">Des produits choisis pour toi</p></div>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#15EA3E] text-black"><AfriZiaIcon name="arrow" size={15} className="rotate-90" /></span>
+                </div>
+              </div>
+              <div className="absolute -bottom-3 -left-5 flex items-center gap-2 rounded-2xl border border-white/16 bg-[#071007]/92 px-3 py-2 shadow-xl">
+                <img src={publicStore.logoURL} alt="" className="h-8 w-8 rounded-xl object-cover" />
+                <div><p className="text-[8px] font-black uppercase tracking-wider text-[#15EA3E]">Zandofy</p><p className="text-[10px] font-black">{products.length} produit(s)</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-white/10 bg-[#071007]">
+        <div className="mx-auto grid max-w-6xl grid-cols-2 divide-x divide-white/10 sm:grid-cols-4">
           {[
-            [publicStore.digitalProductsCount + publicStore.physicalProductsCount, 'Produits'],
-            [publicStore.ordersCount, 'Ventes'],
-            [`${reviewAverage ? reviewAverage.toFixed(1) : publicStore.rating || 0}/5`, 'Score']
-          ].map(([value, label]) => (
-            <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
-              <p className="text-sm font-black">{value}</p>
-              <p className="mt-1 text-[8px] font-black uppercase tracking-wider text-white/38">{label}</p>
+            [products.length || publicStore.digitalProductsCount + publicStore.physicalProductsCount, 'Produits disponibles', 'market'],
+            [publicStore.ordersCount, 'Commandes réalisées', 'order'],
+            [promotionProducts.length, 'Offres en cours', 'signal'],
+            [reviewAverage ? reviewAverage.toFixed(1) : Number(publicStore.rating || 0).toFixed(1), 'Note boutique', 'star']
+          ].map(([value, label, icon]) => (
+            <div key={label} className="flex items-center gap-2 px-4 py-4 sm:justify-center">
+              <AfriZiaIcon name={icon as AfriZiaIconName} size={16} className={icon === 'star' ? 'fill-current text-[#FFD84D]' : 'text-[#15EA3E]'} />
+              <div><p className="text-sm font-black">{value}</p><p className="text-[8px] font-black uppercase tracking-wider text-white/36">{label}</p></div>
             </div>
           ))}
         </div>
       </section>
 
       {recommendedProducts.length > 0 && (
-        <section className="px-4 pt-5">
-          <div className="rounded-[1.7rem] border border-[#15EA3E]/18 bg-[radial-gradient(circle_at_12%_8%,rgba(21,234,62,0.14),transparent_38%),#071007] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">AfriAI</p>
-                <h2 className="mt-1 text-sm font-black">Sélection pour toi</h2>
-              </div>
-              <AfriZiaIcon name="signal" size={18} className="text-[#15EA3E]" />
+        <section className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-8">
+          <div className="overflow-hidden rounded-[2rem] border border-[#15EA3E]/18 bg-[radial-gradient(circle_at_12%_8%,rgba(21,234,62,0.14),transparent_38%),#071007]">
+            <div className="flex items-center justify-between gap-3 px-5 pt-5 sm:px-6">
+              <div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">À découvrir</p><h2 className="mt-1 text-xl font-black">La sélection de la boutique</h2></div>
+              <a href="#products" className="text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">Tout voir</a>
             </div>
-            <p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/42">Suggestions calculées à partir de tes intérêts récents, des collections et de la disponibilité.</p>
-            <div className="mt-4 flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="scrollbar-hide mt-5 flex gap-3 overflow-x-auto px-5 pb-5 sm:px-6">
               {recommendedProducts.map((product) => (
-                <Link key={product.id} to={getZandofyProductPath(product)} onClick={() => { rememberZandofyInterest(product); void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="w-[132px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/22">
-                  <img src={product.coverURL} alt="" className="h-20 w-full object-cover" />
-                  <div className="p-2.5">
-                    <p className="line-clamp-2 text-[10px] font-black leading-tight">{product.title}</p>
-                    <p className="mt-1 text-[10px] font-black text-[#15EA3E]">{product.isFree ? 'Gratuit' : `${product.price.toLocaleString('fr-FR')} ${product.currency}`}</p>
-                  </div>
+                <Link key={product.id} to={getZandofyProductPath(product)} onClick={() => { rememberZandofyInterest(product); void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="group w-[174px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/25">
+                  <div className="relative aspect-[4/3] overflow-hidden"><img src={product.coverURL} alt={product.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /><span className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[8px] font-black uppercase tracking-wider text-[#15EA3E]">{product.productKind === 'physical' ? 'Physique' : product.digitalType}</span></div>
+                  <div className="p-3"><p className="line-clamp-2 min-h-[30px] text-[11px] font-black leading-tight">{product.title}</p><p className="mt-2 text-xs font-black text-[#15EA3E]">{product.isFree ? 'Gratuit' : `${product.price.toLocaleString('fr-FR')} ${product.currency}`}</p></div>
                 </Link>
               ))}
             </div>
@@ -2691,122 +2756,65 @@ export function ZandofyPublicStoreScreen() {
         </section>
       )}
 
-      <section className="px-4 pt-5">
-        <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-black">Noter cette boutique</h2>
-              <p className="mt-1 text-[11px] font-semibold text-white/45">{reviews.length} avis · {reviewAverage ? reviewAverage.toFixed(1) : '0.0'}/5</p>
-            </div>
-            <div className="flex items-center gap-1 text-[#FFD84D]">
-              <AfriZiaIcon name="star" size={16} className="fill-current" />
-              <span className="text-sm font-black">{reviewAverage ? reviewAverage.toFixed(1) : '0.0'}</span>
-            </div>
-          </div>
-          <div className="mt-4 flex gap-1">
-            {[1, 2, 3, 4, 5].map((rating) => (
-              <button
-                key={rating}
-                type="button"
-                onClick={() => setReviewRating(rating)}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/22"
-                aria-label={`Noter ${rating}`}
-              >
-                <AfriZiaIcon name="star" size={16} className={rating <= reviewRating ? 'fill-current text-[#FFD84D]' : 'text-white/24'} />
-              </button>
+      {promotionProducts.length > 0 && (
+        <section id="promos" className="mx-auto max-w-6xl px-4 pt-10 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between gap-3"><div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300">Offres limitées</p><h2 className="mt-1 text-2xl font-black">Les promotions du moment</h2></div><span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1.5 text-[9px] font-black text-amber-200">{promotionProducts.length} offre(s)</span></div>
+          <div className="scrollbar-hide mt-5 flex gap-3 overflow-x-auto pb-1">
+            {promotionProducts.slice(0, 6).map((product) => (
+              <Link key={product.id} to={getZandofyProductPath(product)} className="group relative w-[230px] shrink-0 overflow-hidden rounded-[1.5rem] border border-amber-300/18 bg-[#151006]">
+                <div className="relative aspect-[16/10] overflow-hidden"><img src={product.coverURL} alt={product.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /><span className="absolute left-3 top-3 rounded-full bg-amber-300 px-2 py-1 text-[8px] font-black uppercase text-black">Promo</span></div>
+                <div className="p-3"><p className="line-clamp-1 text-xs font-black">{product.title}</p><div className="mt-2 flex items-center gap-2"><span className="text-sm font-black text-amber-200">{product.salePrice?.toLocaleString('fr-FR')} {product.currency}</span><span className="text-[10px] font-bold text-white/35 line-through">{product.regularPrice.toLocaleString('fr-FR')} {product.currency}</span></div></div>
+              </Link>
             ))}
           </div>
-          <textarea
-            value={reviewText}
-            onChange={(event) => setReviewText(event.target.value)}
-            rows={3}
-            placeholder="Ton avis sur cette boutique..."
-            className="mt-3 w-full resize-none rounded-2xl border border-white/10 bg-black/22 px-4 py-3 text-xs font-semibold outline-none focus:border-[#15EA3E]/45"
-          />
-          <button
-            type="button"
-            onClick={() => void submitStoreReview()}
-            disabled={submittingFeedback}
-            className="mt-3 h-11 w-full rounded-2xl bg-[#15EA3E] text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-50"
-          >
-            {submittingFeedback ? 'Envoi...' : 'Publier la note'}
-          </button>
-          {reviews.length > 0 && (
-            <div className="mt-4 space-y-2">
-              {reviews.slice(0, 3).map((review) => (
-                <article key={review.id} className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="truncate text-xs font-black">{review.authorName}</p>
-                    <span className="flex items-center gap-1 text-[10px] font-black text-[#FFD84D]">
-                      <AfriZiaIcon name="star" size={11} className="fill-current" />
-                      {review.rating}
-                    </span>
-                  </div>
-                  {review.text && <p className="mt-2 text-[11px] font-semibold leading-relaxed text-white/52">{review.text}</p>}
-                </article>
-              ))}
-            </div>
-          )}
+        </section>
+      )}
+
+      <section id="products" className="mx-auto max-w-6xl px-4 pt-10 sm:px-6 lg:px-8">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Le catalogue</p><h2 className="mt-1 text-2xl font-black">Produits de la boutique</h2><p className="mt-2 max-w-xl text-xs font-semibold leading-relaxed text-white/44">Découvre les produits physiques et digitaux publiés par {publicStore.name}.</p></div>
+          <div className="relative w-full sm:max-w-[250px]"><AfriZiaIcon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" /><input value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} placeholder="Rechercher dans la boutique" className="h-11 w-full rounded-2xl border border-white/10 bg-white/[0.05] pl-9 pr-3 text-xs font-bold outline-none focus:border-[#15EA3E]/45" /></div>
+        </div>
+        <div className="scrollbar-hide mt-5 flex gap-2 overflow-x-auto pb-1">
+          {['Tout', ...collections].map((collection) => <button key={collection} type="button" onClick={() => setActiveCollection(collection)} className={cn('shrink-0 rounded-full border px-3 py-2 text-[9px] font-black', activeCollection === collection ? 'border-[#15EA3E] bg-[#15EA3E] text-black' : 'border-white/10 bg-white/[0.04] text-white/55')}>{collection}</button>)}
+        </div>
+        {visibleProducts.length > 0 ? <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {visibleProducts.slice(0, 16).map((product) => (
+            <article key={product.id} className="group overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.04] transition-colors hover:border-[#15EA3E]/35">
+              <Link to={getZandofyProductPath(product)} onClick={() => { void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="block">
+                <div className="relative aspect-[4/3] overflow-hidden bg-black/20"><img src={product.coverURL} alt={product.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />{product.salePrice !== undefined && product.salePrice < product.regularPrice && <span className="absolute left-2 top-2 rounded-full bg-amber-300 px-2 py-1 text-[8px] font-black text-black">PROMO</span>}</div>
+                <div className="p-3"><p className="line-clamp-2 min-h-[32px] text-xs font-black leading-tight">{product.title}</p><p className="mt-2 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">{product.productKind === 'physical' ? product.catalogCategory || 'Produit physique' : product.digitalType}</p><div className="mt-1 flex flex-wrap items-baseline gap-1.5"><span className="text-sm font-black">{product.isFree ? 'Gratuit' : `${product.price.toLocaleString('fr-FR')} ${product.currency}`}</span>{product.salePrice !== undefined && product.salePrice < product.regularPrice && <span className="text-[9px] font-bold text-white/35 line-through">{product.regularPrice.toLocaleString('fr-FR')} {product.currency}</span>}</div>{product.productKind === 'physical' && product.stockMode === 'tracked' && <p className={`mt-1 text-[9px] font-bold ${product.stock && product.stock > 0 ? 'text-white/42' : 'text-red-300'}`}>{product.stock && product.stock > 0 ? `${product.stock} disponible(s)` : 'Rupture de stock'}</p>}</div>
+              </Link>
+              <div className="border-t border-white/8 px-3 py-2.5"><Link to={getZandofyProductPath(product)} className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">Voir le détail <AfriZiaIcon name="arrow" size={12} /></Link></div>
+            </article>
+          ))}
+        </div> : <div className="mt-5 rounded-[1.7rem] border border-dashed border-white/14 p-10 text-center"><AfriZiaIcon name="market" size={30} className="mx-auto text-[#15EA3E]" /><h3 className="mt-3 text-lg font-black">{products.length ? 'Aucun résultat' : 'Catalogue bientôt disponible'}</h3><p className="mt-2 text-xs font-semibold text-white/42">{products.length ? 'Aucun produit ne correspond à ta recherche.' : 'Les produits de cette boutique apparaîtront ici.'}</p></div>}
+      </section>
+
+      <section id="about" className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 lg:px-8">
+        <div className="grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
+          <div className="rounded-[1.8rem] border border-[#15EA3E]/18 bg-[radial-gradient(circle_at_15%_10%,rgba(21,234,62,.15),transparent_38%),#071007] p-6"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">À propos de la boutique</p><h2 className="mt-3 text-2xl font-black">Une vitrine pensée pour acheter en confiance.</h2><p className="mt-3 text-sm font-semibold leading-relaxed text-white/52">{publicStore.tagline} Cette boutique rassemble ses collections dans un espace simple à parcourir, avec un paiement sécurisé et un accompagnement direct.</p><div className="mt-5 flex items-center gap-3"><img src={publicStore.logoURL} alt="" className="h-12 w-12 rounded-2xl object-cover" /><div><p className="text-xs font-black">{publicStore.ownerName}</p><p className="mt-1 text-[10px] font-semibold text-white/40">Vendeur {publicStore.city}, {publicStore.country}</p></div></div></div>
+          <div className="grid gap-3 sm:grid-cols-3"><div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4"><AfriZiaIcon name="pay" size={20} className="text-[#15EA3E]" /><h3 className="mt-4 text-sm font-black">Paiement AfriSpay</h3><p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/42">Paie depuis ton portefeuille et retrouve ton achat dans tes commandes.</p></div><div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4"><AfriZiaIcon name="chat" size={20} className="text-[#15EA3E]" /><h3 className="mt-4 text-sm font-black">Échange direct</h3><p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/42">Une question sur un produit? Contacte directement la boutique.</p></div><div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4"><AfriZiaIcon name="shield" size={20} className="text-[#15EA3E]" /><h3 className="mt-4 text-sm font-black">Achat suivi</h3><p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/42">Retrouve le détail et le statut de tes commandes à tout moment.</p></div></div>
         </div>
       </section>
 
-      <section className="px-4 pt-5">
-        <div className="rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 text-center">
-          <AfriZiaIcon name="file" size={32} className="mx-auto text-[#15EA3E]" />
-          <h2 className="mt-3 text-xl font-black">{products.length ? 'Catalogue de la boutique' : 'Catalogue bientôt disponible'}</h2>
-          <p className="mt-2 text-sm font-semibold leading-relaxed text-white/46">
-            {products.length ? 'Produits digitaux et physiques disponibles sur cette boutique.' : 'Les produits de cette boutique apparaîtront ici.'}
-          </p>
-          {products.length > 0 && (
-            <div className="mt-5">
-              <div className="relative">
-                <AfriZiaIcon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" />
-                <input value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} placeholder="Rechercher dans la boutique" className="h-11 w-full rounded-2xl border border-white/10 bg-black/22 pl-9 pr-3 text-xs font-bold outline-none focus:border-[#15EA3E]/45" />
-              </div>
-              <div className="scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-1">
-                {['Tout', ...collections].map((collection) => (
-                  <button key={collection} type="button" onClick={() => setActiveCollection(collection)} className={cn('shrink-0 rounded-full border px-3 py-2 text-[9px] font-black', activeCollection === collection ? 'border-[#15EA3E] bg-[#15EA3E] text-black' : 'border-white/10 bg-black/20 text-white/55')}>
-                    {collection}
-                  </button>
-                ))}
-              </div>
-              {visibleProducts.length > 0 ? <div className="mt-4 grid grid-cols-2 gap-3 text-left">
-                {visibleProducts.slice(0, 12).map((product) => (
-                  <Link key={product.id} to={getZandofyProductPath(product)} onClick={() => { void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="overflow-hidden rounded-2xl border border-white/10 bg-black/22">
-                    <img src={product.coverURL} alt="" className="h-24 w-full object-cover" />
-                    <div className="p-3">
-                      <p className="line-clamp-2 min-h-[32px] text-xs font-black leading-tight">{product.title}</p>
-                      <p className="mt-2 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">{product.productKind === 'physical' ? product.catalogCategory || 'Produit physique' : product.digitalType}</p>
-                      <p className="mt-1 text-xs font-black">{product.isFree ? 'Gratuit' : `${product.price.toLocaleString('fr-FR')} ${product.currency}`}</p>
-                      {product.productKind === 'physical' && product.stockMode === 'tracked' && <p className={`mt-1 text-[9px] font-bold ${product.stock && product.stock > 0 ? 'text-white/42' : 'text-red-300'}`}>{product.stock && product.stock > 0 ? `${product.stock} disponible(s)` : 'Rupture de stock'}</p>}
-                    </div>
-                  </Link>
-                ))}
-              </div> : <p className="mt-4 rounded-2xl border border-dashed border-white/14 p-4 text-center text-xs font-bold text-white/44">Aucun produit ne correspond à ta recherche.</p>}
-            </div>
-          )}
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            <Link to={`/chat?contact=${encodeURIComponent(publicStore.ownerId)}&name=${encodeURIComponent(publicStore.ownerName)}&store=${publicStore.id}`} className="rounded-2xl bg-[#15EA3E] py-3 text-center text-[10px] font-black uppercase tracking-wider text-black">Contacter</Link>
-            <button type="button" onClick={() => void shareStore()} className="rounded-2xl border border-white/10 bg-white/[0.05] py-3 text-[10px] font-black uppercase tracking-wider text-white/72">Partager</button>
-          </div>
+      <section id="contact" className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 lg:px-8">
+        <div className="flex flex-col items-start justify-between gap-5 rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-6 sm:flex-row sm:items-center"><div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Besoin d'aide?</p><h2 className="mt-2 text-xl font-black">Parle directement avec {publicStore.name}.</h2><p className="mt-2 text-xs font-semibold text-white/44">Une question sur les produits, la livraison ou une commande?</p></div><div className="flex w-full gap-2 sm:w-auto"><Link to={`/chat?contact=${encodeURIComponent(publicStore.ownerId)}&name=${encodeURIComponent(publicStore.ownerName)}&store=${publicStore.id}`} className="flex-1 rounded-2xl bg-[#15EA3E] px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-black sm:flex-none">Contacter</Link><button type="button" onClick={() => void shareStore()} className="flex-1 rounded-2xl border border-white/12 bg-black/20 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-white/75 sm:flex-none">Partager</button></div></div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 lg:px-8">
+        <div className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
+          <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5"><div className="flex items-center justify-between gap-3"><div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Avis clients</p><h2 className="mt-1 text-xl font-black">Ils parlent de la boutique</h2></div><div className="flex items-center gap-1 text-[#FFD84D]"><AfriZiaIcon name="star" size={16} className="fill-current" /><span className="text-sm font-black">{reviewAverage ? reviewAverage.toFixed(1) : '0.0'}</span></div></div>{reviews.length > 0 ? <div className="mt-4 grid gap-2 sm:grid-cols-2">{reviews.slice(0, 4).map((review) => <article key={review.id} className="rounded-2xl border border-white/10 bg-black/20 p-3"><div className="flex items-center justify-between gap-2"><p className="truncate text-xs font-black">{review.authorName}</p><span className="flex items-center gap-1 text-[10px] font-black text-[#FFD84D]"><AfriZiaIcon name="star" size={11} className="fill-current" />{review.rating}</span></div>{review.text && <p className="mt-2 text-[11px] font-semibold leading-relaxed text-white/52">{review.text}</p>}</article>)}</div> : <p className="mt-4 rounded-2xl border border-dashed border-white/12 p-4 text-xs font-semibold text-white/42">Cette boutique n'a pas encore reçu d'avis.</p>}</div>
+          <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Ton expérience</p><h2 className="mt-1 text-xl font-black">Évalue la boutique</h2><div className="mt-4 flex gap-1">{[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" onClick={() => setReviewRating(rating)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/22" aria-label={`Noter ${rating}`}><AfriZiaIcon name="star" size={16} className={rating <= reviewRating ? 'fill-current text-[#FFD84D]' : 'text-white/24'} /></button>)}</div><textarea value={reviewText} onChange={(event) => setReviewText(event.target.value)} rows={3} placeholder="Ton avis sur cette boutique..." className="mt-3 w-full resize-none rounded-2xl border border-white/10 bg-black/22 px-4 py-3 text-xs font-semibold outline-none focus:border-[#15EA3E]/45" /><button type="button" onClick={() => void submitStoreReview()} disabled={submittingFeedback} className="mt-3 h-11 w-full rounded-2xl bg-[#15EA3E] text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-50">{submittingFeedback ? 'Envoi...' : 'Publier la note'}</button></div>
         </div>
       </section>
 
-      <section className="px-4 pt-5">
-        <button
-          type="button"
-          onClick={() => void reportStore()}
-          disabled={submittingFeedback}
-          className="w-full rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-red-300 disabled:opacity-50"
-        >
-          Signaler cette boutique
-        </button>
-        {feedbackStatus && (
-          <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center text-xs font-bold text-white/58">
-            {feedbackStatus}
-          </p>
-        )}
-      </section>
+      <section className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-8"><button type="button" onClick={() => void reportStore()} disabled={submittingFeedback} className="w-full rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-red-300 disabled:opacity-50">Signaler cette boutique</button>{feedbackStatus && <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center text-xs font-bold text-white/58">{feedbackStatus}</p>}</section>
+
+      <footer className="mx-auto mt-12 max-w-6xl border-t border-white/10 px-4 pb-8 pt-8 sm:px-6 lg:px-8">
+        <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-start"><div className="flex items-center gap-3"><img src={publicStore.logoURL} alt="" className="h-11 w-11 rounded-2xl object-cover" /><div><p className="text-sm font-black">{publicStore.name}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Boutique Zandofy</p></div></div><div className="flex flex-wrap gap-x-5 gap-y-2 text-[10px] font-bold text-white/45"><a href="#store-top" className="hover:text-[#15EA3E]">Accueil</a><a href="#products" className="hover:text-[#15EA3E]">Produits</a><a href="#promos" className="hover:text-[#15EA3E]">Promotions</a><a href="/market/orders?module=zandofy&view=purchases" className="hover:text-[#15EA3E]">Mes achats</a><a href="#contact" className="hover:text-[#15EA3E]">Contact</a></div></div>
+        <div className="mt-8 flex flex-col justify-between gap-2 border-t border-white/8 pt-4 text-[9px] font-semibold text-white/28 sm:flex-row"><span>{publicStore.city}, {publicStore.country}</span><span>Propulsé par Zandofy · AfriZia</span></div>
+      </footer>
     </main>
   );
 }
