@@ -2639,42 +2639,41 @@ export function ZandofyPublicStoreScreen() {
   }
 
   return (
-    <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
+    <main className="zandofy-public-store min-h-full min-w-0 overflow-x-hidden bg-[#030604] pb-[7.5rem] text-white">
       <style>{`
         @keyframes zandofy-store-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
 
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#030604]/95 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 min-w-0 border-b border-white/10 bg-[#030604]/95 backdrop-blur-xl md:pt-7">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-2.5 px-3 sm:px-6 lg:px-8">
           <button type="button" onClick={() => navigate(-1)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05]" aria-label="Retour"><AfriZiaIcon name="arrow" size={15} className="rotate-180" /></button>
-          <a href="#store-top" className="flex min-w-0 items-center gap-2"><img src={publicStore.logoURL} alt={`${publicStore.name} logo`} className="h-8 w-8 shrink-0 rounded-lg object-cover" /><span className="min-w-0 truncate text-[11px] font-black">{publicStore.name}</span></a>
-          <nav aria-label="Navigation de la boutique" className="scrollbar-hide ml-auto hidden items-center gap-5 lg:flex">{[['Accueil', '#store-top'], ['Catalogue', '#products'], ['Promotions', '#promos'], ['À propos', '#about']].map(([label, href]) => <a key={label} href={href} className="text-[10px] font-black text-white/55 transition-colors hover:text-[#15EA3E]">{label}</a>)}</nav>
+          <a href="#store-top" className="flex min-w-0 flex-1 items-center gap-2"><img src={publicStore.logoURL} alt={`${publicStore.name} logo`} className="h-8 w-8 shrink-0 rounded-lg object-cover" /><span className="min-w-0 truncate text-[11px] font-black">{publicStore.name}</span></a>
           <a href="/market/orders?module=zandofy&view=purchases" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05]" aria-label="Mes achats"><AfriZiaIcon name="order" size={15} className="text-[#15EA3E]" /></a>
           <button type="button" onClick={() => void shareStore()} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black" aria-label="Partager la boutique"><AfriZiaIcon name="share" size={15} /></button>
         </div>
-        <nav aria-label="Raccourcis boutique" className="scrollbar-hide flex h-8 items-center gap-5 overflow-x-auto border-t border-white/[0.06] px-4 lg:hidden">{[['Accueil', '#store-top'], ['Catalogue', '#products'], ['Promotions', '#promos'], ['À propos', '#about']].map(([label, href]) => <a key={label} href={href} className="shrink-0 text-[9px] font-black text-white/55">{label}</a>)}</nav>
+        <nav aria-label="Raccourcis boutique" className="scrollbar-hide flex h-8 items-center gap-5 overflow-x-auto border-t border-white/[0.06] px-4">{[['Accueil', '#store-top'], ['Catalogue', '#products'], ['Promotions', '#promos'], ['À propos', '#about']].map(([label, href]) => <a key={label} href={href} className="shrink-0 text-[9px] font-black text-white/55">{label}</a>)}</nav>
       </header>
 
       <section id="store-top" className={cn('scroll-mt-24 border-b border-white/10 bg-gradient-to-br', themeStyles[publicStore.theme])}>
-        <div className="mx-auto grid max-w-6xl gap-7 px-4 py-6 sm:px-6 sm:py-9 lg:grid-cols-[.9fr_1.1fr] lg:items-center lg:gap-12 lg:px-8 lg:py-12">
-          <div className="order-2 lg:order-1" style={{ animation: 'zandofy-store-rise .6s ease-out both' }}>
+        <div className="mx-auto grid min-w-0 max-w-6xl gap-5 px-4 py-5">
+          <div className="order-2" style={{ animation: 'zandofy-store-rise .6s ease-out both' }}>
             <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.18em] text-[#15EA3E]"><span className="h-1.5 w-1.5 rounded-full bg-[#15EA3E]" /> Boutique ouverte</div>
-            <h1 className="mt-3 text-3xl font-black leading-[1.02] tracking-tight sm:text-5xl">{publicStore.name}</h1>
+            <h1 className="mt-3 break-words text-3xl font-black leading-[1.02] tracking-tight sm:text-5xl">{publicStore.name}</h1>
             <p className="mt-3 max-w-lg text-sm font-semibold leading-relaxed text-white/65">{publicStore.tagline}</p>
             <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[10px] font-bold text-white/48"><span className="flex items-center gap-1.5"><AfriZiaIcon name="location" size={13} className="text-[#15EA3E]" />{publicStore.city}, {publicStore.country}</span><span className="flex items-center gap-1.5"><AfriZiaIcon name="star" size={13} className="fill-current text-[#FFD84D]" />{reviewAverage ? reviewAverage.toFixed(1) : Number(publicStore.rating || 0).toFixed(1)} · {reviews.length} avis</span></div>
             <div className="mt-6 flex flex-wrap gap-2"><a href="#products" className="rounded-xl bg-[#15EA3E] px-4 py-3 text-[10px] font-black uppercase tracking-wider text-black">Voir les produits</a><Link to={`/chat?contact=${encodeURIComponent(publicStore.ownerId)}&name=${encodeURIComponent(publicStore.ownerName)}&store=${publicStore.id}`} className="rounded-xl border border-white/18 bg-black/25 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-white/80">Contacter</Link></div>
           </div>
-          <div className="order-1 lg:order-2" style={{ animation: 'zandofy-store-rise .7s .1s ease-out both' }}>
+          <div className="order-1" style={{ animation: 'zandofy-store-rise .7s .1s ease-out both' }}>
             {heroProduct ? (
-              <Link to={getZandofyProductPath(heroProduct)} className="group relative block overflow-hidden rounded-[1.35rem] border border-white/14 bg-black/20 shadow-[0_20px_55px_rgba(0,0,0,.35)]">
-                <img src={heroImage} alt={heroProduct.title} className="aspect-[16/9] w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:aspect-[2/1]" />
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/58 to-transparent px-4 pb-4 pt-14">
+              <Link to={getZandofyProductPath(heroProduct)} className="group block min-w-0 overflow-hidden rounded-[1.35rem] border border-white/14 bg-[#071007] shadow-[0_20px_55px_rgba(0,0,0,.35)]">
+                <img src={heroImage} alt={heroProduct.title} className="aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                <div className="min-w-0 px-4 py-4">
                   <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Produit vedette</p>
-                  <div className="mt-1 flex items-end justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-black">{heroProduct.title}</p><p className="mt-1 text-xs font-black text-[#15EA3E]">{heroProduct.isFree ? 'Gratuit' : `${heroProduct.price.toLocaleString('fr-FR')} ${heroProduct.currency}`}</p></div><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#15EA3E] text-black"><AfriZiaIcon name="arrow" size={14} /></span></div>
+                  <div className="mt-1 flex items-end justify-between gap-3"><div className="min-w-0"><p className="line-clamp-2 text-sm font-black leading-tight">{heroProduct.title}</p><p className="mt-1 text-xs font-black text-[#15EA3E]">{heroProduct.isFree ? 'Gratuit' : `${heroProduct.price.toLocaleString('fr-FR')} ${heroProduct.currency}`}</p></div><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#15EA3E] text-black"><AfriZiaIcon name="arrow" size={14} /></span></div>
                 </div>
               </Link>
             ) : (
-              <div className="relative overflow-hidden rounded-[1.35rem] border border-white/14 bg-black/20 shadow-[0_20px_55px_rgba(0,0,0,.35)]"><img src={heroImage} alt={`Sélection de ${publicStore.name}`} className="aspect-[16/9] w-full object-cover sm:aspect-[2/1]" /></div>
+              <div className="relative overflow-hidden rounded-[1.35rem] border border-white/14 bg-black/20 shadow-[0_20px_55px_rgba(0,0,0,.35)]"><img src={heroImage} alt={`Sélection de ${publicStore.name}`} className="aspect-[4/3] w-full object-cover" /></div>
             )}
           </div>
         </div>
@@ -2682,12 +2681,12 @@ export function ZandofyPublicStoreScreen() {
 
       {featuredProducts.length > 0 && (
         <section className="border-b border-white/10 bg-[#071007]">
-          <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-6xl px-4 py-7">
             <div className="flex items-end justify-between gap-4">
               <div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">La boutique en avant</p><h2 className="mt-1 text-xl font-black">Produits vedettes</h2></div>
               <a href="#products" className="shrink-0 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">Tout le catalogue</a>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-4 grid grid-cols-2 gap-3">
               {featuredProducts.map((product) => (
                 <Link key={product.id} to={getZandofyProductPath(product)} onClick={() => { void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="group min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#0b130b]">
                   <img src={product.coverURL} alt={product.title} className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-105" />
