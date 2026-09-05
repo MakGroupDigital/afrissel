@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { get, onValue, ref, serverTimestamp, update } from 'firebase/database';
 import { cn } from '../lib/utils';
 import { InvertedAfricaLogo } from '../components/InvertedAfricaLogo';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { executeWalletOperation, WalletOperationType } from '../domains/payment';
@@ -113,10 +113,10 @@ export default function WalletDashboard() {
   const canUseBiometric = Boolean(securitySettings.biometricEnabled && securitySettings.biometricCredentialId);
 
   const actions = [
-    { label: 'Dépôt', action: 'deposit', icon: 'deposit' as AfriSellIconName, color: 'text-white' },
-    { label: 'Retrait', action: 'withdraw', icon: 'withdraw' as AfriSellIconName, color: 'text-white' },
-    { label: 'Envoyer', action: 'transfer', icon: 'send' as AfriSellIconName, color: 'text-white' },
-    { label: 'Scan', action: 'scan', icon: 'scan' as AfriSellIconName, color: 'text-[#15EA3E]' },
+    { label: 'Dépôt', action: 'deposit', icon: 'deposit' as AfriZiaIconName, color: 'text-white' },
+    { label: 'Retrait', action: 'withdraw', icon: 'withdraw' as AfriZiaIconName, color: 'text-white' },
+    { label: 'Envoyer', action: 'transfer', icon: 'send' as AfriZiaIconName, color: 'text-white' },
+    { label: 'Scan', action: 'scan', icon: 'scan' as AfriZiaIconName, color: 'text-[#15EA3E]' },
   ];
   const activeActionLabel = actions.find((action) => action.action === activeAction)?.label;
 
@@ -277,11 +277,11 @@ export default function WalletDashboard() {
       const credential = await navigator.credentials.create({
         publicKey: {
           challenge: crypto.getRandomValues(new Uint8Array(32)),
-          rp: { name: 'AfriSell' },
+          rp: { name: 'AfriZia' },
           user: {
             id: new TextEncoder().encode(user.uid),
             name: user.email || user.uid,
-            displayName: profile?.displayName || user.displayName || 'AfriSell'
+            displayName: profile?.displayName || user.displayName || 'AfriZia'
           },
           pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
           authenticatorSelection: {
@@ -338,25 +338,25 @@ export default function WalletDashboard() {
       <main className="flex min-h-full flex-col bg-black px-4 pb-8 pt-4 text-white">
         <header className="flex items-center justify-between">
           <Link to="/ecosystem" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Retour">
-            <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
           </Link>
           <div className="text-center">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriSpay</p>
             <h1 className="text-sm font-black">Approbation en attente</h1>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-400/10 text-amber-200">
-            <AfriSellIcon name="shield" size={18} />
+            <AfriZiaIcon name="shield" size={18} />
           </div>
         </header>
 
         <section className="mt-8 overflow-hidden rounded-[2rem] border border-amber-400/20 bg-[#100d05] p-5">
           <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] border border-amber-400/25 bg-black/35 text-amber-200">
             <img src="/afrispay.jpeg" alt="" className="absolute inset-4 rounded-2xl object-cover opacity-35" />
-            <AfriSellIcon name="clock" size={34} className="relative z-10" />
+            <AfriZiaIcon name="clock" size={34} className="relative z-10" />
           </div>
           <h2 className="mt-6 text-center text-2xl font-black leading-tight">Demande envoyée</h2>
           <p className="mt-3 text-center text-sm font-semibold leading-relaxed text-white/55">
-            Ton dossier AfriSell ID est en cours d'analyse. Dès que la vérification est approuvée, AfriSpay ouvrira directement ton wallet.
+            Ton dossier AfriZia ID est en cours d'analyse. Dès que la vérification est approuvée, AfriSpay ouvrira directement ton wallet.
           </p>
 
           <div className="mt-5 grid gap-2">
@@ -381,7 +381,7 @@ export default function WalletDashboard() {
             Retour accueil
           </Link>
           <p className="mt-3 text-center text-[10px] font-semibold leading-relaxed text-white/35">
-            Si une information est refusée, AfriSell te demandera de corriger le dossier.
+            Si une information est refusée, AfriZia te demandera de corriger le dossier.
           </p>
         </section>
       </main>
@@ -394,21 +394,21 @@ export default function WalletDashboard() {
       <main className="flex min-h-full flex-col bg-black px-4 pb-8 pt-4 text-white">
         <header className="flex items-center justify-between">
           <Link to="/ecosystem" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Retour">
-            <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
           </Link>
           <div className="text-center">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriSpay</p>
             <h1 className="text-sm font-black">Acces restreint</h1>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 text-[#15EA3E]">
-            <AfriSellIcon name="shield" size={18} />
+            <AfriZiaIcon name="shield" size={18} />
           </div>
         </header>
 
         <section className="mt-8 overflow-hidden rounded-[2rem] border border-[#15EA3E]/20 bg-[#071007] p-5">
           <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] border border-[#15EA3E]/25 bg-black/35 text-[#15EA3E]">
             <img src="/afrispay.jpeg" alt="" className="absolute inset-4 rounded-2xl object-cover opacity-45" />
-            <AfriSellIcon name="shield" size={32} className="relative z-10" />
+            <AfriZiaIcon name="shield" size={32} className="relative z-10" />
           </div>
           <h2 className="mt-6 text-center text-2xl font-black leading-tight">{isRejected ? 'Vérification à reprendre' : 'Vérification requise'}</h2>
           <p className="mt-3 text-center text-sm font-semibold leading-relaxed text-white/52">
@@ -424,7 +424,7 @@ export default function WalletDashboard() {
               'Acces wallet et carte AfriSpay'
             ].map((item) => (
               <div key={item} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                <AfriSellIcon name="check" size={15} className="text-[#15EA3E]" />
+                <AfriZiaIcon name="check" size={15} className="text-[#15EA3E]" />
                 <span className="text-xs font-bold text-white/62">{item}</span>
               </div>
             ))}
@@ -503,7 +503,7 @@ export default function WalletDashboard() {
               }}
               className="text-gray-500 hover:text-[#15EA3E] transition-colors"
             >
-              <AfriSellIcon name={showBalance ? 'eyeOff' : 'eye'} size={14} />
+              <AfriZiaIcon name={showBalance ? 'eyeOff' : 'eye'} size={14} />
             </button>
           </div>
         </div>
@@ -535,7 +535,7 @@ export default function WalletDashboard() {
                </div>
            </div>
            <div className="flex items-start gap-3">
-             <AfriSellIcon name="signal" size={22} className="mt-1 text-white/55" />
+             <AfriZiaIcon name="signal" size={22} className="mt-1 text-white/55" />
              {/* Minimalist Tech Chip */}
              <div className="w-12 h-9 bg-gray-900/80 rounded border border-gray-700/50 flex flex-col items-center justify-center relative overflow-hidden gap-[2px]">
                <div className="absolute inset-0 bg-gradient-to-br from-[#15EA3E]/10 to-transparent"></div>
@@ -569,7 +569,7 @@ export default function WalletDashboard() {
         <section className="rounded-2xl border border-[#15EA3E]/20 bg-[#071007] p-4">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
-              <AfriSellIcon name="lock" size={18} />
+              <AfriZiaIcon name="lock" size={18} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-black text-white">Solde protégé</p>
@@ -653,7 +653,7 @@ export default function WalletDashboard() {
                     ? "border-[#15EA3E]/40 shadow-[0_0_15px_rgba(21,234,62,0.15)]" 
                     : "border-gray-800 hover:border-gray-700 active:scale-95"
                 )}>
-                  <AfriSellIcon name={act.icon} size={20} className={act.color} />
+                  <AfriZiaIcon name={act.icon} size={20} className={act.color} />
                 </button>
                 <span className="text-gray-400 text-[9px] font-semibold uppercase tracking-wider">{act.label}</span>
              </div>
@@ -672,7 +672,7 @@ export default function WalletDashboard() {
               </p>
             </div>
             <button type="button" onClick={() => setSearchParams({})} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-800 text-gray-500">
-              <AfriSellIcon name="close" size={16} />
+              <AfriZiaIcon name="close" size={16} />
             </button>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -714,7 +714,7 @@ export default function WalletDashboard() {
             className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black disabled:cursor-not-allowed disabled:opacity-60"
           >
             {operationBusy ? 'Traitement...' : 'Confirmer'}
-            <AfriSellIcon name="arrow" size={16} />
+            <AfriZiaIcon name="arrow" size={16} />
           </button>
         </form>
       )}
@@ -738,7 +738,7 @@ export default function WalletDashboard() {
             {!loading && !error && transactions.length === 0 && (
               <div className="rounded-xl border border-gray-800 bg-[#0A0A0A] p-4 text-center">
                 <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]">
-                  <AfriSellIcon name="pay" size={20} />
+                  <AfriZiaIcon name="pay" size={20} />
                 </div>
                 <p className="mt-3 text-xs font-black text-white">Aucune transaction</p>
                 <p className="mt-1 text-[11px] font-semibold leading-relaxed text-gray-500">
@@ -752,7 +752,7 @@ export default function WalletDashboard() {
                  <div key={tx.id} className="flex items-center justify-between p-3 bg-[#0A0A0A] rounded-xl border border-gray-800 hover:border-gray-700 transition-colors cursor-pointer group">
                     <div className="flex items-center gap-3">
                        <div className="w-10 h-10 rounded-lg bg-[#000000] flex items-center justify-center border border-gray-800 group-hover:border-[#15EA3E]/30 transition-colors">
-                          <AfriSellIcon name={tx.icon} size={16} className="text-gray-400 group-hover:text-white transition-colors" />
+                          <AfriZiaIcon name={tx.icon} size={16} className="text-gray-400 group-hover:text-white transition-colors" />
                        </div>
                        <div className="flex flex-col">
                           <span className="text-gray-300 font-medium text-xs font-sans tracking-wide">{tx.title}</span>
@@ -779,7 +779,7 @@ export default function WalletDashboard() {
       {privacyShieldVisible && (
         <div className="absolute inset-0 z-[90] flex flex-col items-center justify-center bg-black px-8 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]">
-            <AfriSellIcon name="shield" size={28} />
+            <AfriZiaIcon name="shield" size={28} />
           </div>
           <h2 className="mt-5 text-xl font-black">Capture bloquée</h2>
           <p className="mt-2 text-sm font-semibold leading-relaxed text-white/45">

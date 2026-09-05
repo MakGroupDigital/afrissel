@@ -1,13 +1,16 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { get, onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { AfriMarketContent, formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { CheckoutDelivery, useAppStore } from '../store/useAppStore';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
-import { shareVillageDealToAfriChat } from '../domains/commerce';
+import { ZandofyDigitalProduct, useZandofyStore } from '../hooks/useZandofyStore';
+import { linkProductToABC, shareVillageDealToAfriChat } from '../domains/commerce';
 import { realtimeDb } from '../lib/firebase';
 import { cn } from '../lib/utils';
+import { shareLink } from '../lib/shareLink';
+import { CloudinaryResourceType } from '../lib/cloudinary';
 
 const deliveryOptions: CheckoutDelivery[] = [
   {
@@ -32,6 +35,29 @@ const deliveryOptions: CheckoutDelivery[] = [
     eta: 'Aujourd’hui'
   }
 ];
+
+const paymentMethods = [
+  { name: 'AfriMoney', src: '/afrimoneylogo.png' },
+  { name: 'M-Pesa', src: '/m-pesa-logo-png_seeklogo-442995.png' },
+  { name: 'Airtel Money', src: '/logo airtel money.jpg' },
+  { name: 'Orange Money', src: '/Orange_Money-Logo.wine.png' },
+  { name: 'Visa et Mastercard', src: '/[CITYPNG.COM]MasterCard & Visa Cards Logos Icons - 1500x1500.png' }
+] as const;
+
+function PaymentMethodLogos() {
+  return (
+    <div className="mt-4 border-t border-white/10 pt-3">
+      <p className="text-[8px] font-black uppercase tracking-[0.16em] text-white/38">Moyens de paiement disponibles</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {paymentMethods.map((method) => (
+          <div key={method.name} title={method.name} className="flex h-8 min-w-10 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white px-2">
+            <img src={method.src} alt={method.name} className="h-5 max-w-10 object-contain" loading="lazy" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 type ProductReview = {
   id: string;
@@ -63,7 +89,7 @@ const normalizeContactValue = (value: string) => value.trim().toLowerCase().repl
 
 const digitalDetailMeta: Record<string, {
   label: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   promise: string;
   steps: string[];
 }> = {
@@ -94,7 +120,7 @@ const digitalDetailMeta: Record<string, {
   Vidéo: {
     label: 'Vidéo digitale',
     icon: 'video',
-    promise: 'Vidéo, masterclass ou série courte accessible dans ton espace AfriSell.',
+    promise: 'Vidéo, masterclass ou série courte accessible dans ton espace AfriZia.',
     steps: ['Achat', 'Accès vidéo', 'Support vendeur']
   },
   Licence: {
@@ -121,7 +147,98 @@ const getDigitalMeta = (product: AfriMarketContent) => (
   digitalDetailMeta[product.digitalType || ''] || digitalDetailMeta['Pack digital']
 );
 
-const getZandofyProductURL = (product: AfriMarketContent) => `${window.location.origin}/zandofy/product/${product.id}`;
+const getZandofyProductPath = (product: Pick<AfriMarketContent, 'id' | 'storeSlug'>) => (
+  product.storeSlug
+    ? `/zandofy/${encodeURIComponent(product.storeSlug)}/product/${encodeURIComponent(product.id)}`
+    : `/zandofy/product/${encodeURIComponent(product.id)}`
+);
+
+const getZandofyProductURL = (product: AfriMarketContent) => `${window.location.origin}${getZandofyProductPath(product)}`;
+
+const toMarketContent = (product: ZandofyDigitalProduct): AfriMarketContent => ({
+  id: product.id,
+  authorId: product.authorId,
+  authorName: product.storeName || 'Vendeur Zandofy',
+  authorAvatar: '',
+  title: product.title,
+  description: product.description,
+  category: 'Zandofy',
+  format: 'article',
+  media: product.media?.length
+    ? product.media.map((item) => ({
+        id: item.id,
+        provider: 'cloudinary' as const,
+        mediaUrl: item.mediaUrl || item.secureUrl || '',
+        secureUrl: item.secureUrl || item.mediaUrl || '',
+        publicId: item.publicId || '',
+        resourceType: (item.resourceType || 'image') as CloudinaryResourceType
+      }))
+    : [{
+        id: `${product.id}_cover`,
+        provider: 'cloudinary',
+        mediaUrl: product.coverURL,
+        secureUrl: product.coverURL,
+        publicId: '',
+        resourceType: 'image'
+      }],
+  coverURL: product.coverURL,
+  isSellable: true,
+  linkedProductId: '',
+  linkedProductTitle: '',
+  linkedProductImage: '',
+  linkedProductPrice: product.price,
+  linkedProductCurrency: product.currency,
+  price: product.price,
+  villagePrice: product.villagePrice || product.price,
+  currency: product.currency,
+  buyersCount: 0,
+  buyersNeeded: 1,
+  likesCount: 0,
+  commentsCount: 0,
+  sharesCount: 0,
+  target: 'market',
+  offerModule: 'Zandofy',
+  isDigital: product.productKind === 'digital',
+  digitalType: product.digitalType,
+  collection: product.collection,
+  storeId: product.storeId,
+  storeSlug: product.storeSlug,
+  storeName: product.storeName,
+  productKind: product.productKind,
+  deliveryMode: product.deliveryMode,
+  accessNote: product.accessNote,
+  productSpec: product.productSpec,
+  stock: product.stock,
+  stockMode: product.stockMode,
+  regularPrice: product.regularPrice,
+  salePrice: product.salePrice,
+  pricingMode: product.pricingMode,
+  isFree: product.isFree,
+  fppRate: product.fppRate,
+  affiliateEnabled: product.affiliateEnabled,
+  affiliateDirectRate: product.affiliateDirectRate,
+  affiliateIndirectRate: product.affiliateIndirectRate,
+  orderProcessingMode: product.orderProcessingMode,
+  sourceProductId: product.sourceProductId,
+  sourceProductURL: product.sourceProductURL,
+  sourceMarketplace: product.sourceMarketplace,
+  sourceSellerId: product.sourceSellerId,
+  sourceSellerName: product.sourceSellerName,
+  sourcePrice: product.sourcePrice,
+  supplierType: product.supplierType,
+  supplierId: product.supplierId,
+  supplierName: product.supplierName,
+  supplierSKU: product.supplierSKU,
+  supplierCost: product.supplierCost,
+  supplierLeadTimeDays: product.supplierLeadTimeDays,
+  dropshippingEnabled: product.dropshippingEnabled,
+  sellerMargin: product.sellerMargin,
+  publishToZikMart: product.publishToZikMart,
+  publishToAfriZia: product.publishToAfriZia,
+  status: product.status,
+  createdAt: product.createdAt,
+  updatedAt: product.updatedAt
+});
 
 function ProductGallery({ product }: { product: AfriMarketContent }) {
   const media = product.media.length ? product.media : [{
@@ -133,16 +250,15 @@ function ProductGallery({ product }: { product: AfriMarketContent }) {
     publicId: ''
   }];
   const [activeIndex, setActiveIndex] = useState(0);
+  const [fullscreen, setFullscreen] = useState(false);
   const activeMedia = media[activeIndex] || media[0];
 
   return (
     <section>
       <div className="relative aspect-[4/5] overflow-hidden rounded-[1.8rem] border border-white/10 bg-[#050505]">
-        <img
-          src={activeMedia.secureUrl || activeMedia.mediaUrl}
-          alt={product.title}
-          className="h-full w-full object-cover"
-        />
+        <button type="button" onClick={() => setFullscreen(true)} className="h-full w-full cursor-zoom-in" aria-label="Afficher l’image en plein écran">
+          <img src={activeMedia.secureUrl || activeMedia.mediaUrl} alt={product.title} className="h-full w-full object-cover" />
+        </button>
         <div className="absolute left-3 top-3 rounded-full bg-black/70 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">
           {activeIndex + 1}/{media.length}
         </div>
@@ -165,6 +281,12 @@ function ProductGallery({ product }: { product: AfriMarketContent }) {
           ))}
         </div>
       )}
+      {fullscreen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/95 p-4" role="dialog" aria-modal="true" onClick={() => setFullscreen(false)}>
+          <button type="button" onClick={() => setFullscreen(false)} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white" aria-label="Fermer l’image"><AfriZiaIcon name="close" size={18} /></button>
+          <img src={activeMedia.secureUrl || activeMedia.mediaUrl} alt={product.title} className="max-h-full max-w-full object-contain" onClick={(event) => event.stopPropagation()} />
+        </div>
+      )}
     </section>
   );
 }
@@ -173,7 +295,7 @@ function EmptyDetail() {
   return (
     <div className="flex min-h-full flex-col items-center justify-center bg-black px-8 text-center text-white">
       <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-gray-800 bg-[#050505] text-[#15EA3E]">
-        <AfriSellIcon name="market" size={28} />
+        <AfriZiaIcon name="market" size={28} />
       </div>
       <h1 className="mt-5 text-lg font-black">Produit introuvable</h1>
       <p className="mt-2 text-sm leading-relaxed text-gray-500">Cet article n'est plus disponible dans le Market.</p>
@@ -185,9 +307,11 @@ function EmptyDetail() {
 }
 
 export default function ProductDetailScreen() {
-  const { productId } = useParams();
+  const { productId, slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { abcContents, marketProducts, loading } = useAfriMarket();
+  const { products: zandofyProducts } = useZandofyStore(slug);
   const { user, profile } = useFirebaseAuth();
   const openCheckout = useAppStore((state) => state.openCheckout);
   const addToCart = useAppStore((state) => state.addToCart);
@@ -205,22 +329,67 @@ export default function ProductDetailScreen() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [abcPublishing, setAbcPublishing] = useState(false);
+  const [affiliateAttribution, setAffiliateAttribution] = useState<{ id: string; level: 'direct' | 'indirect' } | null>(null);
+
+  useEffect(() => {
+    if (!productId) return;
+    const storageKey = `afrizia:zandofy-affiliate:${productId}`;
+    const params = new URLSearchParams(location.search);
+    const referralId = params.get('ref')?.trim() || '';
+    const level = params.get('level') === 'indirect' ? 'indirect' : 'direct';
+
+    if (referralId) {
+      const attribution = { id: referralId, level } as const;
+      window.localStorage.setItem(storageKey, JSON.stringify(attribution));
+      setAffiliateAttribution(attribution);
+      return;
+    }
+
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(storageKey) || 'null') as Partial<{ id: string; level: 'direct' | 'indirect' }> | null;
+      if (stored?.id) setAffiliateAttribution({ id: stored.id, level: stored.level === 'indirect' ? 'indirect' : 'direct' });
+    } catch {
+      setAffiliateAttribution(null);
+    }
+  }, [location.search, productId]);
+
+  const zandofyProduct = useMemo(
+    () => zandofyProducts.find((item) => item.id === productId),
+    [productId, zandofyProducts]
+  );
 
   const product = useMemo(
     () => (
       marketProducts.find((item) => item.id === productId) ||
-      abcContents.find((item) => item.id === productId && item.isSellable)
+      abcContents.find((item) => item.id === productId && item.isSellable) ||
+      (zandofyProduct ? toMarketContent(zandofyProduct) : undefined)
     ),
-    [abcContents, marketProducts, productId]
+    [abcContents, marketProducts, productId, zandofyProduct]
   );
-  const checkoutProduct = product ? toCheckoutProduct(product) : null;
-  const selectedDelivery = deliveryOptions.find((option) => option.id === selectedDeliveryId) || deliveryOptions[0];
+  useEffect(() => {
+    if (product?.deliveryMode === 'pickup') setSelectedDeliveryId('pickup');
+  }, [product?.deliveryMode]);
+  const checkoutProduct = useMemo(() => {
+    if (!product) return null;
+    const baseProduct = toCheckoutProduct(product);
+    if (!affiliateAttribution || affiliateAttribution.id === user?.uid) return baseProduct;
+    return {
+      ...baseProduct,
+      affiliateRef: affiliateAttribution.id,
+      affiliateLevel: affiliateAttribution.level
+    };
+  }, [affiliateAttribution, product, user?.uid]);
+  const selectedDelivery = product?.deliveryMode === 'pickup'
+    ? deliveryOptions.find((option) => option.id === 'pickup') || deliveryOptions[0]
+    : deliveryOptions.find((option) => option.id === selectedDeliveryId) || deliveryOptions[0];
   const alreadyInCart = Boolean(checkoutProduct && cart.some((item) => item.id === checkoutProduct.id));
   const reviewAverage = reviews.length
     ? reviews.reduce((total, review) => total + review.rating, 0) / reviews.length
     : 0;
   const afriCoinValue = Math.max(1, Math.round(Number(product?.villagePrice || product?.price || 0) * 2));
-  const fppValue = Math.round(Number(product?.villagePrice || product?.price || 0) * 0.03 * 100) / 100;
+  const fppRate = Math.min(Math.max(Number(product?.fppRate || 0), 0), 20);
+  const fppValue = Math.round(Number(product?.villagePrice || product?.price || 0) * (fppRate / 100) * 100) / 100;
   const preferenceProducts = useMemo(() => {
     if (!product) return [];
     const activeWords = [
@@ -280,7 +449,7 @@ export default function ProductDetailScreen() {
   if (loading) {
     return (
       <div className="flex min-h-full flex-col items-center justify-center bg-black px-8 text-center text-white">
-        <AfriSellIcon name="market" size={36} className="text-[#15EA3E]" />
+        <AfriZiaIcon name="market" size={36} className="text-[#15EA3E]" />
         <p className="mt-4 text-sm font-black uppercase tracking-wide">Chargement du produit</p>
       </div>
     );
@@ -290,8 +459,10 @@ export default function ProductDetailScreen() {
     return <EmptyDetail />;
   }
 
-  const isZandofyDigital = Boolean(product.isDigital || product.offerModule === 'Zandofy' || product.category === 'Zandofy');
-  const productDetailPath = isZandofyDigital ? `/zandofy/product/${product.id}` : `/market/${product.id}`;
+  const isZandofyDigital = product.productKind === 'digital' || (
+    product.productKind === undefined && Boolean(product.isDigital || product.offerModule === 'Zandofy' || product.category === 'Zandofy')
+  );
+  const productDetailPath = isZandofyDigital ? getZandofyProductPath(product) : `/market/${product.id}`;
   const digitalMeta = getDigitalMeta(product);
   const productSpec = product.productSpec || {};
   const productShareURL = isZandofyDigital ? getZandofyProductURL(product) : `${window.location.origin}/market/${product.id}`;
@@ -302,34 +473,49 @@ export default function ProductDetailScreen() {
   };
 
   const handleBuy = () => {
-    if (!user) {
-      navigate('/login', { state: { next: productDetailPath } });
-      return;
-    }
-    openCheckout(checkoutProduct, selectedDelivery);
+    openCheckout(checkoutProduct, isZandofyDigital ? null : selectedDelivery);
   };
 
   const handleShareProduct = async () => {
     setStatus('');
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: product.title,
-          text: `${product.title} sur AfriSell`,
-          url: productShareURL
-        });
-      } else {
-        await navigator.clipboard?.writeText(productShareURL);
-        setStatus('Lien du produit copié.');
-      }
+      const result = await shareLink({
+        title: product.title,
+        text: `${product.title} sur AfriZia`,
+        url: productShareURL
+      });
+      setStatus(result === 'copied' ? 'Lien du produit copié.' : 'Produit partagé.');
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
-      setStatus('Partage indisponible. Le lien peut être copié depuis cette page.');
+      setStatus(error instanceof Error ? error.message : 'Partage indisponible.');
+    }
+  };
+
+  const handleShareAffiliate = async (level: 'direct' | 'indirect') => {
+    if (!user || user.isAnonymous) {
+      navigate('/login', { state: { next: productDetailPath } });
+      return;
+    }
+    if (!product.affiliateEnabled) return;
+
+    const affiliateURL = new URL(productShareURL);
+    affiliateURL.searchParams.set('ref', user.uid);
+    affiliateURL.searchParams.set('level', level);
+    try {
+      const result = await shareLink({
+        title: `${product.title} - recommandation`,
+        text: `Découvre ${product.title} sur AfriZia.`,
+        url: affiliateURL.toString()
+      });
+      setStatus(result === 'copied' ? `Lien d’affiliation ${level} copié.` : `Lien d’affiliation ${level} partagé.`);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setStatus(error instanceof Error ? error.message : 'Partage du lien d’affiliation impossible.');
     }
   };
 
   const handleVillageShare = async () => {
-    if (!user) {
+    if (!user || user.isAnonymous) {
       navigate('/login', { state: { next: productDetailPath } });
       return;
     }
@@ -353,7 +539,7 @@ export default function ProductDetailScreen() {
   };
 
   const createPurchaseVillage = async (payAfterCreation = false) => {
-    if (!user) {
+    if (!user || user.isAnonymous) {
       navigate('/login', { state: { next: productDetailPath } });
       return;
     }
@@ -366,7 +552,7 @@ export default function ProductDetailScreen() {
       if (!threadId) throw new Error('Création du Village impossible.');
 
       const now = Date.now();
-      const buyerName = profile?.displayName || user.displayName || 'Client AfriSell';
+      const buyerName = profile?.displayName || user.displayName || 'Client AfriZia';
       const buyerAvatar = profile?.photoURL || user.photoURL || '';
       const title = `Village ${product.title}`;
       const inviteLink = `${window.location.origin}/chat?village=${encodeURIComponent(threadId)}&product=${encodeURIComponent(product.id)}`;
@@ -468,7 +654,7 @@ export default function ProductDetailScreen() {
       setVillageStatus('Village d’achat créé. Il apparaît maintenant dans AfriChat.');
 
       if (payAfterCreation) {
-        openCheckout(checkoutProduct, selectedDelivery);
+        openCheckout(checkoutProduct, isZandofyDigital ? null : selectedDelivery);
       }
     } catch (error) {
       setVillageStatus(error instanceof Error ? error.message : 'Création du Village impossible.');
@@ -478,7 +664,7 @@ export default function ProductDetailScreen() {
   };
 
   const inviteToPurchaseVillage = async () => {
-    if (!user || !purchaseVillage) return;
+    if (!user || user.isAnonymous || !purchaseVillage) return;
     const identifier = normalizeContactValue(inviteValue);
     if (!identifier) {
       setVillageStatus('Entre un email ou un numéro à inviter.');
@@ -509,7 +695,7 @@ export default function ProductDetailScreen() {
       }
 
       const [targetId, targetProfile] = match;
-      const targetName = targetProfile.businessName || targetProfile.displayName || 'Utilisateur AfriSell';
+      const targetName = targetProfile.businessName || targetProfile.displayName || 'Utilisateur AfriZia';
       const updates: Record<string, unknown> = {
         [`chatThreads/${purchaseVillage.threadId}/members/${targetId}`]: true,
         [`chatThreads/${purchaseVillage.threadId}/memberNames/${targetId}`]: targetName,
@@ -562,7 +748,7 @@ export default function ProductDetailScreen() {
   const submitReview = async (event: FormEvent) => {
     event.preventDefault();
     if (!product) return;
-    if (!user) {
+    if (!user || user.isAnonymous) {
       navigate('/login', { state: { next: productDetailPath } });
       return;
     }
@@ -579,7 +765,7 @@ export default function ProductDetailScreen() {
       await set(reviewRef, {
         id: reviewRef.key,
         authorId: user.uid,
-        authorName: profile?.displayName || user.displayName || 'Client AfriSell',
+        authorName: profile?.displayName || user.displayName || 'Client AfriZia',
         rating: reviewRating,
         text,
         createdAt: Date.now()
@@ -591,6 +777,24 @@ export default function ProductDetailScreen() {
       setStatus('Avis impossible pour le moment.');
     } finally {
       setReviewSubmitting(false);
+    }
+  };
+
+  const publishProductToABC = async () => {
+    if (!user || user.isAnonymous || !checkoutProduct || !product) return;
+    if (product.abcPostId) {
+      setStatus('Ce produit est déjà présenté dans ABC.');
+      return;
+    }
+    setAbcPublishing(true);
+    setStatus('');
+    try {
+      const result = await linkProductToABC({ user, product: checkoutProduct });
+      setStatus(`Produit publié dans ABC. Publication ${result.postId.slice(-8).toUpperCase()}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Publication ABC impossible.');
+    } finally {
+      setAbcPublishing(false);
     }
   };
 
@@ -612,7 +816,7 @@ export default function ProductDetailScreen() {
               className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white/72"
               aria-label="Retour"
             >
-              <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+              <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
             </button>
             <div className="min-w-0 text-center">
               <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#15EA3E]">Zandofy</p>
@@ -624,7 +828,7 @@ export default function ProductDetailScreen() {
               className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 text-[#15EA3E]"
               aria-label="Partager"
             >
-              <AfriSellIcon name="share" size={18} />
+              <AfriZiaIcon name="share" size={18} />
             </button>
           </div>
         </header>
@@ -635,7 +839,7 @@ export default function ProductDetailScreen() {
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/18 to-transparent" />
             <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-white/12 bg-black/45 px-3 py-2 backdrop-blur">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#15EA3E] text-black">
-                <AfriSellIcon name={digitalMeta.icon} size={14} />
+                <AfriZiaIcon name={digitalMeta.icon} size={14} />
               </span>
               <span className="text-[9px] font-black uppercase tracking-wider text-white">{digitalMeta.label}</span>
             </div>
@@ -665,20 +869,21 @@ export default function ProductDetailScreen() {
                 { label: 'Livraison', value: product.deliveryMode === 'link' ? 'Lien' : 'Fichier', icon: product.deliveryMode === 'link' ? 'lock' : 'file' },
                 { label: 'Boutique', value: product.storeName || product.authorName, icon: 'market' as const },
                 { label: 'Support', value: 'AfriChat', icon: 'chat' as const }
-              ] as Array<{ label: string; value: string; icon: AfriSellIconName }>).map((item) => (
+              ] as Array<{ label: string; value: string; icon: AfriZiaIconName }>).map((item) => (
                 <div key={item.label} className="rounded-2xl border border-white/10 bg-black/24 p-3 text-center">
-                  <AfriSellIcon name={item.icon} size={16} className="mx-auto text-[#15EA3E]" />
+                  <AfriZiaIcon name={item.icon} size={16} className="mx-auto text-[#15EA3E]" />
                   <p className="mt-2 truncate text-[10px] font-black text-white">{item.value}</p>
                   <p className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-white/36">{item.label}</p>
                 </div>
               ))}
             </div>
+            <PaymentMethodLogos />
           </section>
 
           <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-4">
             <div className="flex items-start gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-                <AfriSellIcon name={digitalMeta.icon} size={21} />
+                <AfriZiaIcon name={digitalMeta.icon} size={21} />
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-black leading-tight">Expérience {digitalMeta.label.toLowerCase()}</h2>
@@ -716,6 +921,49 @@ export default function ProductDetailScreen() {
             </div>
           </section>
 
+          {product.affiliateEnabled && (
+            <section className="mt-4 rounded-[1.6rem] border border-sky-300/18 bg-sky-300/6 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-300 text-black">
+                  <AfriZiaIcon name="share" size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-sm font-black">Recommander ce produit</h2>
+                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/48">Le vendeur rémunère les recommandations selon le niveau choisi.</p>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => void handleShareAffiliate('direct')} className="rounded-2xl border border-white/10 bg-black/22 px-3 py-3 text-left">
+                  <span className="block text-[9px] font-black uppercase tracking-wider text-sky-200">Direct</span>
+                  <span className="mt-1 block text-sm font-black text-white">{product.affiliateDirectRate || 0}%</span>
+                  <span className="mt-1 block text-[9px] font-semibold text-white/38">Partager le lien</span>
+                </button>
+                <button type="button" onClick={() => void handleShareAffiliate('indirect')} className="rounded-2xl border border-white/10 bg-black/22 px-3 py-3 text-left">
+                  <span className="block text-[9px] font-black uppercase tracking-wider text-sky-200">Indirect</span>
+                  <span className="mt-1 block text-sm font-black text-white">{product.affiliateIndirectRate || 0}%</span>
+                  <span className="mt-1 block text-[9px] font-semibold text-white/38">Partager le lien</span>
+                </button>
+              </div>
+            </section>
+          )}
+
+          {product.authorId === user?.uid && (
+            <section className="mt-4 rounded-[1.6rem] border border-[#15EA3E]/18 bg-[#15EA3E]/8 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
+                  <AfriZiaIcon name="video" size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-sm font-black">Présenter dans ABC</h2>
+                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/48">Crée une publication commerce avec ce produit et son bouton Acheter.</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => void publishProductToABC()} disabled={abcPublishing || Boolean(product.abcPostId)} className="mt-3 w-full rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-45">
+                {abcPublishing ? 'Publication...' : product.abcPostId ? 'Déjà présenté dans ABC' : 'Publier dans ABC'}
+              </button>
+            </section>
+          )}
+
           {visibleSpec.length > 0 && (
             <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-4">
               <h2 className="text-sm font-black">Détails du produit</h2>
@@ -736,7 +984,11 @@ export default function ProductDetailScreen() {
               <p className="truncate text-sm font-black">{product.storeName || product.authorName}</p>
               <p className="mt-0.5 text-[11px] font-semibold text-white/42">Boutique Zandofy, support client et catalogue digital.</p>
             </div>
-            <AfriSellIcon name="arrow" size={16} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="arrow" size={16} className="text-[#15EA3E]" />
+          </Link>
+          <Link to={`/chat?contact=${encodeURIComponent(product.authorId)}&name=${encodeURIComponent(product.authorName)}&product=${encodeURIComponent(product.id)}`} className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 py-3 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">
+            <AfriZiaIcon name="chat" size={15} />
+            Ouvrir AfriChat avec le vendeur
           </Link>
 
           <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/[0.045] p-4">
@@ -748,7 +1000,7 @@ export default function ProductDetailScreen() {
                 { label: 'Support', icon: 'shield' as const }
               ].map((item) => (
                 <div key={item.label} className="rounded-2xl border border-white/10 bg-black/20 p-3 text-center">
-                  <AfriSellIcon name={item.icon} size={17} className="mx-auto text-[#15EA3E]" />
+                  <AfriZiaIcon name={item.icon} size={17} className="mx-auto text-[#15EA3E]" />
                   <p className="mt-2 text-[10px] font-black text-white/58">{item.label}</p>
                 </div>
               ))}
@@ -763,7 +1015,7 @@ export default function ProductDetailScreen() {
               </div>
               <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
                 {relatedDigitalProducts.map((item) => (
-                  <Link key={item.id} to={`/zandofy/product/${item.id}`} className="w-[140px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+                  <Link key={item.id} to={getZandofyProductPath(item)} className="w-[140px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
                     <img src={item.coverURL || '/zandofyiconeapp.png'} alt={item.title} className="h-24 w-full object-cover" />
                     <div className="p-2.5">
                       <p className="line-clamp-2 text-[11px] font-black leading-tight">{item.title}</p>
@@ -799,7 +1051,7 @@ export default function ProductDetailScreen() {
               onClick={handleBuy}
               className="h-12 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-widest text-black"
             >
-              Payer AfriSpay
+              Acheter
             </button>
           </div>
         </div>
@@ -817,7 +1069,7 @@ export default function ProductDetailScreen() {
             className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70"
             aria-label="Retour"
           >
-            <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
           </button>
           <p className="truncate text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Détail produit</p>
           <button
@@ -829,7 +1081,7 @@ export default function ProductDetailScreen() {
             )}
             aria-label="Ajouter au panier"
           >
-            <AfriSellIcon name="cart" size={18} />
+            <AfriZiaIcon name="cart" size={18} />
             {cart.length > 0 && (
               <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#15EA3E] px-1 text-[8px] font-black text-black">
                 {cart.length}
@@ -856,7 +1108,7 @@ export default function ProductDetailScreen() {
               <div key={badge.label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
                 <div className="flex items-center gap-2">
                   <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#15EA3E]/10 text-[#15EA3E]">
-                    <AfriSellIcon name={badge.icon} size={15} />
+                    <AfriZiaIcon name={badge.icon} size={15} />
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-[11px] font-black text-white">{badge.value}</p>
@@ -870,7 +1122,7 @@ export default function ProductDetailScreen() {
           <div className="mt-4 rounded-[1.4rem] border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-4">
             <div className="flex items-end justify-between gap-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Prix AfriSell</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Prix AfriZia</p>
                 <p className="mt-1 text-2xl font-black text-white">{formatMarketPrice(product.villagePrice || product.price, product.currency)}</p>
               </div>
               {product.price && product.villagePrice && product.price > product.villagePrice && (
@@ -906,10 +1158,20 @@ export default function ProductDetailScreen() {
           </div>
         </section>
 
+        {product.storeId && product.authorId === user?.uid && (
+          <section className="mt-4 rounded-[1.5rem] border border-[#15EA3E]/18 bg-[#15EA3E]/8 p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#15EA3E] text-black"><AfriZiaIcon name="video" size={18} /></span>
+              <div className="min-w-0 flex-1"><h2 className="text-sm font-black">Présenter dans ABC</h2><p className="mt-1 text-[11px] font-semibold text-white/48">Ce produit sera publié avec son accès Acheter.</p></div>
+            </div>
+            <button type="button" onClick={() => void publishProductToABC()} disabled={abcPublishing || Boolean(product.abcPostId)} className="mt-3 w-full rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-45">{abcPublishing ? 'Publication...' : product.abcPostId ? 'Déjà présenté dans ABC' : 'Publier dans ABC'}</button>
+          </section>
+        )}
+
         <section className="mt-5 rounded-[1.55rem] border border-[#15EA3E]/22 bg-[#071007] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-              <AfriSellIcon name="hub" size={20} />
+              <AfriZiaIcon name="hub" size={20} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Village d’achat</p>
@@ -1017,7 +1279,7 @@ export default function ProductDetailScreen() {
         <Link to={`/market/stand/${product.authorId}`} className="mt-5 block rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4 active:scale-[0.99]">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
-              <AfriSellIcon name="profile" size={19} />
+              <AfriZiaIcon name="profile" size={19} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-black">{product.authorName}</p>
@@ -1036,7 +1298,7 @@ export default function ProductDetailScreen() {
             { label: 'FPP', value: formatMarketPrice(fppValue, product.currency), icon: 'heart' as const }
           ].map((item) => (
             <div key={item.label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-center">
-              <AfriSellIcon name={item.icon} size={17} className="mx-auto text-[#15EA3E]" />
+              <AfriZiaIcon name={item.icon} size={17} className="mx-auto text-[#15EA3E]" />
               <p className="mt-2 truncate text-[11px] font-black text-white">{item.value}</p>
               <p className="mt-0.5 text-[8px] font-bold uppercase tracking-wider text-white/38">{item.label}</p>
             </div>
@@ -1049,7 +1311,7 @@ export default function ProductDetailScreen() {
             <span className="text-[10px] font-bold text-[#15EA3E]">{selectedDelivery.eta}</span>
           </div>
           <div className="space-y-2">
-            {deliveryOptions.map((option) => (
+            {deliveryOptions.filter((option) => product.deliveryMode !== 'pickup' || option.id === 'pickup').map((option) => (
               <button
                 key={option.id}
                 type="button"
@@ -1060,7 +1322,7 @@ export default function ProductDetailScreen() {
                 )}
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-black/30 text-[#15EA3E]">
-                  <AfriSellIcon name={option.price === 0 ? 'check' : 'flash'} size={17} />
+                  <AfriZiaIcon name={option.price === 0 ? 'check' : 'flash'} size={17} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-black text-white">{option.title}</p>
@@ -1093,9 +1355,10 @@ export default function ProductDetailScreen() {
             Paiement direct avec ton wallet AfriSpay. AfriCoin, FPP et vendeur sont notifiés après confirmation.
           </p>
           <div className="mt-3 flex items-center gap-2 rounded-2xl bg-black/35 p-3">
-            <AfriSellIcon name="shield" size={18} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="shield" size={18} className="text-[#15EA3E]" />
             <p className="text-[11px] font-bold text-white/58">Protection commande, livraison suivie et historique conservé.</p>
           </div>
+          <PaymentMethodLogos />
         </section>
 
         <section className="mt-5 rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4">
@@ -1127,7 +1390,7 @@ export default function ProductDetailScreen() {
               </p>
             </div>
             <div className="flex items-center gap-1 text-[#FFD84D]">
-              <AfriSellIcon name="star" size={16} className="fill-current" />
+              <AfriZiaIcon name="star" size={16} className="fill-current" />
               <span className="text-sm font-black">{reviewAverage ? reviewAverage.toFixed(1) : '0.0'}</span>
             </div>
           </div>
@@ -1142,7 +1405,7 @@ export default function ProductDetailScreen() {
                   className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-black/24"
                   aria-label={`Noter ${rating}`}
                 >
-                  <AfriSellIcon name="star" size={15} className={rating <= reviewRating ? 'fill-current text-[#FFD84D]' : 'text-white/25'} />
+                  <AfriZiaIcon name="star" size={15} className={rating <= reviewRating ? 'fill-current text-[#FFD84D]' : 'text-white/25'} />
                 </button>
               ))}
             </div>
@@ -1169,7 +1432,7 @@ export default function ProductDetailScreen() {
                   <div className="flex items-center justify-between gap-3">
                     <p className="truncate text-xs font-black">{review.authorName}</p>
                     <span className="flex items-center gap-1 text-[10px] font-black text-[#FFD84D]">
-                      <AfriSellIcon name="star" size={11} className="fill-current" />
+                      <AfriZiaIcon name="star" size={11} className="fill-current" />
                       {review.rating}
                     </span>
                   </div>
@@ -1224,7 +1487,7 @@ export default function ProductDetailScreen() {
             onClick={handleBuy}
             className="h-12 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-widest text-black"
           >
-            Payer AfriSpay
+            Acheter
           </button>
         </div>
       </div>

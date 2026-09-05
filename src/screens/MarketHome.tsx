@@ -1,7 +1,7 @@
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { MARKET_CATEGORIES, AfriMarketContent, formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { cn } from '../lib/utils';
 
@@ -11,7 +11,7 @@ type MarketChannel = {
   id: string;
   label: string;
   description: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   categories: string[];
   keywords: string[];
   subsections: string[];
@@ -39,7 +39,7 @@ const marketChannels: MarketChannel[] = [
   {
     id: 'all',
     label: 'Tout',
-    description: 'Tout le marché AfriSell',
+    description: 'Tout le marché AfriZia',
     icon: 'market',
     categories: [],
     keywords: [],
@@ -99,7 +99,7 @@ const bannerSlides = [
   {
     image: 'https://res.cloudinary.com/dh0ilegll/image/upload/v1782950736/afrissel/market-banners/portrait-woman-working-dried-flowers-shop.jpg',
     eyebrow: 'Stand créateur',
-    title: 'Transforme ton atelier en vitrine AfriSell.',
+    title: 'Transforme ton atelier en vitrine AfriZia.',
     body: 'Expose tes produits, crée un Village d’achat et vends avec livraison Safari.'
   },
   {
@@ -428,7 +428,7 @@ export default function MarketHome() {
       <div className="sticky top-0 z-40 bg-black/70 px-4 py-3 backdrop-blur-xl">
         <input ref={photoInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoSearch} className="hidden" />
         <div className="flex min-w-0 items-center gap-2 rounded-[1.25rem] border border-[#15EA3E]/18 bg-[#071007]/95 p-2 shadow-[0_18px_38px_rgba(0,0,0,0.34)] transition-colors focus-within:border-[#15EA3E]/55">
-            <AfriSellIcon name="search" size={18} className="shrink-0 text-[#15EA3E]" />
+            <AfriZiaIcon name="search" size={18} className="shrink-0 text-[#15EA3E]" />
             <input
               type="text"
               value={query}
@@ -445,7 +445,7 @@ export default function MarketHome() {
               )}
               aria-label="Recherche vocale"
             >
-              <AfriSellIcon name="mic" size={15} />
+              <AfriZiaIcon name="mic" size={15} />
             </button>
             <button
               type="button"
@@ -456,7 +456,7 @@ export default function MarketHome() {
               )}
               aria-label="Recherche par photo"
             >
-              <AfriSellIcon name="camera" size={15} />
+              <AfriZiaIcon name="camera" size={15} />
             </button>
         </div>
         {searchStatus && (
@@ -486,7 +486,7 @@ export default function MarketHome() {
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 text-white/45"
                     aria-label="Fermer la recherche image"
                   >
-                    <AfriSellIcon name="close" size={13} />
+                    <AfriZiaIcon name="close" size={13} />
                   </button>
                 </div>
                 <div className="mt-2 flex gap-2">
@@ -677,7 +677,7 @@ export default function MarketHome() {
             <div className="relative z-10 flex gap-4">
               <div className="min-w-0 flex-1">
                 <div className="inline-flex items-center gap-2 rounded-full bg-[#15EA3E] px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-black">
-                  <AfriSellIcon name="flash" size={12} />
+                  <AfriZiaIcon name="flash" size={12} />
                   Offre à ne pas manquer
                 </div>
                 <h2 className="mt-3 line-clamp-2 text-lg font-black leading-tight text-white">{featuredProduct.title}</h2>
@@ -760,7 +760,7 @@ export default function MarketHome() {
 
       {loading ? (
         <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-          <AfriSellIcon name="market" size={36} className="text-[#15EA3E]" />
+          <AfriZiaIcon name="market" size={36} className="text-[#15EA3E]" />
           <p className="mt-4 text-sm font-black uppercase tracking-wide text-white">Chargement du marché</p>
         </div>
       ) : filteredProducts.length ? (
@@ -772,7 +772,7 @@ export default function MarketHome() {
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center px-8 pb-24 text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-gray-800 bg-[#050505] text-[#15EA3E]">
-            <AfriSellIcon name="market" size={28} />
+            <AfriZiaIcon name="market" size={28} />
           </div>
           <h3 className="mt-5 text-lg font-black text-white">Aucune offre trouvée</h3>
           <p className="mt-2 text-sm leading-relaxed text-gray-500">

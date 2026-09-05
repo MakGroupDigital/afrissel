@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { onValue, ref } from 'firebase/database';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { realtimeDb } from '../lib/firebase';
-import { AFRISELL_MAIN_LOGO } from '../lib/branding';
+import { AFRIZIA_MAIN_LOGO } from '../lib/branding';
 
 type OfferSectionId = 'restauration' | 'event' | 'immo';
 
@@ -46,13 +46,13 @@ const sections: Record<OfferSectionId, {
   body: string;
   emptyTitle: string;
   emptyBody: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   keywords: string[];
 }> = {
   restauration: {
     title: 'Restauration',
     eyebrow: 'Offres alimentaires',
-    body: 'Restaurants, traiteurs, snacks et services food publies par des entreprises AfriSell.',
+    body: 'Restaurants, traiteurs, snacks et services food publies par des entreprises AfriZia.',
     emptyTitle: 'Aucune offre restauration',
     emptyBody: "Les entreprises de restauration apparaîtront ici dès qu'elles publient une offre.",
     icon: 'market',
@@ -112,9 +112,9 @@ const normalizeProvider = (id: string, profile: RawUserProfile, keywords: string
 
   return {
     id,
-    name: getText(profile.businessName) || getText(profile.displayName) || 'Entreprise AfriSell',
-    avatar: getText(profile.logoURL) || getText(profile.photoURL) || AFRISELL_MAIN_LOGO,
-    city: getText(profile.city) || getText(profile.country) || 'AfriSell',
+    name: getText(profile.businessName) || getText(profile.displayName) || 'Entreprise AfriZia',
+    avatar: getText(profile.logoURL) || getText(profile.photoURL) || AFRIZIA_MAIN_LOGO,
+    city: getText(profile.city) || getText(profile.country) || 'AfriZia',
     role: getText(matchedAccount?.serviceLabel) || getText(matchedAccount?.segmentLabel) || 'Service'
   };
 };
@@ -157,14 +157,14 @@ export default function QuickActionOffersScreen() {
     <main className="min-h-full bg-[#050705] px-4 pb-24 pt-4 text-white">
       <header className="flex items-center justify-between">
         <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]">
-          <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
         </button>
         <div className="text-center">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{section.eyebrow}</p>
           <h1 className="text-lg font-black">{section.title}</h1>
         </div>
         <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 text-[#15EA3E]">
-          <AfriSellIcon name={section.icon} size={18} />
+          <AfriZiaIcon name={section.icon} size={18} />
         </div>
       </header>
 
@@ -199,7 +199,7 @@ export default function QuickActionOffersScreen() {
         <h2 className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/48">Offres</h2>
         {loading ? (
           <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
-            <AfriSellIcon name={section.icon} size={30} className="text-[#15EA3E]" />
+            <AfriZiaIcon name={section.icon} size={30} className="text-[#15EA3E]" />
             <p className="mt-3 text-xs font-black uppercase tracking-wider text-white/55">Chargement</p>
           </div>
         ) : offers.length ? (
@@ -217,7 +217,7 @@ export default function QuickActionOffersScreen() {
         ) : (
           <div className="flex min-h-[320px] flex-col items-center justify-center rounded-[1.7rem] border border-white/10 bg-white/[0.035] px-8 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-[#15EA3E]/20 bg-[#15EA3E]/10 text-[#15EA3E]">
-              <AfriSellIcon name={section.icon} size={26} />
+              <AfriZiaIcon name={section.icon} size={26} />
             </div>
             <h3 className="mt-5 text-lg font-black">{section.emptyTitle}</h3>
             <p className="mt-2 text-sm font-semibold leading-relaxed text-white/45">{section.emptyBody}</p>

@@ -33,7 +33,7 @@ export async function createTéléconsultationRequest(input: TéléconsultationI
   const payload = {
     id: requestId,
     userId: input.user.uid,
-    userName: input.user.displayName || 'Patient AfriSell',
+    userName: input.user.displayName || 'Patient AfriZia',
     userAvatar: input.user.photoURL || '',
     need: cleanText(input.need, 'Besoin medical'),
     city: cleanText(input.city, 'Ville'),

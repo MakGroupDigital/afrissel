@@ -86,7 +86,7 @@ export default defineConfig(({mode}) => {
 
             try {
               const body = await readJsonBody(req);
-              const resourceType = body.resourceType === 'video' ? 'video' : body.resourceType === 'image' ? 'image' : '';
+              const resourceType = ['video', 'image', 'raw'].includes(body.resourceType) ? body.resourceType : '';
 
               if (!resourceType) {
                 res.statusCode = 400;

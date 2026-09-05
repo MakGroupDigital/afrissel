@@ -1,4 +1,4 @@
-import { AFRISELL_MAIN_LOGO } from '../lib/branding';
+import { AFRIZIA_MAIN_LOGO } from '../lib/branding';
 
 export type EcosystemModule = {
   id: string;
@@ -26,7 +26,7 @@ export const ecosystemModules: EcosystemModule[] = [
   },
   {
     id: 'market',
-    name: 'AfriSell Market',
+    name: 'AfriZia Market',
     shortName: 'Market',
     description: 'Catalogue, prix village et achat groupé pour negocier par la communauté.',
     promise: 'E-commerce groupé',
@@ -119,7 +119,7 @@ export const ecosystemModules: EcosystemModule[] = [
     description: 'Assistant vocal, recherche, traduction et aide intelligente.',
     promise: 'IA vocale',
     route: '/afriai',
-    logo: AFRISELL_MAIN_LOGO,
+    logo: AFRIZIA_MAIN_LOGO,
     status: 'Bientôt',
     category: 'engagement',
   },
@@ -130,7 +130,7 @@ export const ecosystemModules: EcosystemModule[] = [
     description: 'Contribution sociale transparente pour education, santé et paix.',
     promise: 'Impact',
     route: '/fpp',
-    logo: AFRISELL_MAIN_LOGO,
+    logo: AFRIZIA_MAIN_LOGO,
     status: 'Bientôt',
     category: 'impact',
   },

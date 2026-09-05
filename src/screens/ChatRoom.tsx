@@ -1,11 +1,12 @@
 import React, { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { get, off, onValue, push, ref, runTransaction, serverTimestamp, set, update } from 'firebase/database';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { AfriChatContact, AfriChatMessage, AfriChatThread, formatChatTime, useAfriChat } from '../hooks/useAfriChat';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { isCloudinaryReady, uploadMediaToCloudinary } from '../lib/cloudinary';
 import { realtimeDb } from '../lib/firebase';
+import { getMediaFileKind } from '../lib/mediaFile';
 import { cn } from '../lib/utils';
 
 type ChatSpace = 'chat' | 'story' | 'village' | 'call';
@@ -119,7 +120,7 @@ const getThreadParticipantId = (thread: AfriChatThread, currentUserId?: string |
     .find((part) => part && part !== currentUserId && !part.startsWith('device_')) || '';
 };
 
-const chatSpaces: Array<{ id: ChatSpace; label: string; icon: AfriSellIconName }> = [
+const chatSpaces: Array<{ id: ChatSpace; label: string; icon: AfriZiaIconName }> = [
   { id: 'chat', label: 'Chat', icon: 'chat' },
   { id: 'story', label: 'Story', icon: 'video' },
   { id: 'village', label: 'Village', icon: 'hub' },
@@ -166,11 +167,11 @@ function Avatar({ title, src, size = 'md' }: { title: string; src?: string; size
   );
 }
 
-function EmptyState({ icon, title, body }: { icon: AfriSellIconName; title: string; body: string }) {
+function EmptyState({ icon, title, body }: { icon: AfriZiaIconName; title: string; body: string }) {
   return (
     <div className="flex min-h-[260px] flex-col items-center justify-center px-8 text-center">
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-800 bg-[#0A0A0A] text-gray-400">
-        <AfriSellIcon name={icon} size={24} />
+        <AfriZiaIcon name={icon} size={24} />
       </div>
       <h3 className="text-sm font-black uppercase tracking-wide text-white">{title}</h3>
       <p className="mt-2 max-w-[260px] text-xs leading-relaxed text-gray-500">{body}</p>
@@ -178,13 +179,13 @@ function EmptyState({ icon, title, body }: { icon: AfriSellIconName; title: stri
   );
 }
 
-function ChatSpaceIcon({ id, icon, active }: { id: ChatSpace; icon: AfriSellIconName; active: boolean }) {
+function ChatSpaceIcon({ id, icon, active }: { id: ChatSpace; icon: AfriZiaIconName; active: boolean }) {
   return (
     <span className={cn(
       'relative flex h-8 w-8 items-center justify-center rounded-full transition-all',
       active ? 'text-[#15EA3E]' : 'text-white/42'
     )}>
-      <AfriSellIcon name={icon} size={18} />
+      <AfriZiaIcon name={icon} size={18} />
     </span>
   );
 }
@@ -264,7 +265,7 @@ function ContactRow({ contact, onOpen, disabled = false }: { key?: React.Key; co
         <p className="mt-1 truncate text-xs text-gray-500">{contact.status || 'Disponible sur AfriChat'}</p>
       </div>
       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#15EA3E]/10 text-[#15EA3E]">
-        <AfriSellIcon name={disabled ? 'check' : 'send'} size={17} />
+        <AfriZiaIcon name={disabled ? 'check' : 'send'} size={17} />
       </div>
     </button>
   );
@@ -274,8 +275,8 @@ function MessageStatusTicks({ status }: { status?: AfriChatMessage['status'] }) 
   if (status === 'read') {
     return (
       <span className="relative inline-flex w-4 text-[#15EA3E]" aria-label="Lu">
-        <AfriSellIcon name="check" size={12} className="absolute left-0" />
-        <AfriSellIcon name="check" size={12} className="absolute left-1.5" />
+        <AfriZiaIcon name="check" size={12} className="absolute left-0" />
+        <AfriZiaIcon name="check" size={12} className="absolute left-1.5" />
       </span>
     );
   }
@@ -283,8 +284,8 @@ function MessageStatusTicks({ status }: { status?: AfriChatMessage['status'] }) 
   if (status === 'delivered') {
     return (
       <span className="relative inline-flex w-4 text-white/48" aria-label="Envoye">
-        <AfriSellIcon name="check" size={12} className="absolute left-0" />
-        <AfriSellIcon name="check" size={12} className="absolute left-1.5" />
+        <AfriZiaIcon name="check" size={12} className="absolute left-0" />
+        <AfriZiaIcon name="check" size={12} className="absolute left-1.5" />
       </span>
     );
   }
@@ -292,14 +293,14 @@ function MessageStatusTicks({ status }: { status?: AfriChatMessage['status'] }) 
   if (status === 'sent') {
     return (
       <span aria-label="Envoyé" className="inline-flex text-white/48">
-        <AfriSellIcon name="check" size={12} />
+        <AfriZiaIcon name="check" size={12} />
       </span>
     );
   }
 
   return (
     <span aria-label="En attente" className="inline-flex text-white/40">
-      <AfriSellIcon name="check" size={12} />
+      <AfriZiaIcon name="check" size={12} />
     </span>
   );
 }
@@ -358,7 +359,7 @@ function VoiceLineMessage({ src, isMine }: { src: string; isMine: boolean }) {
         )}
         aria-label={playing ? 'Mettre le vocal en pause' : 'Lire le vocal'}
       >
-        <AfriSellIcon name={playing ? 'signal' : 'play'} size={14} className={playing ? undefined : 'translate-x-[1px]'} />
+        <AfriZiaIcon name={playing ? 'signal' : 'play'} size={14} className={playing ? undefined : 'translate-x-[1px]'} />
       </button>
       <button type="button" onClick={togglePlay} className="min-w-0 flex-1" aria-label="Lire le message vocal">
         <div className="flex h-9 items-center gap-[3px]">
@@ -435,7 +436,7 @@ function MessageBubble({
   const isAudio = message.type === 'audio' && message.mediaUrl;
   const isFile = message.type === 'file';
   const isLocation = message.type === 'location';
-  const badgeIcon: AfriSellIconName = message.type === 'kiss'
+  const badgeIcon: AfriZiaIconName = message.type === 'kiss'
     ? 'kiss'
     : message.type === 'payment'
       ? 'pay'
@@ -472,14 +473,14 @@ function MessageBubble({
       )}>
         {messageBadge && (
           <div className="mb-2 flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-2 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-[#15EA3E]">
-            <AfriSellIcon name={badgeIcon} size={12} />
+            <AfriZiaIcon name={badgeIcon} size={12} />
             {messageBadge}
           </div>
         )}
         {isKiss ? (
           <div className="flex items-center gap-3">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black shadow-[0_0_26px_rgba(21,234,62,0.45)]">
-              <AfriSellIcon name="kiss" size={24} />
+              <AfriZiaIcon name="kiss" size={24} />
             </span>
             <span className="min-w-0">
               <span className="block text-sm font-black">Bisous reçu</span>
@@ -510,7 +511,7 @@ function MessageBubble({
             }}
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/8 text-[#15EA3E]">
-              <AfriSellIcon name="file" size={18} />
+              <AfriZiaIcon name="file" size={18} />
             </span>
             <span className="min-w-0">
               <span className="block truncate text-sm font-black">{message.fileName || message.text}</span>
@@ -520,7 +521,7 @@ function MessageBubble({
         ) : isLocation ? (
           <a href={message.text.replace('Position partagée: ', '')} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black">
-              <AfriSellIcon name="location" size={18} />
+              <AfriZiaIcon name="location" size={18} />
             </span>
             <span className="min-w-0">
               <span className="block text-sm font-black">Position partagée</span>
@@ -553,7 +554,7 @@ function MessageBubble({
               onClick={() => setShowTranslation((current) => !current)}
               className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-black/18 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-white/55"
             >
-              <AfriSellIcon name="language" size={11} />
+              <AfriZiaIcon name="language" size={11} />
               {showTranslation ? 'Masquer' : 'Traduire'}
             </button>
           )}
@@ -581,7 +582,7 @@ function KissEffectOverlay({ effectKey }: { effectKey: number }) {
             animation: `story-kiss-float ${1300 + (index % 6) * 120}ms ease-out ${index * 38}ms forwards`
           }}
         >
-          <AfriSellIcon name="kiss" size={17} />
+          <AfriZiaIcon name="kiss" size={17} />
         </div>
       ))}
     </div>
@@ -590,11 +591,11 @@ function KissEffectOverlay({ effectKey }: { effectKey: number }) {
 
 function ChatSettingsSheet({ onClose, onOpenScanner }: { onClose: () => void; onOpenScanner: () => void }) {
   const settings = [
-    { icon: 'notifications' as AfriSellIconName, title: 'Notifications', body: 'Gérer les alertes des chats, groupes, villages, appels et stories.' },
-    { icon: 'shield' as AfriSellIconName, title: 'Confidentialité', body: "Contrôle qui peut te contacter, voir tes stories et t'inviter dans un Village." },
-    { icon: 'language' as AfriSellIconName, title: 'Traduction', body: 'Préparer la traduction instantanée des conversations AfriChat.' },
-    { icon: 'offline' as AfriSellIconName, title: 'Mode offline', body: 'Les messages en attente restent visibles avec un seul trait.' },
-    { icon: 'scan' as AfriSellIconName, title: 'Scanner utilisateur', body: 'Scanner un QR AfriChat depuis les paramètres.', action: onOpenScanner }
+    { icon: 'notifications' as AfriZiaIconName, title: 'Notifications', body: 'Gérer les alertes des chats, groupes, villages, appels et stories.' },
+    { icon: 'shield' as AfriZiaIconName, title: 'Confidentialité', body: "Contrôle qui peut te contacter, voir tes stories et t'inviter dans un Village." },
+    { icon: 'language' as AfriZiaIconName, title: 'Traduction', body: 'Préparer la traduction instantanée des conversations AfriChat.' },
+    { icon: 'offline' as AfriZiaIconName, title: 'Mode offline', body: 'Les messages en attente restent visibles avec un seul trait.' },
+    { icon: 'scan' as AfriZiaIconName, title: 'Scanner utilisateur', body: 'Scanner un QR AfriChat depuis les paramètres.', action: onOpenScanner }
   ];
 
   return (
@@ -606,7 +607,7 @@ function ChatSettingsSheet({ onClose, onOpenScanner }: { onClose: () => void; on
             <h2 className="mt-1 text-lg font-black text-white">Parametres</h2>
           </div>
           <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/55">
-            <AfriSellIcon name="close" size={14} />
+            <AfriZiaIcon name="close" size={14} />
           </button>
         </div>
         <div className="grid gap-2">
@@ -621,7 +622,7 @@ function ChatSettingsSheet({ onClose, onOpenScanner }: { onClose: () => void; on
               className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#15EA3E]/10 text-[#15EA3E]">
-                <AfriSellIcon name={item.icon} size={17} />
+                <AfriZiaIcon name={item.icon} size={17} />
               </span>
               <span className="min-w-0">
                 <span className="block text-xs font-black text-white">{item.title}</span>
@@ -924,7 +925,7 @@ export default function ChatRoom() {
         alreadyViewed = Boolean(current);
         return current || {
           viewerId: user.uid,
-          viewerName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+          viewerName: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
           viewedAt: Date.now()
         };
       });
@@ -982,7 +983,7 @@ export default function ChatRoom() {
       const kissRef = push(ref(realtimeDb, `chatStoryKisses/${story.authorId}/${story.id}`));
       const contact: AfriChatContact = {
         id: story.authorId,
-        displayName: story.authorName || 'Utilisateur AfriSell',
+        displayName: story.authorName || 'Utilisateur AfriZia',
         avatarURL: story.authorAvatar,
         status: 'Story AfriChat'
       };
@@ -992,7 +993,7 @@ export default function ChatRoom() {
         [`chatStoryKisses/${story.authorId}/${story.id}/${kissRef.key}`]: {
           id: kissRef.key,
           senderId: user.uid,
-          senderName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+          senderName: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
           createdAt: Date.now(),
           updatedAt: serverTimestamp()
         }
@@ -1023,7 +1024,7 @@ export default function ChatRoom() {
     try {
       const contact: AfriChatContact = {
         id: activeStory.authorId,
-        displayName: activeStory.authorName || 'Utilisateur AfriSell',
+        displayName: activeStory.authorName || 'Utilisateur AfriZia',
         avatarURL: activeStory.authorAvatar,
         status: 'Story AfriChat'
       };
@@ -1178,8 +1179,8 @@ export default function ChatRoom() {
 
     const contact: AfriChatContact = {
       id: contactId,
-      displayName: params.get('name') || 'Freelance AfriSell',
-      status: params.get('status') || 'Disponible sur AfriSell',
+      displayName: params.get('name') || 'Freelance AfriZia',
+      status: params.get('status') || 'Disponible sur AfriZia',
       avatarURL: params.get('avatar') || undefined
     };
 
@@ -1343,7 +1344,7 @@ export default function ChatRoom() {
     try {
       const match = knownMatch || await findUserByIdentifier(cleanIdentifier);
       if (!match) {
-        setContactsStatus('Aucun utilisateur AfriSell trouvé avec cet identifiant.');
+        setContactsStatus('Aucun utilisateur AfriZia trouvé avec cet identifiant.');
         return;
       }
       if (match.id === user.uid) {
@@ -1351,9 +1352,9 @@ export default function ChatRoom() {
         return;
       }
 
-      const displayName = match.profile.businessName || match.profile.displayName || 'Utilisateur AfriSell';
+      const displayName = match.profile.businessName || match.profile.displayName || 'Utilisateur AfriZia';
       const avatarURL = match.profile.logoURL || match.profile.photoURL || '';
-      const currentUserName = profile?.displayName || user.displayName || 'Utilisateur AfriSell';
+      const currentUserName = profile?.displayName || user.displayName || 'Utilisateur AfriZia';
       const currentUserAvatar = profile?.photoURL || user.photoURL || '';
       const now = Date.now();
       const updates: Record<string, unknown> = {
@@ -1394,7 +1395,7 @@ export default function ChatRoom() {
     if (!user || !activeThread || activeThread.type !== 'village') return;
     const cleanIdentifier = extractContactIdentifier(villageInviteValue);
     if (!cleanIdentifier) {
-      showActionStatus('Entre un email, un numéro ou un identifiant AfriSell.');
+      showActionStatus('Entre un email, un numéro ou un identifiant AfriZia.');
       return;
     }
 
@@ -1424,7 +1425,7 @@ export default function ChatRoom() {
         return;
       }
 
-      const displayName = match.profile.businessName || match.profile.displayName || 'Utilisateur AfriSell';
+      const displayName = match.profile.businessName || match.profile.displayName || 'Utilisateur AfriZia';
       const avatarURL = match.profile.logoURL || match.profile.photoURL || '';
       const now = Date.now();
       const messageRef = push(ref(realtimeDb, `chatMessages/${activeThread.id}`));
@@ -1483,7 +1484,7 @@ export default function ChatRoom() {
   const acceptContactRequest = async (request: ContactRequest) => {
     if (!user) return;
 
-    const currentUserName = profile?.displayName || user.displayName || 'Utilisateur AfriSell';
+    const currentUserName = profile?.displayName || user.displayName || 'Utilisateur AfriZia';
     const currentUserAvatar = profile?.photoURL || user.photoURL || '';
     const updates: Record<string, unknown> = {
       [`chatContactRequests/${user.uid}/${request.fromId}/status`]: 'accepted',
@@ -1561,7 +1562,7 @@ export default function ChatRoom() {
       }
 
       const detector = new BarcodeDetector({ formats: ['qr_code'] });
-      setQrStatus('Place le QR AfriSell dans le cadre.');
+      setQrStatus('Place le QR AfriZia dans le cadre.');
       qrScanTimerRef.current = window.setInterval(() => {
         const video = qrVideoRef.current;
         if (!video || !video.videoWidth) return;
@@ -1584,7 +1585,7 @@ export default function ChatRoom() {
     event.target.value = '';
     if (!file) return;
 
-    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+    if (!getMediaFileKind(file)) {
       setStoryStatus('Choisis une image ou une vidéo.');
       return;
     }
@@ -1618,7 +1619,7 @@ export default function ChatRoom() {
       await set(storyRef, {
         id: storyRef.key,
         authorId: user.uid,
-        authorName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        authorName: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
         authorAvatar: profile?.photoURL || user.photoURL || '',
         caption: storyCaption.trim(),
         mediaUrl: upload.secureUrl || upload.mediaUrl,
@@ -1831,7 +1832,8 @@ export default function ChatRoom() {
   const sendChatAttachment = async (file: File) => {
     if (!activeThread || !user || attaching) return;
 
-    const isMedia = file.type.startsWith('image/') || file.type.startsWith('video/');
+    const mediaKind = getMediaFileKind(file);
+    const isMedia = Boolean(mediaKind);
     setAttaching(true);
     clearActionStatus();
 
@@ -1845,7 +1847,7 @@ export default function ChatRoom() {
         if (!mediaUrl) {
           throw new Error('Fichier trop lourd pour l’envoi local. Active Cloudinary ou choisis un média plus léger.');
         }
-        const messageType = (upload?.resourceType || (file.type.startsWith('video/') ? 'video' : 'image')) === 'video' ? 'video' : 'image';
+        const messageType = (upload?.resourceType || mediaKind) === 'video' ? 'video' : 'image';
         await sendMessage(
           activeThread,
           `${messageType === 'video' ? 'Vidéo' : 'Photo'}: ${file.name}`,
@@ -1930,7 +1932,7 @@ export default function ChatRoom() {
         nextSpace: 'chat' as ChatSpace
       },
       support: {
-        title: 'Support AfriSell',
+        title: 'Support AfriZia',
         status: 'Assistance',
         nextSpace: 'chat' as ChatSpace
       }
@@ -2001,7 +2003,7 @@ export default function ChatRoom() {
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-[#0A0A0A] hover:text-white"
               aria-label="Retour aux discussions"
             >
-              <AfriSellIcon name="arrow" size={20} className="rotate-180" />
+              <AfriZiaIcon name="arrow" size={20} className="rotate-180" />
             </button>
             <button
               type="button"
@@ -2023,7 +2025,7 @@ export default function ChatRoom() {
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-900 bg-[#050505] text-gray-400"
             aria-label="Infos discussion"
           >
-            <AfriSellIcon name="shield" size={18} />
+            <AfriZiaIcon name="shield" size={18} />
           </button>
         </div>
 
@@ -2037,10 +2039,10 @@ export default function ChatRoom() {
                 <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.86),rgba(0,0,0,0.5)),radial-gradient(circle_at_12%_20%,rgba(21,234,62,0.28),transparent_36%)]" />
                 <div className="relative z-10 flex items-start gap-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.25rem_0.75rem_1.25rem_0.75rem] bg-[#15EA3E] text-black">
-                    <AfriSellIcon name="hub" size={21} />
+                    <AfriZiaIcon name="hub" size={21} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">{activeThread.status || 'Village AfriSell'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">{activeThread.status || 'Village AfriZia'}</p>
                     <h2 className="mt-1 line-clamp-2 text-lg font-black leading-tight text-white">{activeThread.title}</h2>
                     <p className="mt-1 line-clamp-2 text-xs font-semibold leading-relaxed text-white/55">
                       {activeThread.productName || 'Espace collectif pour acheter, inviter, organiser et suivre les décisions du Village.'}
@@ -2223,7 +2225,7 @@ export default function ChatRoom() {
               onClick={translateDraft}
               className={cn('flex items-center gap-1.5', translationEnabled ? 'text-[#15EA3E]' : 'text-gray-500')}
             >
-              <AfriSellIcon name="language" size={13} />
+              <AfriZiaIcon name="language" size={13} />
               <span className="text-[10px] font-bold uppercase tracking-wider">{translationEnabled ? 'Traduction active' : 'Traduction'}</span>
             </button>
             <span className="text-[10px] font-bold uppercase tracking-wider text-gray-700">
@@ -2233,11 +2235,11 @@ export default function ChatRoom() {
           {showAttachmentMenu && (
             <div className="grid grid-cols-5 gap-2 rounded-2xl border border-white/10 bg-white/[0.035] p-2">
               {[
-                { label: 'Caméra', icon: 'camera' as AfriSellIconName, onClick: () => chatCameraInputRef.current?.click() },
-                { label: 'Galerie', icon: 'gallery' as AfriSellIconName, onClick: () => chatGalleryInputRef.current?.click() },
-                { label: 'Fichier', icon: 'file' as AfriSellIconName, onClick: () => chatFileInputRef.current?.click() },
-                { label: 'Contact', icon: 'contact' as AfriSellIconName, onClick: () => setShowAddContactPanel(true) },
-                { label: 'Position', icon: 'location' as AfriSellIconName, onClick: () => void shareCurrentLocation() }
+                { label: 'Caméra', icon: 'camera' as AfriZiaIconName, onClick: () => chatCameraInputRef.current?.click() },
+                { label: 'Galerie', icon: 'gallery' as AfriZiaIconName, onClick: () => chatGalleryInputRef.current?.click() },
+                { label: 'Fichier', icon: 'file' as AfriZiaIconName, onClick: () => chatFileInputRef.current?.click() },
+                { label: 'Contact', icon: 'contact' as AfriZiaIconName, onClick: () => setShowAddContactPanel(true) },
+                { label: 'Position', icon: 'location' as AfriZiaIconName, onClick: () => void shareCurrentLocation() }
               ].map((action) => (
                 <button
                   key={action.label}
@@ -2249,7 +2251,7 @@ export default function ChatRoom() {
                   disabled={attaching}
                   className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl px-1 py-2 text-white/65 transition-colors hover:text-[#15EA3E] disabled:opacity-45"
                 >
-                  <AfriSellIcon name={action.icon} size={18} />
+                  <AfriZiaIcon name={action.icon} size={18} />
                   <span className="max-w-full truncate text-[8px] font-black uppercase tracking-[0.06em]">{action.label}</span>
                 </button>
               ))}
@@ -2397,7 +2399,7 @@ export default function ChatRoom() {
               )}
               aria-label="Actions AfriChat"
             >
-              <AfriSellIcon name="plus" size={18} />
+              <AfriZiaIcon name="plus" size={18} />
             </button>
             <div className="flex min-h-[44px] flex-1 items-center overflow-hidden rounded-xl border border-gray-800 bg-[#0A0A0A] px-4 transition-colors focus-within:border-[#15EA3E]/50">
               <textarea
@@ -2427,7 +2429,7 @@ export default function ChatRoom() {
               )}
               aria-label={recordingVoice ? 'Terminer le vocal' : 'Enregistrer un message vocal'}
             >
-              <AfriSellIcon name={recordingVoice ? 'check' : 'mic'} size={18} />
+              <AfriZiaIcon name={recordingVoice ? 'check' : 'mic'} size={18} />
             </button>
             <button
               type="submit"
@@ -2435,7 +2437,7 @@ export default function ChatRoom() {
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-gray-800 disabled:text-gray-500"
               aria-label="Envoyer"
             >
-              <AfriSellIcon name="send" size={18} className="translate-x-[1px]" />
+              <AfriZiaIcon name="send" size={18} className="translate-x-[1px]" />
             </button>
           </div>
         </form>
@@ -2452,7 +2454,7 @@ export default function ChatRoom() {
                   </div>
                 </div>
                 <button type="button" onClick={() => setShowConversationPanel(false)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/55">
-                  <AfriSellIcon name="close" size={14} />
+                  <AfriZiaIcon name="close" size={14} />
                 </button>
               </div>
 
@@ -2468,7 +2470,7 @@ export default function ChatRoom() {
                       }}
                       className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
                     >
-                      <AfriSellIcon name="share" size={17} className="text-[#15EA3E]" />
+                      <AfriZiaIcon name="share" size={17} className="text-[#15EA3E]" />
                       <span className="text-xs font-black text-white">Copier le lien du Village</span>
                     </button>
                     <button
@@ -2479,7 +2481,7 @@ export default function ChatRoom() {
                       }}
                       className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
                     >
-                      <AfriSellIcon name="contact" size={17} className="text-[#15EA3E]" />
+                      <AfriZiaIcon name="contact" size={17} className="text-[#15EA3E]" />
                       <span className="text-xs font-black text-white">Ajouter un membre</span>
                     </button>
                     <button
@@ -2490,7 +2492,7 @@ export default function ChatRoom() {
                       }}
                       className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
                     >
-                      <AfriSellIcon name="market" size={17} className="text-[#15EA3E]" />
+                      <AfriZiaIcon name="market" size={17} className="text-[#15EA3E]" />
                       <span className="text-xs font-black text-white">Voir le produit du Village</span>
                     </button>
                   </>
@@ -2504,7 +2506,7 @@ export default function ChatRoom() {
                     }}
                     className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
                   >
-                    <AfriSellIcon name="profile" size={17} className="text-[#15EA3E]" />
+                    <AfriZiaIcon name="profile" size={17} className="text-[#15EA3E]" />
                     <span className="text-xs font-black text-white">Voir le profil public</span>
                   </button>
                 )}
@@ -2513,7 +2515,7 @@ export default function ChatRoom() {
                   onClick={() => showActionStatus(isActiveVillage ? 'Gestion du Village disponible dans le panneau et les actions rapides.' : 'Gestion avancée de la conversation en préparation.', 'success', true)}
                   className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
                 >
-                  <AfriSellIcon name="shield" size={17} className="text-[#15EA3E]" />
+                  <AfriZiaIcon name="shield" size={17} className="text-[#15EA3E]" />
                   <span className="text-xs font-black text-white">Gérer la conversation</span>
                 </button>
                 <button
@@ -2524,7 +2526,7 @@ export default function ChatRoom() {
                   }}
                   className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left"
                 >
-                  <AfriSellIcon name="account" size={17} className="text-[#15EA3E]" />
+                  <AfriZiaIcon name="account" size={17} className="text-[#15EA3E]" />
                   <span className="text-xs font-black text-white">Paramètres AfriChat</span>
                 </button>
               </div>
@@ -2546,36 +2548,36 @@ export default function ChatRoom() {
                   <h2 className="mt-1 text-lg font-black text-white">Ajouter à AfriChat</h2>
                 </div>
                 <button type="button" onClick={() => setShowAddContactPanel(false)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/55">
-                  <AfriSellIcon name="close" size={14} />
+                  <AfriZiaIcon name="close" size={14} />
                 </button>
               </div>
               <label className="flex h-12 items-center gap-3 rounded-2xl border border-white/10 bg-black/35 px-3">
-                <AfriSellIcon name="mail" size={16} className="text-white/35" />
+                <AfriZiaIcon name="mail" size={16} className="text-white/35" />
                 <input
                   value={manualContactValue}
                   onChange={(event) => setManualContactValue(event.target.value)}
-                  placeholder="Email, numéro ou code QR AfriSell"
+                  placeholder="Email, numéro ou code QR AfriZia"
                   className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-white outline-none placeholder:text-white/28"
                 />
               </label>
               {manualLookupLoading && (
                 <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white/45">
-                  Recherche dans AfriSell...
+                  Recherche dans AfriZia...
                 </p>
               )}
               {manualLookupResult && (
                 <div className="mt-3 rounded-[1.35rem] border border-[#15EA3E]/20 bg-[#071007] p-3">
                   <div className="flex items-center gap-3">
                     <Avatar
-                      title={manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriSell'}
+                      title={manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriZia'}
                       src={manualLookupResult.profile.logoURL || manualLookupResult.profile.photoURL}
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-black text-white">
-                        {manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriSell'}
+                        {manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriZia'}
                       </p>
                       <p className="mt-1 truncate text-[10px] font-semibold text-white/45">
-                        {manualLookupResult.profile.email || manualLookupResult.profile.phone || 'Profil AfriSell'}
+                        {manualLookupResult.profile.email || manualLookupResult.profile.phone || 'Profil AfriZia'}
                       </p>
                     </div>
                   </div>
@@ -2621,7 +2623,7 @@ export default function ChatRoom() {
               onClick={handlePrimaryChatAction}
               aria-label="Créer dans AfriChat"
             >
-              <AfriSellIcon name="plus" size={17} />
+              <AfriZiaIcon name="plus" size={17} />
             </button>
             <button
               className="flex h-10 w-10 items-center justify-center rounded-full text-white/70 transition-colors hover:text-[#15EA3E]"
@@ -2629,7 +2631,7 @@ export default function ChatRoom() {
               onClick={() => showActionStatus('Recherche AfriChat accessible depuis les filtres et les discussions.', 'success', true)}
               aria-label="Rechercher"
             >
-              <AfriSellIcon name="search" size={17} />
+              <AfriZiaIcon name="search" size={17} />
             </button>
             <button
               className="flex h-10 w-10 items-center justify-center rounded-full text-white/70 transition-colors hover:text-[#15EA3E]"
@@ -2637,7 +2639,7 @@ export default function ChatRoom() {
               onClick={() => setShowChatSettings(true)}
               aria-label="Paramètres AfriChat"
             >
-              <AfriSellIcon name="settings" size={18} />
+              <AfriZiaIcon name="settings" size={18} />
             </button>
           </div>
         </div>
@@ -2705,10 +2707,10 @@ export default function ChatRoom() {
             {chatMode === 'pro' && (
               <div className="grid grid-cols-4 gap-2 rounded-[1.35rem] border border-[#15EA3E]/18 bg-[#071007] p-3">
                 {[
-                  { label: 'Clients', icon: 'profile' as AfriSellIconName },
-                  { label: 'Commandes', icon: 'order' as AfriSellIconName },
-                  { label: 'Paiement', icon: 'pay' as AfriSellIconName },
-                  { label: 'Réponses', icon: 'chat' as AfriSellIconName }
+                  { label: 'Clients', icon: 'profile' as AfriZiaIconName },
+                  { label: 'Commandes', icon: 'order' as AfriZiaIconName },
+                  { label: 'Paiement', icon: 'pay' as AfriZiaIconName },
+                  { label: 'Réponses', icon: 'chat' as AfriZiaIconName }
                 ].map((action) => (
                   <button
                     key={action.label}
@@ -2716,7 +2718,7 @@ export default function ChatRoom() {
                     onClick={() => showActionStatus(`${action.label} pro prêt dans AfriChat.`, 'success', true)}
                     className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl border border-white/10 bg-black/24 px-2 py-3 text-white/62"
                   >
-                    <AfriSellIcon name={action.icon} size={17} className="text-[#15EA3E]" />
+                    <AfriZiaIcon name={action.icon} size={17} className="text-[#15EA3E]" />
                     <span className="max-w-full truncate text-[9px] font-black uppercase tracking-[0.08em]">{action.label}</span>
                   </button>
                 ))}
@@ -2825,7 +2827,7 @@ export default function ChatRoom() {
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black disabled:bg-gray-800 disabled:text-gray-500"
                     aria-label="Créer un Village"
                   >
-                    <AfriSellIcon name="plus" size={16} />
+                    <AfriZiaIcon name="plus" size={16} />
                   </button>
                 </div>
                 {filteredVillageThreads.map((thread) => (
@@ -2837,7 +2839,7 @@ export default function ChatRoom() {
                 <div className="rounded-[1.6rem] border border-[#15EA3E]/20 bg-[#071007] p-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-12 w-12 items-center justify-center rounded-[1.2rem_0.75rem_1.2rem_0.75rem] bg-[#15EA3E] text-black">
-                      <AfriSellIcon name="hub" size={19} />
+                      <AfriZiaIcon name="hub" size={19} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-black text-white">Créer ton premier Village</p>
@@ -2879,9 +2881,9 @@ export default function ChatRoom() {
               <input ref={storyInputRef} type="file" accept="image/*,video/*" onChange={handleStoryFileSelect} className="hidden" />
               <div className="flex items-center gap-3">
                 <div className="relative flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#15EA3E] bg-[#15EA3E]/10 text-[#15EA3E]">
-                  <AfriSellIcon name="video" size={21} />
+                  <AfriZiaIcon name="video" size={21} />
                   <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#15EA3E] text-black">
-                    <AfriSellIcon name="plus" size={13} />
+                    <AfriZiaIcon name="plus" size={13} />
                   </span>
                 </div>
                 <div className="min-w-0 flex-1">
@@ -2959,7 +2961,7 @@ export default function ChatRoom() {
             <div className="rounded-[1.6rem] border border-[#15EA3E]/20 bg-[#071007] p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-[0.8rem_1.35rem_0.8rem_1.35rem] bg-[#15EA3E] text-black">
-                  <AfriSellIcon name="phone" size={18} />
+                  <AfriZiaIcon name="phone" size={18} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-black text-white">Appels AfriChat</p>
@@ -3013,15 +3015,15 @@ export default function ChatRoom() {
                 <h2 className="mt-1 text-lg font-black text-white">Ajouter hors contacts</h2>
               </div>
               <button type="button" onClick={() => setShowAddContactPanel(false)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 text-white/55">
-                <AfriSellIcon name="close" size={14} />
+                <AfriZiaIcon name="close" size={14} />
               </button>
             </div>
             <label className="flex h-12 items-center gap-3 rounded-2xl border border-white/10 bg-black/35 px-3">
-              <AfriSellIcon name="mail" size={16} className="text-white/35" />
+              <AfriZiaIcon name="mail" size={16} className="text-white/35" />
               <input
                 value={manualContactValue}
                 onChange={(event) => setManualContactValue(event.target.value)}
-                placeholder="Email, numéro ou code QR AfriSell"
+                placeholder="Email, numéro ou code QR AfriZia"
                 className="min-w-0 flex-1 bg-transparent text-xs font-semibold text-white outline-none placeholder:text-white/28"
               />
             </label>
@@ -3030,7 +3032,7 @@ export default function ChatRoom() {
             </p>
             {manualLookupLoading && (
               <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white/45">
-                Recherche dans AfriSell...
+                Recherche dans AfriZia...
               </p>
             )}
             {!manualLookupLoading && manualContactValue.trim().length >= 3 && !manualLookupResult && (
@@ -3042,16 +3044,16 @@ export default function ChatRoom() {
               <div className="mt-3 rounded-[1.35rem] border border-[#15EA3E]/20 bg-[#071007] p-3">
                 <div className="flex items-center gap-3">
                   <Avatar
-                    title={manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriSell'}
+                    title={manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriZia'}
                     src={manualLookupResult.profile.logoURL || manualLookupResult.profile.photoURL}
                     size="lg"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-black text-white">
-                      {manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriSell'}
+                      {manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriZia'}
                     </p>
                     <p className="mt-1 truncate text-[10px] font-semibold text-white/45">
-                      {[manualLookupResult.profile.city, manualLookupResult.profile.country].filter(Boolean).join(', ') || manualLookupResult.profile.email || manualLookupResult.profile.phone || 'Profil AfriSell'}
+                      {[manualLookupResult.profile.city, manualLookupResult.profile.country].filter(Boolean).join(', ') || manualLookupResult.profile.email || manualLookupResult.profile.phone || 'Profil AfriZia'}
                     </p>
                     {manualLookupResult.id === user?.uid && (
                       <p className="mt-1 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">C&apos;est ton compte</p>
@@ -3119,7 +3121,7 @@ export default function ChatRoom() {
               className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/50 text-white backdrop-blur"
               aria-label="Fermer la story"
             >
-              <AfriSellIcon name="close" size={16} />
+              <AfriZiaIcon name="close" size={16} />
             </button>
             <div className="min-w-0 flex flex-1 items-center gap-3 px-3">
               <Avatar title={activeStory.authorName} src={activeStory.authorAvatar} size="sm" />
@@ -3136,13 +3138,13 @@ export default function ChatRoom() {
               className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#15EA3E]/30 bg-[#15EA3E]/15 text-[#15EA3E] backdrop-blur"
               aria-label="Télécharger la story"
             >
-              <AfriSellIcon name="clip" size={16} />
+              <AfriZiaIcon name="clip" size={16} />
             </a>
           </header>
           <div className="relative z-10 mt-auto px-4 pb-7">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/42 px-3 py-2 text-[10px] font-black text-white/70 backdrop-blur">
-                <AfriSellIcon name="eye" size={14} className="text-[#15EA3E]" />
+                <AfriZiaIcon name="eye" size={14} className="text-[#15EA3E]" />
                 <span>{activeStory.viewsCount || 0} vue{Number(activeStory.viewsCount || 0) > 1 ? 's' : ''}</span>
               </div>
               <button
@@ -3150,7 +3152,7 @@ export default function ChatRoom() {
                 onClick={() => void sendStoryKiss(activeStory)}
                 className="flex items-center gap-2 rounded-2xl border border-[#15EA3E]/35 bg-[#15EA3E]/18 px-3 py-2 text-[10px] font-black text-[#15EA3E] backdrop-blur active:scale-[0.96]"
               >
-                <AfriSellIcon name="kiss" size={16} />
+                <AfriZiaIcon name="kiss" size={16} />
                 <span>{activeStory.authorId === user?.uid ? 'Ouvrir bisous' : 'Bisous'} · {activeStory.kissesCount || 0}</span>
               </button>
             </div>
@@ -3176,7 +3178,7 @@ export default function ChatRoom() {
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black disabled:bg-gray-800 disabled:text-gray-500"
                 aria-label="Envoyer la réponse"
               >
-                <AfriSellIcon name="send" size={15} />
+                <AfriZiaIcon name="send" size={15} />
               </button>
             </form>
             {storyReplyStatus && (
@@ -3200,7 +3202,7 @@ export default function ChatRoom() {
               }}
               className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/45 text-white backdrop-blur"
             >
-              <AfriSellIcon name="close" size={16} />
+              <AfriZiaIcon name="close" size={16} />
             </button>
             <div className="text-center">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">AfriChat</p>
@@ -3215,7 +3217,7 @@ export default function ChatRoom() {
               <div className="absolute -right-1 -top-1 h-10 w-10 rounded-tr-[2rem] border-r-4 border-t-4 border-white" />
               <div className="absolute -bottom-1 -left-1 h-10 w-10 rounded-bl-[2rem] border-b-4 border-l-4 border-white" />
               <div className="absolute -bottom-1 -right-1 h-10 w-10 rounded-br-[2rem] border-b-4 border-r-4 border-white" />
-              <AfriSellIcon name="scan" size={34} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white/30" />
+              <AfriZiaIcon name="scan" size={34} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white/30" />
             </div>
           </section>
           <section className="relative z-10 rounded-t-[2rem] border-t border-white/10 bg-[#050705]/95 p-5 pb-8 backdrop-blur">
@@ -3224,13 +3226,13 @@ export default function ChatRoom() {
               <div className="mt-4 rounded-2xl border border-[#15EA3E]/20 bg-[#071007] p-3">
                 <div className="flex items-center gap-3">
                   <Avatar
-                    title={manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriSell'}
+                    title={manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriZia'}
                     src={manualLookupResult.profile.logoURL || manualLookupResult.profile.photoURL}
                     size="sm"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-black text-white">{manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriSell'}</p>
-                    <p className="mt-0.5 truncate text-[10px] font-semibold text-white/42">{manualLookupResult.profile.email || manualLookupResult.profile.phone || 'Profil AfriSell'}</p>
+                    <p className="truncate text-xs font-black text-white">{manualLookupResult.profile.businessName || manualLookupResult.profile.displayName || 'Utilisateur AfriZia'}</p>
+                    <p className="mt-0.5 truncate text-[10px] font-semibold text-white/42">{manualLookupResult.profile.email || manualLookupResult.profile.phone || 'Profil AfriZia'}</p>
                   </div>
                   <button type="button" onClick={() => navigate(`/u/${manualLookupResult.id}`)} className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-[9px] font-black uppercase tracking-wider text-white/70">
                     Profil
@@ -3240,7 +3242,7 @@ export default function ChatRoom() {
             )}
             <div className="mt-4 flex gap-2">
               <label className="flex h-12 flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3">
-                <AfriSellIcon name="keyboard" size={16} className="text-white/35" />
+                <AfriZiaIcon name="keyboard" size={16} className="text-white/35" />
                 <input
                   value={manualContactValue}
                   onChange={(event) => setManualContactValue(event.target.value)}

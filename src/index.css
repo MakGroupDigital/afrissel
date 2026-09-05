@@ -432,3 +432,43 @@
     transform: scaleY(1);
   }
 }
+
+/* The desktop preview keeps the app inside a phone-sized frame. Tailwind's
+ * viewport breakpoints still see the desktop width, so pin this storefront to
+ * its phone-first layout while it is rendered in that frame. */
+@media (min-width: 768px) {
+  .zandofy-public-store #products > div > div:first-child {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .zandofy-public-store #products > div > div:first-child > div:last-child {
+    max-width: none;
+    width: 100%;
+  }
+
+  .zandofy-public-store #products > div > div:nth-child(3) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zandofy-public-store #about > div,
+  .zandofy-public-store #about > div > div:last-child,
+  .zandofy-public-store #contact + section > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zandofy-public-store #contact > div,
+  .zandofy-public-store footer > div:first-child,
+  .zandofy-public-store footer > div:last-child {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .zandofy-public-store #contact > div > div {
+    width: 100%;
+  }
+
+  .zandofy-public-store #contact > div > div > * {
+    flex: 1 1 0%;
+  }
+}

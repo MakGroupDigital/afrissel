@@ -20,12 +20,13 @@ import CreateHubScreen from './screens/CreateHubScreen';
 import CreatePostScreen from './screens/CreatePostScreen';
 import AfriAiTalkScreen from './screens/AfriAiTalkScreen';
 import QuickActionOffersScreen from './screens/QuickActionOffersScreen';
-import ZandofyMarketplaceScreen, { ZandofyClientsScreen, ZandofyCreateProductScreen, ZandofyCreateStoreScreen, ZandofyDashboardScreen, ZandofyDomainScreen, ZandofyProductsScreen, ZandofyPublicStoreScreen, ZandofyStatsScreen } from './screens/ZandofyMarketplaceScreen';
+import ZandofyMarketplaceScreen, { ZandofyAboutScreen, ZandofyAffiliationScreen, ZandofyClientsScreen, ZandofyCreateProductScreen, ZandofyCreateStoreScreen, ZandofyDashboardScreen, ZandofyDomainScreen, ZandofyEditProductScreen, ZandofyProductsScreen, ZandofyPromosScreen, ZandofyPublicStoreScreen, ZandofyStatsScreen, ZikMartMarketplaceScreen } from './screens/ZandofyMarketplaceScreen';
 import PromotionsScreen from './screens/PromotionsScreen';
 import MarketHome from './screens/MarketHome';
 import ProductDetailScreen from './screens/ProductDetailScreen';
 import MarketOrdersScreen from './screens/MarketOrdersScreen';
 import OrderVerificationScreen from './screens/OrderVerificationScreen';
+import DigitalAccessScreen from './screens/DigitalAccessScreen';
 import SellerStandScreen from './screens/SellerStandScreen';
 import WalletDashboard from './screens/WalletDashboard';
 import KycVerificationScreen from './screens/KycVerificationScreen';
@@ -43,7 +44,7 @@ function OfflineQueueSync() {
   useEffect(() => {
     const sync = () => {
       void flushOfflineQueue(realtimeDb).catch((error) => {
-        console.error('Synchronisation offline AfriSell impossible:', error);
+        console.error('Synchronisation offline AfriZia impossible:', error);
       });
     };
 
@@ -61,10 +62,12 @@ function OfflineQueueSync() {
 }
 
 function RequireAuth({
-  children
+  children,
+  allowAnonymous = false
 }: {
   children: ReactNode;
   requireCompletedProfile?: boolean;
+  allowAnonymous?: boolean;
 }) {
   const { user, loading } = useFirebaseAuth();
   const location = useLocation();
@@ -73,7 +76,7 @@ function RequireAuth({
     return <SplashScreen autoNavigate={false} showAction={false} />;
   }
 
-  if (!user) {
+  if (!user || (!allowAnonymous && user.isAnonymous)) {
     return <Navigate to="/login" replace state={{ next: location.pathname + location.search }} />;
   }
 
@@ -84,7 +87,22 @@ function AppRoutes() {
   const location = useLocation();
   const { user, profile, loading } = useFirebaseAuth();
   const [isBooting, setIsBooting] = useState(window.location.pathname !== '/');
+  const isPublicCommercePath = /^\/market\/[^/]+$/.test(location.pathname)
+    || /^\/zandofy\/[^/]+(?:\/product\/[^/]+)?$/.test(location.pathname)
+    || /^\/order\/[^/]+$/.test(location.pathname)
+    || /^\/zandofy\/access\/[^/]+$/.test(location.pathname)
+    || location.pathname === '/zikmart'
+    || (user?.isAnonymous && location.pathname === '/market/orders');
   const hasSeenOnboarding = window.localStorage.getItem('afrisell:onboarding-seen') === '1';
+  const currentHost = window.location.hostname.toLowerCase().replace(/^www\./, '');
+  const isCustomStoreDomain = Boolean(
+    currentHost &&
+    currentHost !== 'localhost' &&
+    currentHost !== '127.0.0.1' &&
+    currentHost !== 'afri.afrisell.app' &&
+    !currentHost.endsWith('.vercel.app') &&
+    !currentHost.endsWith('.localhost')
+  );
 
   useEffect(() => {
     if (!isBooting) return;
@@ -92,7 +110,7 @@ function AppRoutes() {
     return () => window.clearTimeout(timer);
   }, [isBooting]);
 
-  if (!hasSeenOnboarding && !['/', '/onboarding', '/login', '/identity-setup'].includes(location.pathname)) {
+  if (!isCustomStoreDomain && !hasSeenOnboarding && !isPublicCommercePath && !['/', '/onboarding', '/login', '/identity-setup'].includes(location.pathname)) {
     return (
       <PhoneWrapper>
         <Navigate to="/onboarding" replace />
@@ -109,8 +127,10 @@ function AppRoutes() {
   }
 
   if (
+    !isCustomStoreDomain &&
     !loading &&
     user &&
+    !user.isAnonymous &&
     profile?.demographicsSetupRequired &&
     !profile.demographicsSetupCompleted &&
     location.pathname !== '/identity-setup'
@@ -125,7 +145,7 @@ function AppRoutes() {
   return (
     <PhoneWrapper>
       <Routes>
-        <Route path="/" element={<SplashScreen />} />
+        <Route path="/" element={isCustomStoreDomain ? <ZandofyPublicStoreScreen /> : <SplashScreen />} />
         <Route path="/onboarding" element={<OnboardingScreen />} />
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/identity-setup" element={<RequireAuth><IdentitySetupScreen /></RequireAuth>} />
@@ -133,14 +153,20 @@ function AppRoutes() {
         <Route path="/ecosystem" element={<EcosystemHome />} />
         <Route path="/offers/:sectionId" element={<QuickActionOffersScreen />} />
         <Route path="/zandofy" element={<ZandofyMarketplaceScreen />} />
+        <Route path="/zikmart" element={<ZikMartMarketplaceScreen />} />
         <Route path="/zandofy/create" element={<RequireAuth><ZandofyCreateStoreScreen /></RequireAuth>} />
         <Route path="/zandofy/dashboard" element={<RequireAuth><ZandofyDashboardScreen /></RequireAuth>} />
         <Route path="/zandofy/domain" element={<RequireAuth><ZandofyDomainScreen /></RequireAuth>} />
+        <Route path="/zandofy/promos" element={<RequireAuth><ZandofyPromosScreen /></RequireAuth>} />
+        <Route path="/zandofy/affiliation" element={<RequireAuth><ZandofyAffiliationScreen /></RequireAuth>} />
+        <Route path="/zandofy/about" element={<ZandofyAboutScreen />} />
         <Route path="/zandofy/stats" element={<RequireAuth><ZandofyStatsScreen /></RequireAuth>} />
         <Route path="/zandofy/clients" element={<RequireAuth><ZandofyClientsScreen /></RequireAuth>} />
         <Route path="/zandofy/products" element={<RequireAuth><ZandofyProductsScreen /></RequireAuth>} />
         <Route path="/zandofy/products/new" element={<RequireAuth><ZandofyCreateProductScreen /></RequireAuth>} />
+        <Route path="/zandofy/products/:productId/edit" element={<RequireAuth><ZandofyEditProductScreen /></RequireAuth>} />
         <Route path="/zandofy/product/:productId" element={<ProductDetailScreen />} />
+        <Route path="/zandofy/:slug/product/:productId" element={<ProductDetailScreen />} />
         <Route path="/zandofy/:slug" element={<ZandofyPublicStoreScreen />} />
         <Route path="/promos" element={<PromotionsScreen />} />
         <Route path="/apps" element={<AppsDirectoryScreen />} />
@@ -165,6 +191,7 @@ function AppRoutes() {
         <Route path="/market" element={<MarketHome />} />
         <Route path="/market/orders" element={<MarketOrdersScreen />} />
         <Route path="/order/:orderId" element={<OrderVerificationScreen />} />
+        <Route path="/zandofy/access/:orderId" element={<RequireAuth allowAnonymous><DigitalAccessScreen /></RequireAuth>} />
         <Route path="/market/stand/:sellerId" element={<SellerStandScreen />} />
         <Route path="/market/:productId" element={<ProductDetailScreen />} />
         <Route path="/wallet" element={<RequireAuth><WalletDashboard /></RequireAuth>} />

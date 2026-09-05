@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import {
   AccountRole,
   PUBLIC_ACCOUNT_ROLE_DEFINITIONS,
@@ -22,9 +22,9 @@ import {
   getLocalPhoneFromInternational
 } from '../lib/africaLocation';
 import {
-  getAfriSellDataErrorMessage,
-  saveAfriSellMediaRecord,
-  updateAfriSellUserPhoto,
+  getAfriZiaDataErrorMessage,
+  saveAfriZiaMediaRecord,
+  updateAfriZiaUserPhoto,
   useFirebaseAuth
 } from '../hooks/useFirebaseAuth';
 
@@ -178,8 +178,8 @@ export default function AccountSetupScreen() {
     try {
       await saveAccountSetupDraft(patch);
     } catch (saveError) {
-      console.error('Configuration compte AfriSell impossible:', saveError);
-      setError(getAfriSellDataErrorMessage(saveError));
+      console.error('Configuration compte AfriZia impossible:', saveError);
+      setError(getAfriZiaDataErrorMessage(saveError));
       throw saveError;
     } finally {
       setBusy(false);
@@ -215,13 +215,13 @@ export default function AccountSetupScreen() {
     event.preventDefault();
 
     if (!primaryRole || !primarySubtype) {
-      setError("Choisis d'abord ce que tu veux faire sur AfriSell.");
+      setError("Choisis d'abord ce que tu veux faire sur AfriZia.");
       setStepIndex(primaryRole ? 1 : 0);
       return;
     }
 
     if (!displayName.trim()) {
-      setError('Ajoute le nom qui sera visible sur AfriSell.');
+      setError('Ajoute le nom qui sera visible sur AfriZia.');
       return;
     }
 
@@ -252,7 +252,7 @@ export default function AccountSetupScreen() {
 
     try {
       const upload = await uploadMediaToCloudinary(file, user.uid);
-      await saveAfriSellMediaRecord(user, upload, file);
+      await saveAfriZiaMediaRecord(user, upload, file);
 
       const nextPatch = {
         mediaURL: upload.secureUrl,
@@ -267,7 +267,7 @@ export default function AccountSetupScreen() {
       } else {
         setPhotoURL(upload.secureUrl);
         if (upload.resourceType === 'image') {
-          await updateAfriSellUserPhoto(user, upload.secureUrl);
+          await updateAfriZiaUserPhoto(user, upload.secureUrl);
         }
       }
 
@@ -275,7 +275,7 @@ export default function AccountSetupScreen() {
       await saveAccountSetupDraft(nextPatch);
       await refreshProfile();
     } catch (uploadError) {
-      console.error('Upload media profil AfriSell impossible:', uploadError);
+      console.error('Upload media profil AfriZia impossible:', uploadError);
       setError('Ajout impossible. Réessaie avec une image ou une vidéo plus légère.');
     } finally {
       setBusy(false);
@@ -317,7 +317,7 @@ export default function AccountSetupScreen() {
       });
       navigate('/ecosystem', { replace: true });
     } catch (completeError) {
-      console.error('Finalisation compte AfriSell impossible:', completeError);
+      console.error('Finalisation compte AfriZia impossible:', completeError);
       setError(completeError instanceof Error ? completeError.message : 'Finalisation impossible.');
     } finally {
       setBusy(false);
@@ -337,7 +337,7 @@ export default function AccountSetupScreen() {
       <header className="rounded-[1.7rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-            <AfriSellIcon name="account" size={22} />
+            <AfriZiaIcon name="account" size={22} />
           </div>
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Avant de commencer</p>
@@ -345,7 +345,7 @@ export default function AccountSetupScreen() {
           </div>
         </div>
         <p className="mt-3 text-[11px] font-semibold leading-relaxed text-white/50">
-          Dis-nous comment tu veux utiliser AfriSell pour préparer ton espace.
+          Dis-nous comment tu veux utiliser AfriZia pour préparer ton espace.
         </p>
       </header>
 
@@ -372,7 +372,7 @@ export default function AccountSetupScreen() {
 
       {currentStep.id === 'role' && (
         <section className="mt-5">
-          <h2 className="text-sm font-black">Que veux-tu faire sur AfriSell ?</h2>
+          <h2 className="text-sm font-black">Que veux-tu faire sur AfriZia ?</h2>
           <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/45">
             Choisis l option qui te ressemble le plus.
           </p>
@@ -390,13 +390,13 @@ export default function AccountSetupScreen() {
                 }`}
               >
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
-                  <AfriSellIcon name={role.icon} size={20} />
+                  <AfriZiaIcon name={role.icon} size={20} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="text-sm font-black">{role.label}</h3>
                   <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-relaxed text-white/45">{role.description}</p>
                 </div>
-                <AfriSellIcon name="arrow" size={15} className="text-white/25" />
+                <AfriZiaIcon name="arrow" size={15} className="text-white/25" />
               </button>
             ))}
           </div>
@@ -410,7 +410,7 @@ export default function AccountSetupScreen() {
             onClick={() => setStepIndex(0)}
             className="mb-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/45"
           >
-            <AfriSellIcon name="arrow" size={13} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={13} className="rotate-180" />
             Changer
           </button>
           <h2 className="text-sm font-black">{roleDefinition.label}</h2>
@@ -431,7 +431,7 @@ export default function AccountSetupScreen() {
                 }`}
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/[0.05] text-[#15EA3E]">
-                  <AfriSellIcon name="check" size={17} />
+                  <AfriZiaIcon name="check" size={17} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="text-sm font-black">{subtype.label}</h3>
@@ -450,7 +450,7 @@ export default function AccountSetupScreen() {
             onClick={() => setStepIndex(1)}
             className="mb-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/45"
           >
-            <AfriSellIcon name="arrow" size={13} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={13} className="rotate-180" />
             Retour
           </button>
           <h2 className="text-sm font-black">Quelques infos</h2>
@@ -557,7 +557,7 @@ export default function AccountSetupScreen() {
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Continuer
-              <AfriSellIcon name="arrow" size={16} />
+              <AfriZiaIcon name="arrow" size={16} />
             </button>
           </form>
         </section>
@@ -570,7 +570,7 @@ export default function AccountSetupScreen() {
             onClick={() => setStepIndex(2)}
             className="mb-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/45"
           >
-            <AfriSellIcon name="arrow" size={13} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={13} className="rotate-180" />
             Retour
           </button>
 
@@ -581,7 +581,7 @@ export default function AccountSetupScreen() {
                   <img src={mediaPreview} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-[#15EA3E]">
-                    <AfriSellIcon name={isOrganization ? 'market' : 'profile'} size={25} />
+                    <AfriZiaIcon name={isOrganization ? 'market' : 'profile'} size={25} />
                   </div>
                 )}
               </div>
@@ -590,7 +590,7 @@ export default function AccountSetupScreen() {
                   {isOrganization ? 'Ajoute ton logo' : 'Ajoute ta photo'}
                 </h2>
                 <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/48">
-                  {subtypeDefinition?.label || roleDefinition?.shortLabel || 'Compte AfriSell'}.
+                  {subtypeDefinition?.label || roleDefinition?.shortLabel || 'Compte AfriZia'}.
                   Tu peux ajouter une image maintenant ou le faire plus tard.
                 </p>
               </div>
@@ -607,7 +607,7 @@ export default function AccountSetupScreen() {
                 ? 'bg-white/8 text-white/35'
                 : 'bg-white text-black'
             }`}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <AfriSellIcon name="clip" size={16} />}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <AfriZiaIcon name="clip" size={16} />}
               Ajouter une image/vidéo
               <input
                 type="file"
@@ -625,7 +625,7 @@ export default function AccountSetupScreen() {
             disabled={busy}
             className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-sm font-black uppercase tracking-[0.15em] text-black active:scale-[0.98] disabled:opacity-60"
           >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <AfriSellIcon name="check" size={17} />}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <AfriZiaIcon name="check" size={17} />}
             Terminer
           </button>
         </section>

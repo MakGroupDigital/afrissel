@@ -361,7 +361,7 @@ export async function executeWalletOperation(input: WalletOperationInput) {
     [`walletTransactions/${recipientUid}/${operationId}`]: {
       id: operationId,
       type: 'credit',
-      title: `Reçu de ${input.user.displayName || 'Utilisateur AfriSell'}`,
+      title: `Reçu de ${input.user.displayName || 'Utilisateur AfriZia'}`,
       amount,
       currency,
       module: 'spay',

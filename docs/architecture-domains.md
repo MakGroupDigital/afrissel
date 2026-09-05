@@ -1,6 +1,6 @@
-# AfriSell Domain Architecture
+# AfriZia Domain Architecture
 
-AfriSell is now prepared around explicit domains. The React app can still use Firebase during the MVP, but each boundary maps to a future microservice.
+AfriZia is now prepared around explicit domains. The React app can still use Firebase during the MVP, but each boundary maps to a future microservice.
 
 | Domain | Future service | API prefix | Responsibility |
 | --- | --- | --- | --- |

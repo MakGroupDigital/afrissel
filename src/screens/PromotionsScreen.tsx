@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { ecosystemModules } from '../data/ecosystem';
 import { AfriMarketContent, formatMarketPrice, useAfriMarket } from '../hooks/useAfriMarket';
 import { cn } from '../lib/utils';
@@ -22,7 +22,7 @@ const fallbackPromos: PromoOffer[] = [
   {
     id: 'promo-market',
     title: 'Sélection Market prête à livrer',
-    module: 'AfriSell Market',
+    module: 'AfriZia Market',
     category: 'Commerce',
     image: '/afrimarket.jpeg',
     route: '/market',
@@ -122,14 +122,14 @@ export default function PromotionsScreen() {
       <header className="shrink-0 px-4 pb-3 pt-4">
         <div className="flex items-center justify-between">
           <button type="button" onClick={() => navigate('/ecosystem')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70">
-            <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
           </button>
           <div className="text-center">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Promos</p>
             <h1 className="text-sm font-black">Offres de l’écosystème</h1>
           </div>
           <Link to="/market" className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-            <AfriSellIcon name="market" size={18} />
+            <AfriZiaIcon name="market" size={18} />
           </Link>
         </div>
       </header>
@@ -139,7 +139,7 @@ export default function PromotionsScreen() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_0%,rgba(21,234,62,0.28),transparent_38%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_45%)]" />
           <div className="relative z-10 max-w-[72%]">
             <p className="text-[9px] font-black uppercase tracking-[0.24em] text-[#15EA3E]">Prix chauds</p>
-            <h2 className="mt-2 text-2xl font-black leading-none">Promos AfriSell</h2>
+            <h2 className="mt-2 text-2xl font-black leading-none">Promos AfriZia</h2>
             <p className="mt-2 text-xs font-semibold leading-relaxed text-white/55">
               Produits, services et apps en réduction dans un seul marché.
             </p>

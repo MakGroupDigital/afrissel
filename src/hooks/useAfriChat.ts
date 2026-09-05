@@ -324,7 +324,7 @@ export const useAfriChat = () => {
         visibility: 'public',
         type: 'village',
         status: 'Village d’achat public',
-        lastMessage: village.productName ? `Prix Village: ${village.productName}` : 'Village public AfriSell',
+        lastMessage: village.productName ? `Prix Village: ${village.productName}` : 'Village public AfriZia',
         lastMessageAt: village.createdAt || 0,
         unreadCount: 0
       }));
@@ -476,16 +476,16 @@ export const useAfriChat = () => {
       [`chatThreads/${thread.id}/lastMessageStatus`]: offline ? 'queued' : 'sent',
       [`chatThreads/${thread.id}/updatedAt`]: updatedAtValue,
       [`chatThreads/${thread.id}/members/${user.uid}`]: true,
-      [`chatThreads/${thread.id}/memberNames/${user.uid}`]: profile?.displayName || user.displayName || 'Utilisateur AfriSell'
+      [`chatThreads/${thread.id}/memberNames/${user.uid}`]: profile?.displayName || user.displayName || 'Utilisateur AfriZia'
     };
 
     if (recipientId && !recipientId.startsWith('device_')) {
       updates[`userChats/${recipientId}/${thread.id}`] = {
         threadId: thread.id,
-        title: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        title: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
         avatarURL: profile?.photoURL || user.photoURL || '',
         participantId: user.uid,
-        participantName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        participantName: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
         participantAvatarURL: profile?.photoURL || user.photoURL || '',
         type: thread.type || 'direct',
         status: 'AfriChat',
@@ -542,10 +542,10 @@ export const useAfriChat = () => {
     if (!contact.id.startsWith('device_')) {
       await update(ref(realtimeDb, `userChats/${contact.id}/${threadId}`), {
         threadId,
-        title: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        title: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
         avatarURL: profile?.photoURL || user.photoURL || '',
         participantId: user.uid,
-        participantName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        participantName: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
         participantAvatarURL: profile?.photoURL || user.photoURL || '',
         type: thread.type,
         status: 'AfriChat',
@@ -561,7 +561,7 @@ export const useAfriChat = () => {
       updatedAt: serverTimestamp(),
       [`members/${user.uid}`]: true,
       [`members/${contact.id}`]: true,
-      [`memberNames/${user.uid}`]: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+      [`memberNames/${user.uid}`]: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
       [`memberNames/${contact.id}`]: contact.displayName
     });
 
@@ -580,7 +580,7 @@ export const useAfriChat = () => {
     if (!threadId) throw new Error('Création AfriChat impossible.');
 
     const now = Date.now();
-    const displayName = profile?.displayName || user.displayName || 'Utilisateur AfriSell';
+    const displayName = profile?.displayName || user.displayName || 'Utilisateur AfriZia';
     const thread: AfriChatThread = {
       id: threadId,
       title,

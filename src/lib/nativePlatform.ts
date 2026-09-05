@@ -1,6 +1,6 @@
 type TauriWindow = Window & {
   __TAURI_INTERNALS__?: unknown;
-  AfriSellNativeAuth?: {
+  AfriZiaNativeAuth?: {
     signInWithGoogle: (requestId: string, webClientId: string) => void;
   };
 };
@@ -36,7 +36,7 @@ export const signInWithNativeGoogle = () => new Promise<string>((resolve, reject
     return;
   }
 
-  const nativeAuth = (window as TauriWindow).AfriSellNativeAuth;
+  const nativeAuth = (window as TauriWindow).AfriZiaNativeAuth;
   if (!nativeAuth?.signInWithGoogle) {
     reject(new Error('Google natif Android indisponible dans cette version.'));
     return;

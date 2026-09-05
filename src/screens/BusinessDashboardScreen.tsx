@@ -1,12 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { cn } from '../lib/utils';
 
 type BusinessAction = {
   label: string;
   description: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   route: string;
   highlight?: boolean;
 };
@@ -89,7 +89,7 @@ export default function BusinessDashboardScreen() {
       <main className="min-h-full bg-[#050705] px-4 pb-8 pt-4 text-white">
         <header className="flex items-center justify-between">
           <Link to="/profile" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70">
-            <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
           </Link>
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Business</p>
           <div className="h-10 w-10" />
@@ -97,7 +97,7 @@ export default function BusinessDashboardScreen() {
 
         <section className="mt-10 rounded-[1.7rem] border border-white/10 bg-white/[0.04] p-5 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
-            <AfriSellIcon name="work" size={24} />
+            <AfriZiaIcon name="work" size={24} />
           </div>
           <h1 className="mt-4 text-xl font-black">Aucun business account</h1>
           <p className="mt-2 text-xs font-semibold leading-relaxed text-white/50">
@@ -115,11 +115,11 @@ export default function BusinessDashboardScreen() {
     <main className="min-h-full bg-[#050705] px-4 pb-8 pt-4 text-white">
       <header className="flex items-center justify-between">
         <Link to="/profile" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70">
-          <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
         </Link>
         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Business</p>
         <Link to="/ecosystem" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]">
-          <AfriSellIcon name="hub" size={18} />
+          <AfriZiaIcon name="hub" size={18} />
         </Link>
       </header>
 
@@ -146,7 +146,7 @@ export default function BusinessDashboardScreen() {
         <section className="mt-4 rounded-[1.4rem] border border-amber-300/25 bg-amber-300/10 p-3 shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-300 text-black">
-              <AfriSellIcon name="shield" size={18} />
+              <AfriZiaIcon name="shield" size={18} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-black text-amber-100">Vérification KYC requise</p>
@@ -164,7 +164,7 @@ export default function BusinessDashboardScreen() {
       <section className="relative mt-5 overflow-hidden rounded-[1.7rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-5">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(21,234,62,0.18),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.06),transparent_46%)]" />
         <div className="relative z-10">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{businessAccount.moduleName || 'AfriSell'}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{businessAccount.moduleName || 'AfriZia'}</p>
           <h1 className="mt-2 text-2xl font-black leading-tight">{businessAccount.categoryLabel}</h1>
           <p className="mt-2 text-xs font-semibold leading-relaxed text-white/54">
             {businessAccount.serviceLabel} - {businessAccount.segmentLabel}
@@ -190,7 +190,7 @@ export default function BusinessDashboardScreen() {
               )}
             >
               <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl', action.highlight ? 'bg-black/10' : 'bg-[#15EA3E]/10 text-[#15EA3E]')}>
-                <AfriSellIcon name={action.icon} size={20} />
+                <AfriZiaIcon name={action.icon} size={20} />
               </div>
               <h3 className="mt-4 text-sm font-black">{action.label}</h3>
               <p className={cn('mt-1 text-[11px] font-semibold leading-relaxed', action.highlight ? 'text-black/60' : 'text-white/45')}>
