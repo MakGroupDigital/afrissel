@@ -62,10 +62,12 @@ function OfflineQueueSync() {
 }
 
 function RequireAuth({
-  children
+  children,
+  allowAnonymous = false
 }: {
   children: ReactNode;
   requireCompletedProfile?: boolean;
+  allowAnonymous?: boolean;
 }) {
   const { user, loading } = useFirebaseAuth();
   const location = useLocation();
@@ -74,7 +76,7 @@ function RequireAuth({
     return <SplashScreen autoNavigate={false} showAction={false} />;
   }
 
-  if (!user) {
+  if (!user || (!allowAnonymous && user.isAnonymous)) {
     return <Navigate to="/login" replace state={{ next: location.pathname + location.search }} />;
   }
 
@@ -85,6 +87,12 @@ function AppRoutes() {
   const location = useLocation();
   const { user, profile, loading } = useFirebaseAuth();
   const [isBooting, setIsBooting] = useState(window.location.pathname !== '/');
+  const isPublicCommercePath = /^\/market\/[^/]+$/.test(location.pathname)
+    || /^\/zandofy\/[^/]+(?:\/product\/[^/]+)?$/.test(location.pathname)
+    || /^\/order\/[^/]+$/.test(location.pathname)
+    || /^\/zandofy\/access\/[^/]+$/.test(location.pathname)
+    || location.pathname === '/zikmart'
+    || (user?.isAnonymous && location.pathname === '/market/orders');
   const hasSeenOnboarding = window.localStorage.getItem('afrisell:onboarding-seen') === '1';
   const currentHost = window.location.hostname.toLowerCase().replace(/^www\./, '');
   const isCustomStoreDomain = Boolean(
@@ -102,7 +110,7 @@ function AppRoutes() {
     return () => window.clearTimeout(timer);
   }, [isBooting]);
 
-  if (!isCustomStoreDomain && !hasSeenOnboarding && !['/', '/onboarding', '/login', '/identity-setup'].includes(location.pathname)) {
+  if (!isCustomStoreDomain && !hasSeenOnboarding && !isPublicCommercePath && !['/', '/onboarding', '/login', '/identity-setup'].includes(location.pathname)) {
     return (
       <PhoneWrapper>
         <Navigate to="/onboarding" replace />
@@ -122,6 +130,7 @@ function AppRoutes() {
     !isCustomStoreDomain &&
     !loading &&
     user &&
+    !user.isAnonymous &&
     profile?.demographicsSetupRequired &&
     !profile.demographicsSetupCompleted &&
     location.pathname !== '/identity-setup'
@@ -182,7 +191,7 @@ function AppRoutes() {
         <Route path="/market" element={<MarketHome />} />
         <Route path="/market/orders" element={<MarketOrdersScreen />} />
         <Route path="/order/:orderId" element={<OrderVerificationScreen />} />
-        <Route path="/zandofy/access/:orderId" element={<RequireAuth><DigitalAccessScreen /></RequireAuth>} />
+        <Route path="/zandofy/access/:orderId" element={<RequireAuth allowAnonymous><DigitalAccessScreen /></RequireAuth>} />
         <Route path="/market/stand/:sellerId" element={<SellerStandScreen />} />
         <Route path="/market/:productId" element={<ProductDetailScreen />} />
         <Route path="/wallet" element={<RequireAuth><WalletDashboard /></RequireAuth>} />

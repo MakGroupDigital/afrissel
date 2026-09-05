@@ -812,7 +812,7 @@ export function ZandofyAffiliationScreen() {
   const [status, setStatus] = useState('');
 
   const shareAffiliate = async (product: typeof products[number], level: 'direct' | 'indirect') => {
-    if (!user) return;
+    if (!user || user.isAnonymous) return;
     const productURL = `${window.location.origin}${getZandofyProductPath(product)}`;
     const url = new URL(productURL);
     url.searchParams.set('ref', user.uid);
@@ -2547,7 +2547,7 @@ export function ZandofyPublicStoreScreen() {
 
   const submitStoreReview = async () => {
     if (!publicStore) return;
-    if (!user) {
+    if (!user || user.isAnonymous) {
       navigate('/login', { state: { next: `/zandofy/${publicStore.slug}` } });
       return;
     }
@@ -2589,7 +2589,7 @@ export function ZandofyPublicStoreScreen() {
 
   const reportStore = async () => {
     if (!publicStore) return;
-    if (!user) {
+    if (!user || user.isAnonymous) {
       navigate('/login', { state: { next: `/zandofy/${publicStore.slug}` } });
       return;
     }
@@ -2734,7 +2734,7 @@ export function ZikMartMarketplaceScreen() {
   });
 
   const addToStore = (product: AfriMarketContent) => {
-    if (!user) {
+    if (!user || user.isAnonymous) {
       navigate('/login', { state: { next: `/zikmart?add=${encodeURIComponent(product.id)}` } });
       return;
     }

@@ -27,6 +27,8 @@ type VerifiedOrder = {
 const statusLabel = (value?: string) => {
   if (value === 'paid' || value === 'confirmed') return 'Confirmé';
   if (value === 'pay_on_delivery' || value === 'awaiting_delivery_payment') return 'À payer à la livraison';
+  if (value === 'pending_operator' || value === 'awaiting_mobile_payment') return 'Validation Mobile Money';
+  if (value === 'failed' || value === 'payment_failed') return 'Paiement refusé';
   if (value === 'delivered') return 'Livré';
   if (value === 'pending_assignment') return 'Livraison en préparation';
   if (value === 'pickup_requested') return 'Retrait demandé';
@@ -78,7 +80,8 @@ export default function OrderVerificationScreen() {
     );
   }
 
-  const isReceipt = order.documentType !== 'invoice';
+  const isPaymentPending = order.paymentStatus === 'pending_operator' || order.status === 'awaiting_mobile_payment';
+  const isReceipt = order.documentType !== 'invoice' && !isPaymentPending;
 
   return (
     <main className="min-h-full bg-black px-4 pb-24 pt-4 text-white">
@@ -88,11 +91,11 @@ export default function OrderVerificationScreen() {
             <img src={AFRIZIA_MAIN_LOGO} alt="" className="h-full w-full object-contain" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Document vérifié</p>
-            <h1 className="mt-1 text-xl font-black">{isReceipt ? 'Reçu AfriZia' : 'Facture AfriZia'}</h1>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{isPaymentPending ? 'Paiement sécurisé' : 'Document vérifié'}</p>
+            <h1 className="mt-1 text-xl font-black">{isPaymentPending ? 'Paiement en attente' : isReceipt ? 'Reçu AfriZia' : 'Facture AfriZia'}</h1>
           </div>
           <span className="rounded-full bg-[#15EA3E] px-3 py-1 text-[9px] font-black uppercase tracking-wider text-black">
-            Authentique
+            {isPaymentPending ? 'En attente' : 'Authentique'}
           </span>
         </div>
       </header>
@@ -125,7 +128,9 @@ export default function OrderVerificationScreen() {
       <section className="mt-4 rounded-[1.4rem] border border-[#15EA3E]/22 bg-[#15EA3E]/10 p-4">
         <p className="text-sm font-black text-[#15EA3E]">État actuel</p>
         <p className="mt-2 text-xs font-semibold leading-relaxed text-white/58">
-          {isReceipt
+          {isPaymentPending
+            ? 'La demande Mobile Money a été envoyée. Valide-la sur ton téléphone: la commande sera confirmée automatiquement.'
+            : isReceipt
             ? 'Le paiement a été confirmé dans AfriSpay. La commande peut être suivie jusqu’à la livraison.'
             : 'Cette facture attend un paiement à la livraison. Le paiement devra être confirmé avant clôture.'}
         </p>

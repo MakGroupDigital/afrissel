@@ -15,6 +15,7 @@ import {
   signInWithPhoneNumber,
   signInWithPopup,
   signInWithRedirect,
+  signInAnonymously,
   signOut,
   updateProfile
 } from 'firebase/auth';
@@ -39,6 +40,7 @@ export interface AfriZiaUserProfile {
   displayName: string;
   photoURL: string;
   providerIds: string[];
+  isAnonymous?: boolean;
   primaryRole?: AccountRole;
   primarySubtype?: string;
   roles?: AccountRole[];
@@ -326,7 +328,8 @@ const buildProfile = (user: User, existing?: Partial<AfriZiaUserProfile>): AfriZ
   email: user.email || existing?.email || '',
   displayName: user.displayName || existing?.displayName || 'Utilisateur AfriZia',
   photoURL: user.photoURL || existing?.photoURL || '',
-  providerIds: user.providerData.map((provider) => provider.providerId)
+  providerIds: user.providerData.map((provider) => provider.providerId),
+  isAnonymous: user.isAnonymous
 });
 
 const syncUserProfile = async (user: User): Promise<AfriZiaUserProfile> => {
@@ -335,8 +338,8 @@ const syncUserProfile = async (user: User): Promise<AfriZiaUserProfile> => {
   const existing = snap.exists() ? snap.val() as Partial<AfriZiaUserProfile> : {};
   const hasDemographics = Boolean(existing.dateOfBirth && existing.gender);
   const profile = buildProfile(user, existing);
-  const demographicsSetupCompleted = Boolean(existing.demographicsSetupCompleted && hasDemographics) || hasDemographics;
-  const demographicsSetupRequired = !demographicsSetupCompleted;
+  const demographicsSetupCompleted = user.isAnonymous || Boolean(existing.demographicsSetupCompleted && hasDemographics) || hasDemographics;
+  const demographicsSetupRequired = user.isAnonymous ? false : !demographicsSetupCompleted;
 
   await withDatabaseTimeout(update(userRef, stripUndefined({
     ...profile,
@@ -781,6 +784,19 @@ export const useFirebaseAuth = () => {
     },
     signInWithApple: async () => {
       await signInWithSocialProvider(appleProvider);
+    },
+    ensureAnonymousPurchaseSession: async () => {
+      updateAuthStore({ authError: '' });
+      await setPersistence(firebaseAuth, browserLocalPersistence);
+
+      if (firebaseAuth.currentUser) {
+        await syncCurrentUser(firebaseAuth.currentUser);
+        return firebaseAuth.currentUser;
+      }
+
+      const credential = await signInAnonymously(firebaseAuth);
+      await syncCurrentUser(credential.user);
+      return credential.user;
     },
     signInWithEmail: async (email: string, password: string) => {
       updateAuthStore({ authError: '' });

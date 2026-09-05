@@ -43,6 +43,8 @@ const orderStatusLabel = (status?: string) => {
   if (status === 'delivering') return 'En livraison';
   if (status === 'completed') return 'Terminée';
   if (status === 'awaiting_delivery_payment') return 'Paiement à la livraison';
+  if (status === 'awaiting_mobile_payment') return 'Validation Mobile Money';
+  if (status === 'payment_failed') return 'Paiement refusé';
   if (status === 'cancelled') return 'Annulée';
   return status || 'En attente';
 };
@@ -184,6 +186,7 @@ export default function MarketOrdersScreen() {
           const canPrepare = isSeller && !order.isDigital && order.status === 'paid';
           const canDispatch = isSeller && !order.isDigital && order.status === 'preparing';
           const isDropshipping = isSeller && order.marketplace === 'zikmart' && order.dropshippingEnabled;
+          const isPaymentPending = order.paymentStatus === 'pending_operator';
           const canConfirmSupplier = isDropshipping && order.supplierFulfillmentStatus === 'pending_supplier' && order.status === 'paid';
           const canDispatchSupplier = isDropshipping && order.supplierFulfillmentStatus === 'confirmed';
           return (
@@ -202,21 +205,23 @@ export default function MarketOrdersScreen() {
               </span>
             </div>
             <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-black/20 px-3 py-2">
-              <span className="text-[9px] font-bold text-white/45">{order.isDigital ? 'Accès digital' : isDropshipping ? `Fournisseur: ${order.supplierFulfillmentStatus === 'confirmed' ? 'confirmé' : order.supplierFulfillmentStatus === 'dispatched' ? 'expédié' : order.supplierFulfillmentStatus === 'unavailable' ? 'indisponible' : 'en attente'}` : order.deliveryStatus === 'in_transit' ? 'Safari en route' : order.deliveryStatus === 'delivered' ? 'Livré' : 'Livraison à organiser'}</span>
+              <span className="text-[9px] font-bold text-white/45">{order.paymentStatus === 'pending_operator' ? 'Validation Mobile Money en attente' : order.paymentStatus === 'failed' ? 'Paiement Mobile Money refusé' : order.isDigital ? 'Accès digital' : isDropshipping ? `Fournisseur: ${order.supplierFulfillmentStatus === 'confirmed' ? 'confirmé' : order.supplierFulfillmentStatus === 'dispatched' ? 'expédié' : order.supplierFulfillmentStatus === 'unavailable' ? 'indisponible' : 'en attente'}` : order.deliveryStatus === 'in_transit' ? 'Safari en route' : order.deliveryStatus === 'delivered' ? 'Livré' : 'Livraison à organiser'}</span>
               {isSeller && order.deliveryAddress && <span className="max-w-[52%] truncate text-right text-[9px] font-bold text-white/45">{order.deliveryAddress}</span>}
             </div>
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              <Link to={order.isDigital ? `/zandofy/access/${order.id}` : order.module === 'zandofy' ? order.storeSlug ? `/zandofy/${encodeURIComponent(order.storeSlug)}/product/${encodeURIComponent(order.productId)}` : `/zandofy/product/${encodeURIComponent(order.productId)}` : `/market/${encodeURIComponent(order.productId)}`} className="rounded-xl border border-white/10 bg-black/20 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-white/62">
-                {order.isDigital ? 'Accès' : 'Produit'}
+            <div className={`mt-3 grid gap-2 ${isPaymentPending ? 'grid-cols-2' : 'grid-cols-4'}`}>
+              <Link to={order.isDigital && order.paymentStatus === 'confirmed' ? `/zandofy/access/${order.id}` : order.module === 'zandofy' ? order.storeSlug ? `/zandofy/${encodeURIComponent(order.storeSlug)}/product/${encodeURIComponent(order.productId)}` : `/zandofy/product/${encodeURIComponent(order.productId)}` : `/market/${encodeURIComponent(order.productId)}`} className="rounded-xl border border-white/10 bg-black/20 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-white/62">
+                {order.isDigital && order.paymentStatus === 'confirmed' ? 'Accès' : 'Produit'}
               </Link>
-              <Link to="/safari" className="rounded-xl border border-white/10 bg-black/20 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-white/62">
-                Livraison
-              </Link>
-              <Link to="/chat" className="rounded-xl bg-[#15EA3E] px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-black">
-                Chat
-              </Link>
+              {!isPaymentPending && <>
+                <Link to="/safari" className="rounded-xl border border-white/10 bg-black/20 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-white/62">
+                  Livraison
+                </Link>
+                <Link to="/chat" className="rounded-xl bg-[#15EA3E] px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-black">
+                  Chat
+                </Link>
+              </>}
               <Link to={`/order/${order.id}`} className="rounded-xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-2 py-2 text-center text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">
-                {order.documentType === 'invoice' ? 'Facture' : 'Reçu'}
+                {order.paymentStatus === 'pending_operator' ? 'Suivi' : order.documentType === 'invoice' ? 'Facture' : 'Reçu'}
               </Link>
             </div>
             {isSeller && (canPrepare || canDispatch) && (

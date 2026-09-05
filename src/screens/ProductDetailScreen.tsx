@@ -473,10 +473,6 @@ export default function ProductDetailScreen() {
   };
 
   const handleBuy = () => {
-    if (!user) {
-      navigate('/login', { state: { next: productDetailPath } });
-      return;
-    }
     openCheckout(checkoutProduct, isZandofyDigital ? null : selectedDelivery);
   };
 
@@ -496,7 +492,7 @@ export default function ProductDetailScreen() {
   };
 
   const handleShareAffiliate = async (level: 'direct' | 'indirect') => {
-    if (!user) {
+    if (!user || user.isAnonymous) {
       navigate('/login', { state: { next: productDetailPath } });
       return;
     }
@@ -519,7 +515,7 @@ export default function ProductDetailScreen() {
   };
 
   const handleVillageShare = async () => {
-    if (!user) {
+    if (!user || user.isAnonymous) {
       navigate('/login', { state: { next: productDetailPath } });
       return;
     }
@@ -543,7 +539,7 @@ export default function ProductDetailScreen() {
   };
 
   const createPurchaseVillage = async (payAfterCreation = false) => {
-    if (!user) {
+    if (!user || user.isAnonymous) {
       navigate('/login', { state: { next: productDetailPath } });
       return;
     }
@@ -668,7 +664,7 @@ export default function ProductDetailScreen() {
   };
 
   const inviteToPurchaseVillage = async () => {
-    if (!user || !purchaseVillage) return;
+    if (!user || user.isAnonymous || !purchaseVillage) return;
     const identifier = normalizeContactValue(inviteValue);
     if (!identifier) {
       setVillageStatus('Entre un email ou un numéro à inviter.');
@@ -752,7 +748,7 @@ export default function ProductDetailScreen() {
   const submitReview = async (event: FormEvent) => {
     event.preventDefault();
     if (!product) return;
-    if (!user) {
+    if (!user || user.isAnonymous) {
       navigate('/login', { state: { next: productDetailPath } });
       return;
     }
@@ -785,7 +781,7 @@ export default function ProductDetailScreen() {
   };
 
   const publishProductToABC = async () => {
-    if (!user || !checkoutProduct || !product) return;
+    if (!user || user.isAnonymous || !checkoutProduct || !product) return;
     if (product.abcPostId) {
       setStatus('Ce produit est déjà présenté dans ABC.');
       return;
@@ -1055,7 +1051,7 @@ export default function ProductDetailScreen() {
               onClick={handleBuy}
               className="h-12 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-widest text-black"
             >
-              Payer AfriSpay
+              Acheter
             </button>
           </div>
         </div>
@@ -1491,7 +1487,7 @@ export default function ProductDetailScreen() {
             onClick={handleBuy}
             className="h-12 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-widest text-black"
           >
-            Payer AfriSpay
+            Acheter
           </button>
         </div>
       </div>

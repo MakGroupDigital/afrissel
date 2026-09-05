@@ -7,6 +7,7 @@ import { InvertedAfricaLogo } from './InvertedAfricaLogo';
 import OfflineStatus from './OfflineStatus';
 import PwaInstallPrompt from './PwaInstallPrompt';
 import AppQuickActions from './AppQuickActions';
+import { useCommercePaymentReconciliation } from '../hooks/useCommercePaymentReconciliation';
 
 interface PhoneWrapperProps {
   children: React.ReactNode;
@@ -20,6 +21,7 @@ export default function PhoneWrapper({ children }: PhoneWrapperProps) {
   const isImmersive = immersivePaths.includes(location.pathname);
   const isFeed = location.pathname === '/feed';
   const [isLightMode, setIsLightMode] = useState(isLightThemePreferred);
+  useCommercePaymentReconciliation();
 
   useEffect(() => {
     const syncTheme = () => {
