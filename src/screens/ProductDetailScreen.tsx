@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { get, onValue, push, ref, serverTimestamp, set, update } from 'firebase/database';
 import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
+import { AfriZiaLoadingState } from '../components/AfriZiaLottie';
 import { AfriMarketContent, formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { CheckoutDelivery, useAppStore } from '../store/useAppStore';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
@@ -448,10 +449,9 @@ export default function ProductDetailScreen() {
 
   if (loading) {
     return (
-      <div className="flex min-h-full flex-col items-center justify-center bg-black px-8 text-center text-white">
-        <AfriZiaIcon name="market" size={36} className="text-[#15EA3E]" />
-        <p className="mt-4 text-sm font-black uppercase tracking-wide">Chargement du produit</p>
-      </div>
+      <main className="min-h-full bg-black px-8 text-white">
+        <AfriZiaLoadingState label="Chargement du produit" className="min-h-full" />
+      </main>
     );
   }
 

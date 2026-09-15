@@ -2,6 +2,7 @@ import React, { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useMemo, useRe
 import { useLocation, useNavigate } from 'react-router-dom';
 import { get, off, onValue, push, ref, runTransaction, serverTimestamp, set, update } from 'firebase/database';
 import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
+import { AfriZiaLoadingState } from '../components/AfriZiaLottie';
 import { AfriChatContact, AfriChatMessage, AfriChatThread, formatChatTime, useAfriChat } from '../hooks/useAfriChat';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { isCloudinaryReady, uploadMediaToCloudinary } from '../lib/cloudinary';
@@ -168,6 +169,10 @@ function Avatar({ title, src, size = 'md' }: { title: string; src?: string; size
 }
 
 function EmptyState({ icon, title, body }: { icon: AfriZiaIconName; title: string; body: string }) {
+  if (title === 'Chargement') {
+    return <AfriZiaLoadingState label="Chargement des discussions" className="min-h-[260px]" />;
+  }
+
   return (
     <div className="flex min-h-[260px] flex-col items-center justify-center px-8 text-center">
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-800 bg-[#0A0A0A] text-gray-400">

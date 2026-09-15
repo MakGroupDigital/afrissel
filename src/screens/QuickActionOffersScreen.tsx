@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { onValue, ref } from 'firebase/database';
 import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
+import { AfriZiaLoadingState } from '../components/AfriZiaLottie';
 import { formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { realtimeDb } from '../lib/firebase';
 import { AFRIZIA_MAIN_LOGO } from '../lib/branding';
@@ -198,10 +199,7 @@ export default function QuickActionOffersScreen() {
       <section className="mt-5">
         <h2 className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/48">Offres</h2>
         {loading ? (
-          <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
-            <AfriZiaIcon name={section.icon} size={30} className="text-[#15EA3E]" />
-            <p className="mt-3 text-xs font-black uppercase tracking-wider text-white/55">Chargement</p>
-          </div>
+          <AfriZiaLoadingState label="Chargement des offres" className="min-h-[260px]" />
         ) : offers.length ? (
           <div className="grid grid-cols-2 gap-3">
             {offers.map((offer) => (

@@ -2,6 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { onValue, push, ref, serverTimestamp, set } from 'firebase/database';
 import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
+import { AfriZiaLoadingState } from '../components/AfriZiaLottie';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { ZandofyOrderProcessingMode, ZandofyProductMedia, ZandofyTheme, getZandofyStoreURL, useZandofyStore } from '../hooks/useZandofyStore';
 import { AFRICAN_COUNTRIES_BY_PRIORITY, getCountryByCode, getDeviceCityHint, getDeviceCountryCode } from '../lib/africaLocation';
@@ -60,6 +61,14 @@ function ZandofyMenuBar() {
         </Link>
       ))}
     </nav>
+  );
+}
+
+function ZandofyLoadingScreen({ label }: { label: string }) {
+  return (
+    <main className="min-h-full bg-[#030604] text-white">
+      <AfriZiaLoadingState label={label} className="min-h-full px-6" />
+    </main>
   );
 }
 
@@ -692,7 +701,7 @@ export function ZandofyDashboardScreen() {
   const createdSlug = new URLSearchParams(window.location.search).get('created');
   const store = ownerStore;
 
-  if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement Zandofy...</main>;
+  if (loading) return <ZandofyLoadingScreen label="Chargement Zandofy" />;
   if (!store) {
     return (
       <main className="flex min-h-full flex-col justify-center bg-[#030604] p-5 text-white">
@@ -826,7 +835,7 @@ export function ZandofyAffiliationScreen() {
     }
   };
 
-  if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement affiliation...</main>;
+  if (loading) return <ZandofyLoadingScreen label="Chargement affiliation" />;
   if (!ownerStore) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Boutique introuvable.</main>;
   const affiliateProducts = products.filter((product) => product.affiliateEnabled);
 
@@ -856,7 +865,7 @@ export function ZandofyPromosScreen() {
   const navigate = useNavigate();
   const { ownerStore, products, loading } = useZandofyStore();
   const promos = products.filter((product) => product.salePrice !== undefined && product.salePrice < product.regularPrice);
-  if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement promos...</main>;
+  if (loading) return <ZandofyLoadingScreen label="Chargement des promotions" />;
   if (!ownerStore) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Boutique introuvable.</main>;
   return (
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
@@ -974,7 +983,7 @@ export function ZandofyStatsScreen() {
     };
   }, [analytics, orders, period, products]);
 
-  if (loading || loadingOrders) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement statistiques...</main>;
+  if (loading || loadingOrders) return <ZandofyLoadingScreen label="Chargement des statistiques" />;
   if (!ownerStore) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Boutique introuvable.</main>;
 
   return (
@@ -1168,7 +1177,7 @@ export function ZandofyClientsScreen() {
     return Array.from(clientsMap.values()).sort((first, second) => Number(second.lastOrder || 0) - Number(first.lastOrder || 0));
   }, [orders]);
 
-  if (loading || loadingOrders) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement clients...</main>;
+  if (loading || loadingOrders) return <ZandofyLoadingScreen label="Chargement des clients" />;
   if (!ownerStore) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Boutique introuvable.</main>;
 
   return (
@@ -1538,7 +1547,7 @@ export function ZandofyCreateProductScreen() {
     title
   ]);
 
-  if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement Zandofy...</main>;
+  if (loading) return <ZandofyLoadingScreen label="Chargement Zandofy" />;
   if (!ownerStore) {
     return (
       <main className="flex min-h-full flex-col justify-center bg-[#030604] p-5 text-center text-white">
@@ -2117,7 +2126,7 @@ export function ZandofyEditProductScreen() {
     }
   };
 
-  if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement du produit...</main>;
+  if (loading) return <ZandofyLoadingScreen label="Chargement du produit" />;
   if (!ownerStore || !product) return <main className="flex min-h-full items-center justify-center bg-[#030604] p-5 text-center text-white">Produit introuvable.</main>;
 
   const isPhysical = product.productKind === 'physical';
@@ -2253,7 +2262,7 @@ export function ZandofyProductsScreen() {
     ? products
     : products.filter((product) => (product.collection || 'Nouveautés') === activeCollection);
 
-  if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement produits...</main>;
+  if (loading) return <ZandofyLoadingScreen label="Chargement des produits" />;
   if (!ownerStore) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Boutique introuvable.</main>;
 
   return (
@@ -2349,7 +2358,7 @@ export function ZandofyDomainScreen() {
     setDomain(ownerStore.customDomain || '');
   }, [ownerStore]);
 
-  if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement domaine...</main>;
+  if (loading) return <ZandofyLoadingScreen label="Chargement du domaine" />;
   if (!ownerStore) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Boutique introuvable.</main>;
 
   const saveDomain = async () => {
@@ -2628,7 +2637,7 @@ export function ZandofyPublicStoreScreen() {
     }
   };
 
-  if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement boutique...</main>;
+  if (loading) return <ZandofyLoadingScreen label="Chargement de la boutique" />;
   if (!publicStore) {
     return (
       <main className="flex min-h-full flex-col justify-center bg-[#030604] p-5 text-center text-white">
@@ -2745,7 +2754,7 @@ export function ZikMartMarketplaceScreen() {
     navigate(`/zandofy/products/new?sourceProductId=${encodeURIComponent(product.id)}`, { state: { sourceProduct: product } });
   };
 
-  if (loading) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Chargement ZikMart...</main>;
+  if (loading) return <ZandofyLoadingScreen label="Chargement ZikMart" />;
 
   return (
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">

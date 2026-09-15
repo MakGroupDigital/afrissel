@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { off, onValue, push, ref, set } from 'firebase/database';
 import { AfriZiaIcon } from '../components/AfriZiaIcon';
+import { AfriZiaLoadingState } from '../components/AfriZiaLottie';
 import { AfriZiaUserProfile } from '../hooks/useFirebaseAuth';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { formatMarketPrice, useAfriMarket } from '../hooks/useAfriMarket';
@@ -146,9 +147,7 @@ export default function PublicProfileScreen() {
       </header>
 
       {loading ? (
-        <div className="flex flex-1 items-center justify-center">
-          <AfriZiaIcon name="profile" size={34} className="text-[#15EA3E]" />
-        </div>
+        <AfriZiaLoadingState label="Chargement du profil" className="flex-1" />
       ) : !publicProfile ? (
         <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
           <AfriZiaIcon name="profile" size={34} className="text-white/20" />

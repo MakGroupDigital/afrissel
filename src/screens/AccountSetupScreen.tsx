@@ -2,6 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { AfriZiaIcon } from '../components/AfriZiaIcon';
+import { AfriZiaLoadingState } from '../components/AfriZiaLottie';
 import {
   AccountRole,
   PUBLIC_ACCOUNT_ROLE_DEFINITIONS,
@@ -326,8 +327,8 @@ export default function AccountSetupScreen() {
 
   if (loading) {
     return (
-      <main className="flex min-h-full items-center justify-center bg-[#050705] text-white">
-        <Loader2 className="h-6 w-6 animate-spin text-[#15EA3E]" />
+      <main className="min-h-full bg-[#050705] text-white">
+        <AfriZiaLoadingState label="Préparation du compte" className="min-h-full" />
       </main>
     );
   }

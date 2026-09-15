@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ref, update } from 'firebase/database';
 import { AfriZiaIcon } from '../components/AfriZiaIcon';
+import { AfriZiaLoadingState } from '../components/AfriZiaLottie';
 import { AfriMarketContent, formatMarketPrice, formatMarketTime, useAfriMarket } from '../hooks/useAfriMarket';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { realtimeDb } from '../lib/firebase';
@@ -129,7 +130,7 @@ export default function ProfileContentManagerScreen({ kind }: { kind: ManagerKin
 
       <section className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 scrollbar-hide">
         {loading && !items.length ? (
-          <div className="flex h-full items-center justify-center text-sm font-bold text-white/45">Chargement...</div>
+          <AfriZiaLoadingState className="h-full" />
         ) : items.length ? (
           <div className="grid grid-cols-3 gap-1.5">
             {items.map((item) => (

@@ -1047,3 +1047,76 @@
     flex: 1 1 0%;
   }
 }
+
+/* Shared Lottie states keep feedback visible on dark and light module surfaces. */
+.afrizia-loading-state {
+  color: #15EA3E;
+}
+
+.afrizia-lottie-frame,
+.afrizia-lottie-frame > svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.afrizia-splash {
+  background: #030704;
+}
+
+.afrizia-splash-grid {
+  background-image: linear-gradient(rgba(21, 234, 62, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(21, 234, 62, 0.045) 1px, transparent 1px);
+  background-position: center;
+  background-size: 26px 26px;
+  mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+}
+
+.afrizia-splash-scan {
+  border: 1px solid rgba(21, 234, 62, 0.18);
+  border-radius: 50%;
+  height: 17rem;
+  transform: translate(-50%, -50%);
+  width: 17rem;
+  animation: afrizia-splash-scan 4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.afrizia-splash-logo {
+  animation: afrizia-splash-logo 4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  filter: drop-shadow(0 0 28px rgba(21, 234, 62, 0.36));
+}
+
+.afrizia-splash-line {
+  background: #15EA3E;
+  height: 2px;
+  width: 2.5rem;
+  animation: afrizia-splash-line 4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes afrizia-splash-logo {
+  0% { opacity: 0; transform: scale(0.72); }
+  28% { opacity: 1; transform: scale(1.05); }
+  48% { transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes afrizia-splash-scan {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.45); }
+  34% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0.34; transform: translate(-50%, -50%) scale(1.18); }
+}
+
+@keyframes afrizia-splash-line {
+  0%, 26% { opacity: 0; transform: scaleX(0); }
+  48% { opacity: 1; transform: scaleX(1.22); }
+  100% { opacity: 1; transform: scaleX(1); }
+}
+
+.app-light .afrizia-loading-state {
+  color: #087A28;
+}
+
+/* The brand opening is intentionally immersive, regardless of the selected UI theme. */
+.app-light .afrizia-splash {
+  background: #050705 !important;
+  color: #fff !important;
+}

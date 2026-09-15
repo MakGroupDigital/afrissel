@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { AfriZiaIcon } from '../components/AfriZiaIcon';
+import { AfriZiaLoadingState } from '../components/AfriZiaLottie';
 import { toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 
 export default function SellerStandScreen() {
@@ -41,7 +42,7 @@ export default function SellerStandScreen() {
       </section>
 
       {loading ? (
-        <div className="mt-10 text-center text-sm font-black uppercase tracking-wide text-white/45">Chargement du Stand</div>
+        <AfriZiaLoadingState label="Chargement du stand" className="min-h-[180px]" />
       ) : products.length ? (
         <section className="mt-5 grid grid-cols-2 gap-3">
           {products.map((product) => (

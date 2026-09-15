@@ -2,6 +2,7 @@ import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
 import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
+import { AfriZiaLoadingState } from '../components/AfriZiaLottie';
 import { MARKET_CATEGORIES, AfriMarketContent, formatMarketPrice, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { cn } from '../lib/utils';
 
@@ -759,10 +760,7 @@ export default function MarketHome() {
       )}
 
       {loading ? (
-        <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-          <AfriZiaIcon name="market" size={36} className="text-[#15EA3E]" />
-          <p className="mt-4 text-sm font-black uppercase tracking-wide text-white">Chargement du marché</p>
-        </div>
+        <AfriZiaLoadingState label="Chargement du marché" className="min-h-[280px] flex-1 px-8" />
       ) : filteredProducts.length ? (
         <div className="grid grid-cols-2 gap-3 p-4 pb-24">
           {filteredProducts.map((product) => (

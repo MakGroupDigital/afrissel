@@ -9,7 +9,18 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 const SNOOZE_KEY = 'afrisell:pwa-install-snooze-until';
+const ELIGIBLE_AT_KEY = 'afrisell:pwa-install-eligible-at';
 const NOTIFICATION_READY_KEY = 'afrisell:notifications-ready';
+const INSTALL_PROMPT_DELAY_MS = 3 * 24 * 60 * 60 * 1000;
+
+const getInstallEligibleAt = () => {
+  const storedValue = Number(window.localStorage.getItem(ELIGIBLE_AT_KEY) || 0);
+  if (Number.isFinite(storedValue) && storedValue > 0) return storedValue;
+
+  const eligibleAt = Date.now() + INSTALL_PROMPT_DELAY_MS;
+  window.localStorage.setItem(ELIGIBLE_AT_KEY, String(eligibleAt));
+  return eligibleAt;
+};
 
 const isStandaloneApp = () => {
   if (typeof window === 'undefined') return false;
@@ -42,11 +53,19 @@ export default function PwaInstallPrompt() {
   useEffect(() => {
     if (isTauriNative()) return;
 
+    const showWhenEligible = () => {
+      const snoozeUntil = Number(window.localStorage.getItem(SNOOZE_KEY) || 0);
+      const eligibleAt = getInstallEligibleAt();
+      const canShow = Date.now() >= Math.max(eligibleAt, snoozeUntil) &&
+        (!isStandaloneApp() || (!notificationsEnabled && !notificationsUnsupported));
+      setVisible(canShow);
+    };
+
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event as BeforeInstallPromptEvent);
       setInstalled(isStandaloneApp());
-      setVisible(true);
+      showWhenEligible();
     };
 
     const handleInstalled = () => {
@@ -59,10 +78,11 @@ export default function PwaInstallPrompt() {
     window.addEventListener('appinstalled', handleInstalled);
 
     const snoozeUntil = Number(window.localStorage.getItem(SNOOZE_KEY) || 0);
-    const shouldShow = Date.now() > snoozeUntil && (!isStandaloneApp() || (!notificationsEnabled && !notificationsUnsupported));
+    const eligibleAt = getInstallEligibleAt();
+    const showAt = Math.max(eligibleAt, snoozeUntil);
     const timer = window.setTimeout(() => {
-      if (shouldShow) setVisible(true);
-    }, 1400);
+      showWhenEligible();
+    }, Math.max(0, showAt - Date.now()));
 
     return () => {
       window.clearTimeout(timer);

@@ -1,6 +1,7 @@
 import React, { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AfriZiaIcon } from '../components/AfriZiaIcon';
+import { AfriZiaLoadingState } from '../components/AfriZiaLottie';
 import {
   AfriMarketComment,
   AfriMarketContent,
@@ -1300,10 +1301,7 @@ export default function VideoFeed() {
       )}
 
       {loading ? (
-        <div className="flex h-full flex-col items-center justify-center px-10 text-center">
-          <AfriZiaIcon name="video" size={42} className="text-[#15EA3E]" />
-          <p className="mt-4 text-sm font-black uppercase tracking-wide text-white">Chargement ABC</p>
-        </div>
+        <AfriZiaLoadingState label="Chargement ABC" className="h-full px-10" />
       ) : filteredContents.length ? (
         <div className="h-full w-full snap-y snap-mandatory overflow-y-scroll scrollbar-hide">
           {filteredContents.map((content) => {
