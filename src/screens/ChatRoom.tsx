@@ -201,7 +201,7 @@ function ThreadRow({ thread, active, currentUserId, onOpen }: { key?: React.Key;
       type="button"
       onClick={onOpen}
       className={cn(
-        'flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-colors',
+        'africhat-thread-row flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-colors',
         active
           ? 'border-[#15EA3E]/40 bg-[#15EA3E]/10'
           : 'border-gray-900 bg-[#050505] hover:border-gray-700 hover:bg-[#0A0A0A]'
@@ -255,7 +255,7 @@ function ContactRow({ contact, onOpen, disabled = false }: { key?: React.Key; co
       onClick={onOpen}
       disabled={disabled}
       className={cn(
-        'flex w-full items-center gap-3 rounded-2xl border border-gray-900 bg-[#050505] p-3 text-left transition-colors hover:border-gray-700 hover:bg-[#0A0A0A]',
+        'africhat-contact-row flex w-full items-center gap-3 rounded-2xl border border-gray-900 bg-[#050505] p-3 text-left transition-colors hover:border-gray-700 hover:bg-[#0A0A0A]',
         disabled && 'cursor-not-allowed opacity-55 hover:border-gray-900 hover:bg-[#050505]'
       )}
     >
@@ -1993,9 +1993,9 @@ export default function ChatRoom() {
 
   if (activeThread) {
     return (
-      <div className="relative flex h-full min-h-0 flex-col bg-black">
+      <div className="africhat-room relative flex h-full min-h-0 flex-col bg-black">
         <KissEffectOverlay effectKey={kissEffectKey} />
-        <div className="sticky top-0 z-30 flex h-[68px] shrink-0 items-center justify-between border-b border-gray-900 bg-black/95 px-3 backdrop-blur-md">
+        <div className="africhat-room-header sticky top-0 z-30 flex h-[68px] shrink-0 items-center justify-between border-b border-gray-900 bg-black/95 px-3 backdrop-blur-md">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -2196,7 +2196,7 @@ export default function ChatRoom() {
 
         <form
           onSubmit={submitMessage}
-          className="sticky bottom-0 z-20 flex shrink-0 flex-col gap-3 border-t border-gray-900 bg-black px-4 pb-3 pt-3"
+          className="africhat-composer sticky bottom-0 z-20 flex shrink-0 flex-col gap-3 border-t border-gray-900 bg-black px-4 pb-3 pt-3"
         >
           <input
             ref={chatCameraInputRef}
@@ -2609,8 +2609,8 @@ export default function ChatRoom() {
   }
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col bg-black">
-      <div className="sticky top-0 z-30 shrink-0 border-b border-gray-900 bg-black/95 px-4 pb-3 pt-3 backdrop-blur-md">
+    <div className="africhat-home relative flex h-full min-h-0 flex-col bg-black">
+      <div className="africhat-home-header sticky top-0 z-30 shrink-0 border-b border-gray-900 bg-black/95 px-4 pb-3 pt-3 backdrop-blur-md">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriChat</p>
@@ -2646,8 +2646,8 @@ export default function ChatRoom() {
 
       </div>
 
-      <div className="shrink-0 border-b border-gray-900 px-4 py-3">
-        <div className="grid grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
+      <div className="africhat-space-controls shrink-0 border-b border-gray-900 px-4 py-3">
+        <div className="africhat-mode-switch grid grid-cols-2 rounded-2xl border border-white/10 bg-white/[0.04] p-1">
           {[
             { id: 'social' as const, label: 'Mode social' },
             { id: 'pro' as const, label: 'Mode pro' }
@@ -2679,7 +2679,7 @@ export default function ChatRoom() {
                 type="button"
                 onClick={() => setChatFilter(filter.id)}
                 className={cn(
-                  'shrink-0 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors',
+                  'africhat-filter-chip shrink-0 rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition-colors',
                   chatFilter === filter.id ? 'bg-white text-black' : 'bg-white/[0.055] text-white/48'
                 )}
               >

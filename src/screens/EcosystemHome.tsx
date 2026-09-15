@@ -740,7 +740,7 @@ export default function EcosystemHome() {
   };
 
   return (
-    <main className={`flex h-full min-h-0 flex-col overflow-hidden bg-[#050705] text-white ${isLightMode ? 'ecosystem-light' : ''}`}>
+    <main className={`ecosystem-home flex h-full min-h-0 flex-col overflow-hidden bg-[#050705] text-white ${isLightMode ? 'ecosystem-light' : ''}`}>
       <div
         data-home-scroll
         onScroll={handleHomeScroll}
@@ -752,7 +752,7 @@ export default function EcosystemHome() {
           ? 'max-h-[320px] translate-y-0 overflow-visible pb-1 pt-2 opacity-100'
           : 'pointer-events-none max-h-0 -translate-y-3 overflow-hidden opacity-0'
       }`}>
-      <header className="shrink-0 px-4">
+      <header className="ecosystem-home-header shrink-0 px-4">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -770,7 +770,7 @@ export default function EcosystemHome() {
 
       <section className="mt-2 shrink-0 px-4">
         <form onSubmit={submitUniversalSearch} className="relative">
-          <label className="flex h-11 items-center gap-3 rounded-[1.15rem] border border-white/10 bg-white/[0.05] px-3.5 shadow-[0_10px_24px_rgba(0,0,0,0.18)]">
+          <label className="ecosystem-search-bar flex h-11 items-center gap-3 rounded-[1.15rem] border border-white/10 bg-white/[0.05] px-3.5 shadow-[0_10px_24px_rgba(0,0,0,0.18)]">
             <AfriZiaIcon name="search" size={17} className="shrink-0 text-[#15EA3E]" />
             <input
               value={searchQuery}
@@ -820,7 +820,7 @@ export default function EcosystemHome() {
       <section className="mt-2 shrink-0 px-4">
         <div
           className={cn(
-            'relative overflow-hidden rounded-2xl border p-2.5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]',
+            'ecosystem-wallet-card relative overflow-hidden rounded-2xl border p-2.5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]',
             isAfriSpayActive ? 'border-gray-800 bg-black' : 'border-amber-300/24 bg-[#100E07]'
           )}
           style={{
@@ -950,7 +950,7 @@ export default function EcosystemHome() {
               state={action.requiresAuth && !user ? { next: action.route } : undefined}
               className="flex min-w-0 flex-col items-center gap-2 active:scale-[0.97]"
             >
-              <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-[#15EA3E]/18 bg-black shadow-[0_10px_24px_rgba(0,0,0,0.24)]">
+              <span className="ecosystem-quick-action flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-[#15EA3E]/18 bg-black shadow-[0_10px_24px_rgba(0,0,0,0.24)]">
                 <QuickActionArtwork visual={action.visual} />
               </span>
               <span className="quick-action-label min-h-5 w-full rounded-full px-1.5 py-0.5 text-center text-[9px] font-black leading-tight text-white/66">{action.label}</span>
@@ -963,7 +963,7 @@ export default function EcosystemHome() {
       <section className="px-4 pt-4">
         <Link
           to="/promos"
-          className="relative mt-3 block overflow-hidden rounded-[1.45rem] border border-[#15EA3E]/22 bg-[#071007] p-3 shadow-[0_16px_38px_rgba(0,0,0,0.32)] active:scale-[0.99]"
+          className="ecosystem-promo-card relative mt-3 block overflow-hidden rounded-[1.45rem] border border-[#15EA3E]/22 bg-[#071007] p-3 shadow-[0_16px_38px_rgba(0,0,0,0.32)] active:scale-[0.99]"
         >
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_86%_12%,rgba(21,234,62,0.26),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.075),transparent_44%)]" />
           <div className="absolute -right-5 bottom-0 flex -space-x-5 opacity-95">
@@ -989,7 +989,7 @@ export default function EcosystemHome() {
       </section>
 
       <section className="px-4">
-        <div className="relative mt-4 overflow-hidden rounded-[1.6rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.34)]">
+        <div className="ecosystem-motion-card relative mt-4 overflow-hidden rounded-[1.6rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.34)]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_20%,rgba(21,234,62,0.18),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.07),transparent_42%)]" />
           <div className="relative z-10">
             <div className="flex items-center justify-between gap-3">
@@ -1041,7 +1041,7 @@ export default function EcosystemHome() {
             const isVideo = isLiveContent ? media?.resourceType === 'video' : item.format === 'video';
 
             return (
-              <Link key={item.id} to={route} className="relative h-[210px] w-[136px] shrink-0 overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.04] active:scale-[0.98]">
+              <Link key={item.id} to={route} className="ecosystem-media-card relative h-[210px] w-[136px] shrink-0 overflow-hidden rounded-[1.35rem] border border-white/10 bg-white/[0.04] active:scale-[0.98]">
                 {isVideo && media?.secureUrl ? (
                   <video src={media.secureUrl} className="h-full w-full object-cover" muted loop playsInline autoPlay />
                 ) : (
@@ -1081,7 +1081,7 @@ export default function EcosystemHome() {
             const price = isProduct ? formatMarketPrice(item.villagePrice || item.price, item.currency) : ('price' in item ? item.price : '');
 
             return (
-              <Link key={`${title}-${index}`} to={route} className="overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.04] active:scale-[0.98]">
+              <Link key={`${title}-${index}`} to={route} className="ecosystem-product-card overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.04] active:scale-[0.98]">
                 <img src={image || '/afrimarket.jpeg'} alt="" className="h-24 w-full object-cover" />
                 <div className="p-3">
                   <h3 className="truncate text-xs font-black">{title}</h3>
@@ -1100,7 +1100,7 @@ export default function EcosystemHome() {
           <span className="text-[10px] font-black text-[#15EA3E]">{topFreelancers.length} réel{topFreelancers.length > 1 ? 's' : ''}</span>
         </div>
 
-        <div className="relative overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-2.5">
+        <div className="ecosystem-freelance-panel relative overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.035] p-2.5">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_12%,rgba(21,234,62,0.16),transparent_34%)]" />
 
           <div className="relative grid grid-cols-2 gap-2">
@@ -1215,7 +1215,7 @@ export default function EcosystemHome() {
               return (
                 <article
                   key={supplier.id}
-                  className="w-[154px] shrink-0 overflow-hidden rounded-[1.2rem] border border-white/10 bg-white/[0.04]"
+                  className="ecosystem-supplier-card w-[154px] shrink-0 overflow-hidden rounded-[1.2rem] border border-white/10 bg-white/[0.04]"
                 >
                   <Link to={`/u/${supplier.id}`} className="relative block h-24">
                     <img src={supplier.image} alt={supplier.name} className="h-full w-full object-cover" />

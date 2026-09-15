@@ -969,7 +969,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <div className="relative min-h-full overflow-y-auto bg-black pb-8 text-white scrollbar-hide">
+    <div className="profile-private relative min-h-full overflow-y-auto bg-black pb-8 text-white scrollbar-hide">
       {isSettingsPage ? (
         <main className="min-h-full px-4 pb-8 pt-4">
           <header className="flex items-center justify-between">
@@ -1041,13 +1041,13 @@ export default function ProfileScreen() {
         </main>
       ) : (
       <>
-      <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-4">
+      <header className="profile-private-header absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-4">
         <div className="h-10 w-10" />
         <p className="rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E] backdrop-blur-xl">Mon profil</p>
         <div className="h-10 w-10" />
       </header>
 
-      <section className="relative overflow-hidden border-b border-white/10 bg-[#050805]">
+      <section className="profile-private-hero relative overflow-hidden border-b border-white/10 bg-[#050805]">
         <div className="relative h-48">
           <img src={coverImage} alt="" className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.86))]" />
@@ -1110,7 +1110,7 @@ export default function ProfileScreen() {
             <h2 className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/52">Comptes business</h2>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {ownedBusinessAccounts.map((account) => (
-                <Link key={account.categoryId} to={`/business?account=${account.categoryId}`} className="w-[190px] shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3 active:scale-[0.99]">
+                <Link key={account.categoryId} to={`/business?account=${account.categoryId}`} className="profile-private-business-card w-[190px] shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3 active:scale-[0.99]">
                   <p className="truncate text-sm font-black">{account.categoryLabel}</p>
                   <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-relaxed text-white/45">
                     {account.serviceLabel} - {account.segmentLabel}
@@ -1122,12 +1122,12 @@ export default function ProfileScreen() {
         )}
 
         <section className="mt-5 grid grid-cols-2 gap-3">
-          <Link to="/profile/contents" className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
+          <Link to="/profile/contents" className="profile-private-action-card rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
             <AfriZiaIcon name="video" size={20} className="text-[#15EA3E]" />
             <p className="mt-3 text-sm font-black">Mes contenus</p>
             <p className="mt-1 text-[11px] font-semibold text-white/42">ABC, posts et vidéos.</p>
           </Link>
-          <Link to="/profile/storefronts" className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
+          <Link to="/profile/storefronts" className="profile-private-action-card rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
             <AfriZiaIcon name="market" size={20} className="text-[#15EA3E]" />
             <p className="mt-3 text-sm font-black">Mes vitrines</p>
             <p className="mt-1 text-[11px] font-semibold text-white/42">Produits et services.</p>

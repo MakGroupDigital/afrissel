@@ -132,8 +132,8 @@ export default function PublicProfileScreen() {
   };
 
   return (
-    <main className="flex h-full flex-col overflow-hidden bg-black text-white">
-      <header className="shrink-0 px-4 pb-3 pt-5">
+    <main className="profile-public flex h-full flex-col overflow-hidden bg-black text-white">
+      <header className="profile-public-header shrink-0 px-4 pb-3 pt-5">
         <div className="flex items-center justify-between">
           <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white">
             <AfriZiaIcon name="arrow" size={17} className="rotate-180" />
@@ -157,7 +157,7 @@ export default function PublicProfileScreen() {
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto pb-8 scrollbar-hide">
-          <section className="relative overflow-hidden border-b border-white/10 bg-[#050805]">
+          <section className="profile-public-hero relative overflow-hidden border-b border-white/10 bg-[#050805]">
             <div className="relative h-44">
               <img src={coverImage} alt="" className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.82))]" />
@@ -259,7 +259,7 @@ export default function PublicProfileScreen() {
               <h2 className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/52">Comptes business</h2>
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                 {businessAccounts.map((account) => (
-                  <div key={`${account.categoryId}-${account.serviceId}-${account.segmentId}`} className="w-[190px] shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                  <div key={`${account.categoryId}-${account.serviceId}-${account.segmentId}`} className="profile-public-business-card w-[190px] shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
                     <p className="truncate text-sm font-black">{account.categoryLabel}</p>
                     <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-relaxed text-white/45">
                       {account.serviceLabel} - {account.segmentLabel}
@@ -270,7 +270,7 @@ export default function PublicProfileScreen() {
             </section>
           )}
 
-          <section className="mt-5 rounded-[1.45rem] border border-white/10 bg-white/[0.04] p-4">
+          <section className="profile-public-review-panel mt-5 rounded-[1.45rem] border border-white/10 bg-white/[0.04] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Notes et avis</h2>
@@ -349,7 +349,7 @@ export default function PublicProfileScreen() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {authorProducts.map((product) => (
-                  <Link key={product.id} to={`/market/${product.id}`} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+                  <Link key={product.id} to={`/market/${product.id}`} className="profile-public-product-card overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
                     <img src={product.coverURL || '/afrimarket.jpeg'} alt={product.title} className="h-24 w-full object-cover" />
                     <div className="p-3">
                       <p className="truncate text-xs font-black">{product.title}</p>
@@ -366,7 +366,7 @@ export default function PublicProfileScreen() {
               <h2 className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/52">Publications ABC</h2>
               <div className="grid grid-cols-2 gap-3">
                 {authorContents.map((content) => (
-                  <Link key={content.id} to={`/feed?post=${content.id}`} className="relative h-44 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+                  <Link key={content.id} to={`/feed?post=${content.id}`} className="profile-public-content-card relative h-44 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
                     <img src={content.coverURL || '/biashara.jpeg'} alt={content.title} className="h-full w-full object-cover" />
                     <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_38%,rgba(0,0,0,0.9))]" />
                     <div className="absolute inset-x-0 bottom-0 p-3">

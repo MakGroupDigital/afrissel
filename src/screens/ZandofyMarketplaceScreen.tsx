@@ -52,7 +52,7 @@ const zandofyMenu = [
 
 function ZandofyMenuBar() {
   return (
-    <nav aria-label="Navigation Zandofy" className="scrollbar-hide flex gap-2 overflow-x-auto px-4 py-3">
+    <nav aria-label="Navigation Zandofy" className="zandofy-menu-bar scrollbar-hide flex gap-2 overflow-x-auto px-4 py-3">
       {zandofyMenu.map((item) => (
         <Link key={item.label} to={item.route} className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.045] px-3 py-2 text-[9px] font-black text-white/62">
           <AfriZiaIcon name={item.icon} size={13} className="text-[#15EA3E]" />
@@ -318,7 +318,7 @@ function TicketPreview({
 
 function ZandofyFlowDemo() {
   return (
-    <div className="relative h-[232px] overflow-hidden rounded-[1.8rem] border border-[#15EA3E]/16 bg-[radial-gradient(circle_at_18%_18%,rgba(21,234,62,0.22),transparent_34%),linear-gradient(135deg,#071007,#020402_62%,#0b150b)] shadow-[0_20px_58px_rgba(0,0,0,0.32)]">
+    <div className="zandofy-flow-demo relative h-[232px] overflow-hidden rounded-[1.8rem] border border-[#15EA3E]/16 bg-[radial-gradient(circle_at_18%_18%,rgba(21,234,62,0.22),transparent_34%),linear-gradient(135deg,#071007,#020402_62%,#0b150b)] shadow-[0_20px_58px_rgba(0,0,0,0.32)]">
       <style>{`
         @keyframes zandofy-drift-a {
           0%, 100% { transform: translate3d(0, 0, 0) rotate(-4deg); }
@@ -386,8 +386,8 @@ export default function ZandofyMarketplaceScreen() {
   }, [navigate, ownerStore]);
 
   return (
-    <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
-      <header className="relative overflow-hidden px-4 pb-7 pt-4">
+    <main className="zandofy-home min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
+      <header className="zandofy-home-header relative overflow-hidden px-4 pb-7 pt-4">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_8%,rgba(21,234,62,0.32),transparent_34%),linear-gradient(180deg,#071407,#030604)]" />
         <div className="relative z-20 flex items-center justify-between">
           <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-black/34 text-[#15EA3E] backdrop-blur">
@@ -396,7 +396,7 @@ export default function ZandofyMarketplaceScreen() {
           <img src="/zandofyiconeapp.png" alt="Zandofy" className="h-11 w-11 rounded-2xl object-cover shadow-[0_12px_32px_rgba(21,234,62,0.22)]" />
         </div>
 
-        <div className="relative z-10 mt-5 overflow-hidden rounded-[2rem] border border-[#15EA3E]/18 bg-black shadow-[0_18px_44px_rgba(0,0,0,0.38)]">
+        <div className="zandofy-storefront-hero relative z-10 mt-5 overflow-hidden rounded-[2rem] border border-[#15EA3E]/18 bg-black shadow-[0_18px_44px_rgba(0,0,0,0.38)]">
           <img src="/zandofy/group-five-african-american-woman-with-shopping-carts-having-fun-together-outdoor.jpg" alt="Zandofy" className="h-44 w-full object-cover object-center" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,6,4,0.12),rgba(3,6,4,0.78))]" />
           <img src="/zandofyiconeapp.png" alt="" className="absolute -right-4 -top-5 h-32 w-32 rounded-[2rem] object-cover opacity-55 blur-[1.5px]" />
@@ -412,7 +412,7 @@ export default function ZandofyMarketplaceScreen() {
       <ZandofyMenuBar />
 
       <section className="px-4">
-        <div className="rounded-[1.8rem] border border-[#15EA3E]/16 bg-[#071007] p-3 shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
+        <div className="zandofy-flow-panel rounded-[1.8rem] border border-[#15EA3E]/16 bg-[#071007] p-3 shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
           <ZandofyFlowDemo />
           <div className="mt-5">
             <Link
@@ -426,7 +426,7 @@ export default function ZandofyMarketplaceScreen() {
       </section>
 
       <section className="px-4 pt-5">
-        <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-1">
+        <div className="zandofy-category-rail scrollbar-hide flex gap-2 overflow-x-auto pb-1">
           {digitalCategories.map((label) => (
             <span key={label} className="shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-[10px] font-black text-white/66">
               {label}
@@ -442,7 +442,7 @@ export default function ZandofyMarketplaceScreen() {
         </div>
         <div className="mt-3 space-y-2">
           {featuredStores.length ? featuredStores.map((store) => (
-            <Link key={store.id} to={`/zandofy/${store.slug}`} className="flex items-center gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
+            <Link key={store.id} to={`/zandofy/${store.slug}`} className="zandofy-store-card flex items-center gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-3">
               <img src={store.logoURL || '/zandofyiconeapp.png'} alt="" className="h-12 w-12 rounded-2xl object-cover" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-black">{store.name}</p>

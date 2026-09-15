@@ -183,7 +183,7 @@ function MiniMarketCard({ product, label }: { key?: React.Key; product: AfriMark
     <button
       type="button"
       onClick={() => navigate(`/market/${product.id}`)}
-      className="w-[148px] shrink-0 overflow-hidden rounded-[1.15rem] border border-white/10 bg-white/[0.04] text-left active:scale-[0.98]"
+      className="market-shelf-card w-[148px] shrink-0 overflow-hidden rounded-[1.15rem] border border-white/10 bg-white/[0.04] text-left active:scale-[0.98]"
     >
       <div className="relative h-28 bg-[#050505]">
         <img src={product.coverURL || '/afrimarket.jpeg'} alt={product.title} className="h-full w-full object-cover" />
@@ -424,10 +424,10 @@ export default function MarketHome() {
   };
 
   return (
-    <div className="flex min-h-full w-full max-w-full flex-col overflow-x-hidden bg-black text-white">
-      <div className="sticky top-0 z-40 bg-black/70 px-4 py-3 backdrop-blur-xl">
+    <div className="market-home flex min-h-full w-full max-w-full flex-col overflow-x-hidden bg-black text-white">
+      <div className="market-home-search-shell sticky top-0 z-40 bg-black/70 px-4 py-3 backdrop-blur-xl">
         <input ref={photoInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoSearch} className="hidden" />
-        <div className="flex min-w-0 items-center gap-2 rounded-[1.25rem] border border-[#15EA3E]/18 bg-[#071007]/95 p-2 shadow-[0_18px_38px_rgba(0,0,0,0.34)] transition-colors focus-within:border-[#15EA3E]/55">
+        <div className="market-search-bar flex min-w-0 items-center gap-2 rounded-[1.25rem] border border-[#15EA3E]/18 bg-[#071007]/95 p-2 shadow-[0_18px_38px_rgba(0,0,0,0.34)] transition-colors focus-within:border-[#15EA3E]/55">
             <AfriZiaIcon name="search" size={18} className="shrink-0 text-[#15EA3E]" />
             <input
               type="text"
@@ -511,7 +511,7 @@ export default function MarketHome() {
       </div>
 
       <section className="w-full max-w-full overflow-hidden px-4 pt-3">
-        <div className="relative h-[250px] w-full max-w-full overflow-hidden rounded-[1.75rem] border border-[#15EA3E]/22 bg-[#071007] shadow-[0_22px_54px_rgba(0,0,0,0.36),0_0_42px_rgba(21,234,62,0.08)]">
+        <div className="market-hero relative h-[250px] w-full max-w-full overflow-hidden rounded-[1.75rem] border border-[#15EA3E]/22 bg-[#071007] shadow-[0_22px_54px_rgba(0,0,0,0.36),0_0_42px_rgba(21,234,62,0.08)]">
           {bannerSlides.map((slide, index) => (
             <img
               key={slide.image}
@@ -577,7 +577,7 @@ export default function MarketHome() {
         </div>
       </section>
 
-      <section className="scrollbar-hide flex gap-2 overflow-x-auto px-4 py-4">
+      <section className="market-filter-rail scrollbar-hide flex gap-2 overflow-x-auto px-4 py-4">
         {subsectionFilters.map((subsection) => (
           <button
             key={subsection}
@@ -595,7 +595,7 @@ export default function MarketHome() {
         ))}
       </section>
 
-      <section className="scrollbar-hide flex gap-2 overflow-x-auto px-4 pb-3">
+      <section className="market-filter-rail scrollbar-hide flex gap-2 overflow-x-auto px-4 pb-3">
         {MARKET_CATEGORIES.map((category) => (
           <button
             key={category}
@@ -613,7 +613,7 @@ export default function MarketHome() {
         ))}
       </section>
 
-      <section className="grid grid-cols-3 gap-2 px-4 pb-3">
+      <section className="market-location-filters grid grid-cols-3 gap-2 px-4 pb-3">
         {[
           { value: region, onChange: setRegion, options: regionFilters, label: 'Région' },
           { value: country, onChange: setCountry, options: countryFilters, label: 'Pays' },
@@ -636,7 +636,7 @@ export default function MarketHome() {
         ))}
       </section>
 
-      <section className="scrollbar-hide flex gap-2 overflow-x-auto px-4 pb-4">
+      <section className="market-filter-rail scrollbar-hide flex gap-2 overflow-x-auto px-4 pb-4">
         {[
           { id: 'popular', label: 'Populaires' },
           { id: 'newest', label: 'Récents' },
@@ -671,7 +671,7 @@ export default function MarketHome() {
                 navigate(`/market/${featuredProduct.id}`);
               }
             }}
-            className="relative overflow-hidden rounded-[1.65rem] border border-[#15EA3E]/25 bg-[#071007] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.34),0_0_34px_rgba(21,234,62,0.08)] active:scale-[0.99]"
+            className="market-featured-card relative overflow-hidden rounded-[1.65rem] border border-[#15EA3E]/25 bg-[#071007] p-4 shadow-[0_18px_42px_rgba(0,0,0,0.34),0_0_34px_rgba(21,234,62,0.08)] active:scale-[0.99]"
           >
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(21,234,62,0.24),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.06),transparent_48%)]" />
             <div className="relative z-10 flex gap-4">

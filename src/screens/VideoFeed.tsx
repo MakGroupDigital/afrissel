@@ -1157,7 +1157,7 @@ export default function VideoFeed() {
   };
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-black">
+    <div className="abc-feed-surface relative h-full w-full overflow-hidden bg-black">
       {!isFeedChromeHidden && (
       <div className="pointer-events-auto absolute inset-x-0 top-0 z-30 px-3 pt-5">
           <div className="flex items-center justify-between gap-1 rounded-2xl border border-white/10 bg-black/76 p-1.5 shadow-[0_10px_24px_rgba(0,0,0,0.3)] backdrop-blur-md">
