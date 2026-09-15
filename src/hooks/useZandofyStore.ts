@@ -16,6 +16,46 @@ export type ZandofyMarketplaceVisibility = 'zandofy' | 'afrizia' | 'both';
 export type ZandofySupplierType = 'self' | 'supplier' | 'dropshipper';
 export type ZandofyOrderProcessingMode = 'automatic' | 'manual';
 
+export type ZandofyStoreSettings = {
+  storefrontVisibility: 'public' | 'private';
+  acceptGuestCheckout: boolean;
+  allowProductReviews: boolean;
+  showInventory: boolean;
+  showSalesCount: boolean;
+  showStoreContact: boolean;
+  customerEmail: string;
+  customerPhone: string;
+  businessAddress: string;
+  defaultShippingPrice: number;
+  defaultShippingRegions: string[];
+  defaultPublishToAfriZia: boolean;
+  defaultPublishToZikMart: boolean;
+  orderNotifications: boolean;
+  lowStockNotifications: boolean;
+  marketingNotifications: boolean;
+  returnPolicy: string;
+};
+
+const defaultStoreSettings: ZandofyStoreSettings = {
+  storefrontVisibility: 'public',
+  acceptGuestCheckout: true,
+  allowProductReviews: true,
+  showInventory: false,
+  showSalesCount: true,
+  showStoreContact: true,
+  customerEmail: '',
+  customerPhone: '',
+  businessAddress: '',
+  defaultShippingPrice: 0,
+  defaultShippingRegions: ['RDC'],
+  defaultPublishToAfriZia: true,
+  defaultPublishToZikMart: false,
+  orderNotifications: true,
+  lowStockNotifications: true,
+  marketingNotifications: false,
+  returnPolicy: ''
+};
+
 export type ZandofyProductMedia = {
   id: string;
   mediaUrl?: string;
@@ -48,6 +88,7 @@ export type ZandofyStore = {
   revenue: number;
   currency: string;
   orderProcessingMode: ZandofyOrderProcessingMode;
+  settings: ZandofyStoreSettings;
   rating: number;
   createdAt?: unknown;
   updatedAt?: unknown;
@@ -71,6 +112,7 @@ export type ZandofyStoreUpdateInput = {
   theme: ZandofyTheme;
   logoFile?: File | null;
   orderProcessingMode?: ZandofyOrderProcessingMode;
+  settings?: ZandofyStoreSettings;
 };
 
 export type ZandofyDomainResult = {
@@ -145,6 +187,10 @@ export type ZandofyProductUpdateInput = {
   salePrice?: number;
   currency: string;
   coverFile?: File | null;
+  /** Visuels déjà conservés dans la galerie de la fiche. */
+  media?: ZandofyProductMedia[];
+  /** Nouvelles photos ajoutées depuis le tableau de bord vendeur. */
+  mediaFiles?: File[];
   stockMode: ZandofyStockMode;
   stock?: number;
   sku?: string;
@@ -275,6 +321,14 @@ const normalizeStore = (id: string, raw: Partial<ZandofyStore>): ZandofyStore =>
   revenue: Number(raw.revenue || 0),
   currency: raw.currency || 'USD',
   orderProcessingMode: raw.orderProcessingMode || 'manual',
+  settings: {
+    ...defaultStoreSettings,
+    ...(raw.settings || {}),
+    defaultShippingPrice: Math.max(0, Number(raw.settings?.defaultShippingPrice || 0)),
+    defaultShippingRegions: Array.isArray(raw.settings?.defaultShippingRegions) && raw.settings.defaultShippingRegions.length
+      ? raw.settings.defaultShippingRegions.map(String)
+      : defaultStoreSettings.defaultShippingRegions
+  },
   rating: Number(raw.rating || 0),
   createdAt: raw.createdAt,
   updatedAt: raw.updatedAt
@@ -461,6 +515,7 @@ export function useZandofyStore(slug?: string) {
       revenue: 0,
       currency: 'USD',
       orderProcessingMode: input.orderProcessingMode || 'manual',
+      settings: defaultStoreSettings,
       rating: 0,
       createdAt: now,
       updatedAt: serverTimestamp()
@@ -504,6 +559,7 @@ export function useZandofyStore(slug?: string) {
       [`zandofyStores/${ownerStore.id}/tagline`]: input.tagline.trim(),
       [`zandofyStores/${ownerStore.id}/theme`]: input.theme,
       ...(input.orderProcessingMode ? { [`zandofyStores/${ownerStore.id}/orderProcessingMode`]: input.orderProcessingMode } : {}),
+      ...(input.settings ? { [`zandofyStores/${ownerStore.id}/settings`]: input.settings } : {}),
       ...(logoUpload?.secureUrl ? { [`zandofyStores/${ownerStore.id}/logoURL`]: logoUpload.secureUrl } : {}),
       [`zandofyStores/${ownerStore.id}/updatedAt`]: serverTimestamp()
     });
@@ -792,6 +848,49 @@ export function useZandofyStore(slug?: string) {
       ? await uploadMediaToCloudinary(input.coverFile, user.uid)
       : null;
     const coverURL = coverUpload?.secureUrl || String(existing.coverURL || '/zandofy/woman-promoting-cloths-from-thrift-store.jpg');
+    const existingMedia = Array.isArray(input.media)
+      ? input.media
+      : Array.isArray(existing.media)
+        ? existing.media as ZandofyProductMedia[]
+        : [];
+    const retainedMedia = existingMedia
+      .map((media, index) => ({
+        id: String(media.id || `${productId}_media_${index}`),
+        mediaUrl: media.mediaUrl || media.secureUrl || '',
+        secureUrl: media.secureUrl || media.mediaUrl || '',
+        publicId: media.publicId || '',
+        resourceType: media.resourceType || 'image',
+        provider: media.provider || 'cloudinary'
+      }))
+      .filter((media) => Boolean(media.secureUrl || media.mediaUrl));
+    const remainingSlots = Math.max(0, 7 - retainedMedia.length);
+    const newMediaFiles = (input.mediaFiles || []).slice(0, remainingSlots);
+    if ((input.mediaFiles || []).some((file) => !file.type.startsWith('image/'))) {
+      throw new Error('La galerie accepte uniquement des images.');
+    }
+    const uploadedMedia: ZandofyProductMedia[] = [];
+    for (const [index, file] of newMediaFiles.entries()) {
+      const upload = await uploadMediaToCloudinary(file, user.uid);
+      uploadedMedia.push({
+        id: `${productId}_media_${Date.now()}_${index}`,
+        mediaUrl: upload.secureUrl,
+        secureUrl: upload.secureUrl,
+        publicId: upload.publicId || '',
+        resourceType: upload.resourceType || 'image',
+        provider: 'cloudinary'
+      });
+    }
+    const coverMedia: ZandofyProductMedia = {
+      id: `${productId}_cover`,
+      mediaUrl: coverURL,
+      secureUrl: coverURL,
+      publicId: coverUpload?.publicId || retainedMedia.find((media) => (media.secureUrl || media.mediaUrl) === coverURL)?.publicId || '',
+      resourceType: 'image',
+      provider: 'cloudinary'
+    };
+    const media = [coverMedia, ...retainedMedia, ...uploadedMedia]
+      .filter((item, index, list) => list.findIndex((candidate) => (candidate.secureUrl || candidate.mediaUrl) === (item.secureUrl || item.mediaUrl)) === index)
+      .slice(0, 7);
     const publishToAfriZia = Boolean(input.publishToAfriZia);
     const now = Date.now();
     const productPayload = {
@@ -810,6 +909,7 @@ export function useZandofyStore(slug?: string) {
       isFree: pricingMode === 'free',
       currency: input.currency || String(existing.currency || 'USD'),
       coverURL,
+      media,
       stockMode,
       stock: stockMode === 'tracked' ? Number(stock) : null,
       sku: input.sku?.trim() || '',
@@ -847,14 +947,7 @@ export function useZandofyStore(slug?: string) {
       deliveryFiles: [],
       deliveryFile: null,
       format: 'article',
-      media: [{
-        id: `${productId}_cover`,
-        provider: 'cloudinary',
-        mediaUrl: coverURL,
-        secureUrl: coverURL,
-        publicId: coverUpload?.publicId || '',
-        resourceType: 'image'
-      }]
+      media
     };
 
     await update(ref(realtimeDb), {
@@ -881,13 +974,38 @@ export function useZandofyStore(slug?: string) {
     const result = await runTransaction(stockRef, () => Math.floor(nextStock));
     if (!result.committed) throw new Error('Mise à jour du stock impossible.');
 
-    if (product.publishToAfriZia) {
+    if (product.publishToAfriZia || product.publishToZikMart) {
       await update(ref(realtimeDb), {
-        [`marketProducts/${productId}/stock`]: Math.floor(nextStock),
-        [`marketProducts/${productId}/updatedAt`]: serverTimestamp(),
+        [`marketProducts/${productId}/stock`]: product.publishToAfriZia ? Math.floor(nextStock) : null,
+        [`marketProducts/${productId}/updatedAt`]: product.publishToAfriZia ? serverTimestamp() : null,
+        [`zikMartProducts/${productId}/stock`]: product.publishToZikMart ? Math.floor(nextStock) : null,
+        [`zikMartProducts/${productId}/updatedAt`]: product.publishToZikMart ? serverTimestamp() : null,
         [`zandofyStores/${ownerStore.id}/updatedAt`]: serverTimestamp()
       });
     }
+  };
+
+  const deleteProduct = async (productId: string) => {
+    if (!user) throw new Error('Connecte-toi pour supprimer ce produit.');
+    if (!ownerStore) throw new Error('Crée d’abord ta boutique Zandofy.');
+
+    const product = products.find((item) => item.id === productId);
+    if (!product) throw new Error('Produit introuvable.');
+    if (product.authorId && product.authorId !== user.uid) throw new Error('Tu ne peux pas supprimer ce produit.');
+
+    const nextProducts = products.filter((item) => item.id !== productId);
+    const digitalProductsCount = nextProducts.filter((item) => item.productKind !== 'physical').length;
+    const physicalProductsCount = nextProducts.filter((item) => item.productKind === 'physical').length;
+    await update(ref(realtimeDb), {
+      [`zandofyProducts/${ownerStore.id}/${productId}`]: null,
+      [`marketProducts/${productId}`]: null,
+      [`zikMartProducts/${productId}`]: null,
+      [`userProducts/${user.uid}/${productId}`]: null,
+      [`zandofyStores/${ownerStore.id}/productsCount`]: nextProducts.length,
+      [`zandofyStores/${ownerStore.id}/digitalProductsCount`]: digitalProductsCount,
+      [`zandofyStores/${ownerStore.id}/physicalProductsCount`]: physicalProductsCount,
+      [`zandofyStores/${ownerStore.id}/updatedAt`]: serverTimestamp()
+    });
   };
 
   return {
@@ -902,6 +1020,7 @@ export function useZandofyStore(slug?: string) {
     updateStoreProfile,
     createDigitalProduct,
     updateProduct,
-    setProductStock
+    setProductStock,
+    deleteProduct
   };
 }

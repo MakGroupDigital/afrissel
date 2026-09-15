@@ -312,7 +312,7 @@ export default function ProductDetailScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const { abcContents, marketProducts, loading } = useAfriMarket();
-  const { products: zandofyProducts } = useZandofyStore(slug);
+  const { products: zandofyProducts, stores: zandofyStores } = useZandofyStore(slug);
   const { user, profile } = useFirebaseAuth();
   const openCheckout = useAppStore((state) => state.openCheckout);
   const addToCart = useAppStore((state) => state.addToCart);
@@ -367,6 +367,10 @@ export default function ProductDetailScreen() {
       (zandofyProduct ? toMarketContent(zandofyProduct) : undefined)
     ),
     [abcContents, marketProducts, productId, zandofyProduct]
+  );
+  const zandofyStore = useMemo(
+    () => zandofyStores.find((store) => store.id === product?.storeId || store.slug === product?.storeSlug) || null,
+    [product?.storeId, product?.storeSlug, zandofyStores]
   );
   useEffect(() => {
     if (product?.deliveryMode === 'pickup') setSelectedDeliveryId('pickup');
@@ -473,6 +477,11 @@ export default function ProductDetailScreen() {
   };
 
   const handleBuy = () => {
+    const isZandofyProduct = Boolean(product.storeId || product.offerModule === 'Zandofy' || product.category === 'Zandofy');
+    if (isZandofyProduct && zandofyStore && !zandofyStore.settings.acceptGuestCheckout && (!user || user.isAnonymous)) {
+      navigate('/login', { state: { next: location.pathname + location.search } });
+      return;
+    }
     openCheckout(checkoutProduct, isZandofyDigital ? null : selectedDelivery);
   };
 
@@ -834,17 +843,18 @@ export default function ProductDetailScreen() {
         </header>
 
         <main className="px-4 pt-4">
-          <section className="relative overflow-hidden rounded-[2rem] border border-[#15EA3E]/18 bg-[radial-gradient(circle_at_18%_10%,rgba(21,234,62,0.22),transparent_34%),linear-gradient(145deg,#071007,#020402_64%,#0d170f)] shadow-[0_24px_70px_rgba(0,0,0,0.38)]">
-            <img src={product.coverURL || '/zandofyiconeapp.png'} alt={product.title} className="h-[300px] w-full object-cover opacity-88" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/18 to-transparent" />
-            <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-white/12 bg-black/45 px-3 py-2 backdrop-blur">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#15EA3E] text-black">
-                <AfriZiaIcon name={digitalMeta.icon} size={14} />
-              </span>
-              <span className="text-[9px] font-black uppercase tracking-wider text-white">{digitalMeta.label}</span>
+          <section className="overflow-hidden rounded-[2rem] border border-[#15EA3E]/18 bg-[#071007] shadow-[0_24px_70px_rgba(0,0,0,0.38)]">
+            <div className="bg-black p-2">
+              <ProductGallery product={product} />
             </div>
-            <div className="absolute inset-x-0 bottom-0 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{product.collection || 'Collection Zandofy'}</p>
+            <div className="border-t border-white/10 p-4">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#15EA3E] text-black">
+                  <AfriZiaIcon name={digitalMeta.icon} size={14} />
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-wider text-white/72">{digitalMeta.label}</span>
+              </div>
+              <p className="mt-4 text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{product.collection || 'Collection Zandofy'}</p>
               <h1 className="mt-2 text-2xl font-black leading-tight">{product.title}</h1>
               <p className="mt-2 line-clamp-3 text-sm font-semibold leading-relaxed text-white/64">{product.description}</p>
             </div>

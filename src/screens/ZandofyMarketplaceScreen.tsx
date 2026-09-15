@@ -4,7 +4,7 @@ import { onValue, push, ref, serverTimestamp, set } from 'firebase/database';
 import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { AfriZiaLoadingState } from '../components/AfriZiaLottie';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
-import { ZandofyOrderProcessingMode, ZandofyProductMedia, ZandofyTheme, getZandofyStoreURL, useZandofyStore } from '../hooks/useZandofyStore';
+import { ZandofyOrderProcessingMode, ZandofyProductMedia, ZandofyStoreSettings, ZandofyTheme, getZandofyStoreURL, useZandofyStore } from '../hooks/useZandofyStore';
 import { AFRICAN_COUNTRIES_BY_PRIORITY, getCountryByCode, getDeviceCityHint, getDeviceCountryCode } from '../lib/africaLocation';
 import { realtimeDb } from '../lib/firebase';
 import { cn } from '../lib/utils';
@@ -795,13 +795,18 @@ export function ZandofyDashboardScreen() {
           </div>
           <div className="mt-4 space-y-2">
             {recentProducts.length ? recentProducts.map((product) => (
-              <Link key={product.id} to={getZandofyProductPath(product)} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 p-2">
-                <img src={product.coverURL} alt="" className="h-12 w-12 rounded-xl object-cover" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-black">{product.title}</span>
-                  <span className="mt-1 block text-[9px] font-bold text-white/38">{product.productKind === 'physical' ? 'Produit physique' : product.digitalType} - {product.collection}</span>
-                </span>
-              </Link>
+              <div key={product.id} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 p-2">
+                <Link to={getZandofyProductPath(product)} className="flex min-w-0 flex-1 items-center gap-3">
+                  <img src={product.coverURL} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-black">{product.title}</span>
+                    <span className="mt-1 block text-[9px] font-bold text-white/38">{product.productKind === 'physical' ? 'Produit physique' : product.digitalType} - {product.collection}</span>
+                  </span>
+                </Link>
+                <button type="button" aria-label={`Gérer ${product.title}`} onClick={() => navigate(`/zandofy/products/${product.id}/edit`)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 text-[#15EA3E]">
+                  <AfriZiaIcon name="edit" size={14} />
+                </button>
+              </div>
             )) : (
               <Link to="/zandofy/products/new" className="block rounded-2xl border border-dashed border-white/14 p-4 text-center text-xs font-bold text-white/48">
                 Aucun produit publié. Ajouter le premier.
@@ -1342,6 +1347,10 @@ export function ZandofyCreateProductScreen() {
     if (!ownerStore?.id) return;
     const rawDraft = window.localStorage.getItem(zandofyProductDraftKey(ownerStore.id));
     if (!rawDraft) {
+      setShippingPrice(ownerStore.settings.defaultShippingPrice ? String(ownerStore.settings.defaultShippingPrice) : '');
+      setShippingRegions(ownerStore.settings.defaultShippingRegions.join(', ') || 'RDC');
+      setPublishToAfriZia(ownerStore.settings.defaultPublishToAfriZia);
+      setPublishToZikMart(ownerStore.settings.defaultPublishToZikMart);
       setDraftHydrated(true);
       return;
     }
@@ -2028,6 +2037,9 @@ export function ZandofyEditProductScreen() {
   const [currency, setCurrency] = useState('USD');
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState('');
+  const [galleryMedia, setGalleryMedia] = useState<ZandofyProductMedia[]>([]);
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
   const [stockMode, setStockMode] = useState<'unlimited' | 'tracked'>('unlimited');
   const [stock, setStock] = useState('');
   const [fppRate, setFppRate] = useState('0');
@@ -2061,6 +2073,12 @@ export function ZandofyEditProductScreen() {
     setSalePrice(product.salePrice !== undefined ? String(product.salePrice) : '');
     setCurrency(product.currency || 'USD');
     setCoverPreview(product.coverURL);
+    setGalleryMedia(
+      (product.media?.length ? product.media : [{ id: `${product.id}_cover`, secureUrl: product.coverURL, mediaUrl: product.coverURL }])
+        .filter((media) => Boolean(media.secureUrl || media.mediaUrl))
+    );
+    setGalleryFiles([]);
+    setGalleryPreviews([]);
     setStockMode(product.stockMode || (product.productKind === 'physical' ? 'tracked' : 'unlimited'));
     setStock(product.stock !== undefined ? String(product.stock) : '');
     setFppRate(String(product.fppRate || 0));
@@ -2082,6 +2100,35 @@ export function ZandofyEditProductScreen() {
     setDropshippingEnabled(product.dropshippingEnabled === true);
   }, [product]);
 
+  const addGalleryImages = (event: ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(event.target.files || []) as File[];
+    event.target.value = '';
+    if (!selected.length) return;
+    const images = selected.filter((file) => file.type.startsWith('image/'));
+    if (images.length !== selected.length) {
+      setStatus('Ajoute uniquement des images dans la galerie.');
+    }
+    const remaining = 7 - galleryMedia.length - galleryFiles.length;
+    if (remaining <= 0) {
+      setStatus('La galerie peut contenir jusqu’à 7 images.');
+      return;
+    }
+    const accepted = images.slice(0, remaining);
+    if (accepted.length < images.length) setStatus('Seules les 7 premières images de la galerie sont conservées.');
+    setGalleryFiles((current) => [...current, ...accepted]);
+    setGalleryPreviews((current) => [...current, ...accepted.map((file) => URL.createObjectURL(file))]);
+  };
+
+  const removeGalleryMedia = (index: number) => {
+    setGalleryMedia((current) => current.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  const removeGalleryFile = (index: number) => {
+    URL.revokeObjectURL(galleryPreviews[index]);
+    setGalleryFiles((current) => current.filter((_, currentIndex) => currentIndex !== index));
+    setGalleryPreviews((current) => current.filter((_, currentIndex) => currentIndex !== index));
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!product) return;
@@ -2098,6 +2145,8 @@ export function ZandofyEditProductScreen() {
         salePrice: salePrice ? Number(salePrice) : undefined,
         currency,
         coverFile,
+        media: galleryMedia,
+        mediaFiles: galleryFiles,
         stockMode,
         stock: stockMode === 'tracked' ? Number(stock) : undefined,
         fppRate: Number(fppRate || 0),
@@ -2156,6 +2205,40 @@ export function ZandofyEditProductScreen() {
                 if (file) setCoverPreview(URL.createObjectURL(file));
               }} />
             </label>
+          </div>
+          <div className="mt-4 border-t border-white/8 pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black">Galerie du produit</p>
+                <p className="mt-1 text-[10px] font-semibold text-white/42">Ajoute jusqu’à 7 photos. La première reste l’image principale.</p>
+              </div>
+              <span className="shrink-0 rounded-full border border-white/10 px-2 py-1 text-[9px] font-black text-[#15EA3E]">{galleryMedia.length + galleryFiles.length}/7</span>
+            </div>
+            <div className="mt-3 grid grid-cols-4 gap-2">
+              {galleryMedia.map((media, index) => {
+                const url = media.secureUrl || media.mediaUrl || '';
+                return (
+                  <div key={`${media.id}-${index}`} className="relative aspect-square overflow-hidden rounded-xl border border-white/10 bg-black/25">
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                    {index > 0 && <button type="button" aria-label="Retirer cette image" onClick={() => removeGalleryMedia(index)} className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/75 text-white"><AfriZiaIcon name="close" size={10} /></button>}
+                    {index === 0 && <span className="absolute bottom-0 left-0 right-0 bg-black/70 py-1 text-center text-[7px] font-black uppercase tracking-wider text-white">Couverture</span>}
+                  </div>
+                );
+              })}
+              {galleryPreviews.map((preview, index) => (
+                <div key={preview} className="relative aspect-square overflow-hidden rounded-xl border border-[#15EA3E]/35 bg-black/25">
+                  <img src={preview} alt="" className="h-full w-full object-cover" />
+                  <button type="button" aria-label="Retirer cette image" onClick={() => removeGalleryFile(index)} className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/75 text-white"><AfriZiaIcon name="close" size={10} /></button>
+                </div>
+              ))}
+              {galleryMedia.length + galleryFiles.length < 7 && (
+                <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#15EA3E]/35 bg-[#15EA3E]/5 text-[#15EA3E]">
+                  <AfriZiaIcon name="plus" size={16} />
+                  <span className="mt-1 text-[8px] font-black">Photos</span>
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={addGalleryImages} />
+                </label>
+              )}
+            </div>
           </div>
           <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Nom du produit" className="mt-4 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-bold outline-none" />
           <textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={4} placeholder="Description" className="mt-3 w-full resize-none rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm font-bold outline-none" />
@@ -2253,14 +2336,45 @@ export function ZandofyEditProductScreen() {
 
 export function ZandofyProductsScreen() {
   const navigate = useNavigate();
-  const { ownerStore, products, loading, setProductStock } = useZandofyStore();
+  const { ownerStore, products, loading, setProductStock, deleteProduct } = useZandofyStore();
   const [stockBusy, setStockBusy] = useState('');
   const [stockStatus, setStockStatus] = useState('');
+  const [productBusy, setProductBusy] = useState('');
   const collections = Array.from(new Set(products.map((product) => product.collection || 'Nouveautés')));
   const [activeCollection, setActiveCollection] = useState('Tout');
   const visibleProducts = activeCollection === 'Tout'
     ? products
     : products.filter((product) => (product.collection || 'Nouveautés') === activeCollection);
+
+  const shareProduct = async (product: typeof products[number]) => {
+    setStockStatus('');
+    try {
+      const result = await shareLink({
+        title: product.title,
+        text: `Découvre ${product.title} dans la boutique ${ownerStore?.name || 'Zandofy'}.`,
+        url: `${window.location.origin}${getZandofyProductPath(product)}`
+      });
+      setStockStatus(result === 'copied' ? 'Lien produit copié.' : 'Lien produit partagé.');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setStockStatus(error instanceof Error ? error.message : 'Partage impossible.');
+    }
+  };
+
+  const removeProduct = async (product: typeof products[number]) => {
+    const confirmed = window.confirm(`Supprimer « ${product.title} » ? Cette action retire le produit de la boutique et des marketplaces, sans supprimer les commandes déjà enregistrées.`);
+    if (!confirmed) return;
+    setProductBusy(product.id);
+    setStockStatus('');
+    try {
+      await deleteProduct(product.id);
+      setStockStatus('Produit supprimé de la boutique et des catalogues publics.');
+    } catch (error) {
+      setStockStatus(error instanceof Error ? error.message : 'Suppression impossible.');
+    } finally {
+      setProductBusy('');
+    }
+  };
 
   if (loading) return <ZandofyLoadingScreen label="Chargement des produits" />;
   if (!ownerStore) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Boutique introuvable.</main>;
@@ -2319,7 +2433,11 @@ export function ZandofyProductsScreen() {
                   <button type="button" aria-label="Augmenter le stock" disabled={stockBusy === product.id} onClick={async (event) => { event.preventDefault(); setStockBusy(product.id); setStockStatus(''); try { await setProductStock(product.id, Number(product.stock || 0) + 1); } catch (error) { setStockStatus(error instanceof Error ? error.message : 'Stock impossible.'); } finally { setStockBusy(''); } }} className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#15EA3E] text-xs font-black text-black">+</button>
                 </div>}
               </div>
-              <button type="button" aria-label="Modifier le produit" onClick={() => navigate(`/zandofy/products/${product.id}/edit`)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 text-[#15EA3E]"><AfriZiaIcon name="edit" size={14} /></button>
+              <div className="flex shrink-0 items-center gap-1">
+                <button type="button" aria-label="Partager le produit" disabled={productBusy === product.id} onClick={() => void shareProduct(product)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-white/68 disabled:opacity-40"><AfriZiaIcon name="share" size={13} /></button>
+                <button type="button" aria-label="Modifier le produit" disabled={productBusy === product.id} onClick={() => navigate(`/zandofy/products/${product.id}/edit`)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 text-[#15EA3E] disabled:opacity-40"><AfriZiaIcon name="edit" size={14} /></button>
+                <button type="button" aria-label="Supprimer le produit" disabled={productBusy === product.id} onClick={() => void removeProduct(product)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-red-400/20 text-red-300 disabled:opacity-40"><AfriZiaIcon name="close" size={13} /></button>
+              </div>
             </div>
           </article>
         )) : (
@@ -2330,7 +2448,7 @@ export function ZandofyProductsScreen() {
           </div>
         )}
       </section>
-      {stockStatus && <p className="mx-4 mt-4 rounded-2xl border border-red-400/18 bg-red-500/10 p-3 text-center text-xs font-bold text-red-100">{stockStatus}</p>}
+      {stockStatus && <p className={cn('mx-4 mt-4 rounded-2xl border p-3 text-center text-xs font-bold', /impossible|introuvable|connecte|valide/i.test(stockStatus) ? 'border-red-400/18 bg-red-500/10 text-red-100' : 'border-[#15EA3E]/20 bg-[#15EA3E]/10 text-[#15EA3E]')}>{stockStatus}</p>}
     </main>
   );
 }
@@ -2343,6 +2461,7 @@ export function ZandofyDomainScreen() {
   const [tagline, setTagline] = useState('');
   const [theme, setTheme] = useState<ZandofyTheme>('emerald');
   const [orderProcessingMode, setOrderProcessingMode] = useState<ZandofyOrderProcessingMode>('manual');
+  const [storeSettings, setStoreSettings] = useState<ZandofyStoreSettings | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState('');
   const [status, setStatus] = useState('');
@@ -2354,6 +2473,7 @@ export function ZandofyDomainScreen() {
     setTagline(ownerStore.tagline);
     setTheme(ownerStore.theme);
     setOrderProcessingMode(ownerStore.orderProcessingMode || 'manual');
+    setStoreSettings(ownerStore.settings);
     setLogoPreview(ownerStore.logoURL);
     setDomain(ownerStore.customDomain || '');
   }, [ownerStore]);
@@ -2386,13 +2506,26 @@ export function ZandofyDomainScreen() {
   const saveProfile = async () => {
     setStatus('');
     try {
-      await updateStoreProfile({ name, tagline, theme, logoFile, orderProcessingMode });
+      await updateStoreProfile({ name, tagline, theme, logoFile, orderProcessingMode, settings: storeSettings || ownerStore.settings });
       setLogoFile(null);
-      setStatus('Personnalisation enregistrée. La boutique publique est à jour.');
+      setStatus('Réglages enregistrés. La boutique publique est à jour.');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Personnalisation impossible.');
     }
   };
+
+  const updateSettings = <Key extends keyof ZandofyStoreSettings,>(key: Key, value: ZandofyStoreSettings[Key]) => {
+    setStoreSettings((current) => ({ ...(current || ownerStore.settings), [key]: value }));
+  };
+  const settings = storeSettings || ownerStore.settings;
+  const managementLinks = [
+    { label: 'Catalogue', detail: 'Produits, collections et stock', icon: 'market' as const, route: '/zandofy/products' },
+    { label: 'Commandes', detail: 'Ventes et traitement', icon: 'order' as const, route: '/market/orders?module=zandofy' },
+    { label: 'Promotions', detail: 'Offres et réductions', icon: 'signal' as const, route: '/zandofy/promos' },
+    { label: 'Clients', detail: 'Acheteurs et relations', icon: 'contact' as const, route: '/zandofy/clients' },
+    { label: 'Statistiques', detail: 'Performance de la boutique', icon: 'signal' as const, route: '/zandofy/stats' },
+    { label: 'Affiliation', detail: 'Liens et commissions', icon: 'share' as const, route: '/zandofy/affiliation' }
+  ];
 
   return (
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
@@ -2406,6 +2539,29 @@ export function ZandofyDomainScreen() {
         </div>
         <img src={ownerStore.logoURL} alt="" className="h-10 w-10 rounded-2xl object-cover" />
       </header>
+
+      <section className="px-4 pt-5">
+        <div className="rounded-[1.8rem] border border-[#15EA3E]/18 bg-[linear-gradient(135deg,rgba(21,234,62,0.16),rgba(255,255,255,0.035),rgba(0,0,0,0.25))] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Centre vendeur</p>
+              <h2 className="mt-1 text-lg font-black">Pilote ta boutique</h2>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/48">Accède rapidement aux opérations quotidiennes de ta vitrine.</p>
+            </div>
+            <Link to={`/zandofy/${ownerStore.slug}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-black/25 text-[#15EA3E]" aria-label="Voir la boutique publique">
+              <AfriZiaIcon name="arrow" size={16} />
+            </Link>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {managementLinks.map((item) => (
+              <Link key={item.label} to={item.route} className="flex min-h-[66px] items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-3 active:scale-[0.99]">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black"><AfriZiaIcon name={item.icon} size={16} /></span>
+                <span className="min-w-0"><span className="block text-[11px] font-black text-white">{item.label}</span><span className="mt-0.5 block text-[9px] font-semibold leading-tight text-white/42">{item.detail}</span></span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <section className="px-4 pt-5">
         <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5">
@@ -2437,7 +2593,6 @@ export function ZandofyDomainScreen() {
               </button>
             ))}
           </div>
-          <button type="button" onClick={() => void saveProfile()} className="mt-4 w-full rounded-2xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black">Enregistrer la vitrine</button>
           <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-3">
             <p className="text-[10px] font-black uppercase tracking-wider text-white/42">Traitement des commandes</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -2449,6 +2604,95 @@ export function ZandofyDomainScreen() {
             </div>
             <p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/38">Automatique prépare la commande dès le paiement. Manuel te laisse valider chaque étape.</p>
           </div>
+        </div>
+      </section>
+
+      <section className="px-4 pt-5">
+        <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#15EA3E] text-black"><AfriZiaIcon name="cart" size={18} /></span>
+            <div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Ventes et commandes</p><h2 className="mt-1 text-base font-black">Expérience d’achat</h2></div>
+          </div>
+          <div className="mt-4 space-y-3">
+            <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+              <span><span className="block text-xs font-black">Boutique publique</span><span className="mt-1 block text-[10px] font-semibold text-white/42">Permets aux visiteurs d’ouvrir ta vitrine et tes liens.</span></span>
+              <button type="button" aria-pressed={settings.storefrontVisibility === 'public'} onClick={() => updateSettings('storefrontVisibility', settings.storefrontVisibility === 'public' ? 'private' : 'public')} className={cn('relative h-7 w-12 shrink-0 rounded-full transition', settings.storefrontVisibility === 'public' ? 'bg-[#15EA3E]' : 'bg-white/15')}><span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white transition', settings.storefrontVisibility === 'public' ? 'left-6' : 'left-1')} /></button>
+            </label>
+            <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+              <span><span className="block text-xs font-black">Achat sans compte</span><span className="mt-1 block text-[10px] font-semibold text-white/42">Autorise le paiement invité par Mobile Money.</span></span>
+              <button type="button" aria-pressed={settings.acceptGuestCheckout} onClick={() => updateSettings('acceptGuestCheckout', !settings.acceptGuestCheckout)} className={cn('relative h-7 w-12 shrink-0 rounded-full transition', settings.acceptGuestCheckout ? 'bg-[#15EA3E]' : 'bg-white/15')}><span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white transition', settings.acceptGuestCheckout ? 'left-6' : 'left-1')} /></button>
+            </label>
+            <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+              <span><span className="block text-xs font-black">Avis et réputation</span><span className="mt-1 block text-[10px] font-semibold text-white/42">Affiche les notes et accepte les avis sur la boutique.</span></span>
+              <button type="button" aria-pressed={settings.allowProductReviews} onClick={() => updateSettings('allowProductReviews', !settings.allowProductReviews)} className={cn('relative h-7 w-12 shrink-0 rounded-full transition', settings.allowProductReviews ? 'bg-[#15EA3E]' : 'bg-white/15')}><span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white transition', settings.allowProductReviews ? 'left-6' : 'left-1')} /></button>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 pt-5">
+        <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-300 text-black"><AfriZiaIcon name="send" size={18} /></span>
+            <div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-200">Livraison et assistance</p><h2 className="mt-1 text-base font-black">Paramètres par défaut</h2></div>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <label className="text-[9px] font-black uppercase tracking-wider text-white/42">Livraison par défaut
+              <input value={String(settings.defaultShippingPrice)} onChange={(event) => updateSettings('defaultShippingPrice', Number(event.target.value.replace(/[^\d.]/g, '')) || 0)} inputMode="decimal" placeholder="0" className="mt-1 w-full rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs font-bold normal-case tracking-normal text-white outline-none" />
+            </label>
+            <label className="text-[9px] font-black uppercase tracking-wider text-white/42">Zones desservies
+              <input value={settings.defaultShippingRegions.join(', ')} onChange={(event) => updateSettings('defaultShippingRegions', event.target.value.split(',').map((item) => item.trim()).filter(Boolean))} placeholder="RDC, Rwanda" className="mt-1 w-full rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs font-bold normal-case tracking-normal text-white outline-none" />
+            </label>
+          </div>
+          <input value={settings.customerEmail} onChange={(event) => updateSettings('customerEmail', event.target.value)} inputMode="email" placeholder="Email support client" className="mt-3 w-full rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs font-bold outline-none" />
+          <input value={settings.customerPhone} onChange={(event) => updateSettings('customerPhone', event.target.value)} inputMode="tel" placeholder="Téléphone support client" className="mt-2 w-full rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs font-bold outline-none" />
+          <input value={settings.businessAddress} onChange={(event) => updateSettings('businessAddress', event.target.value)} placeholder="Adresse de retrait ou siège" className="mt-2 w-full rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs font-bold outline-none" />
+          <label className="mt-3 flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+            <span><span className="block text-xs font-black">Afficher les contacts</span><span className="mt-1 block text-[10px] font-semibold text-white/42">Rends le support visible dans la vitrine publique.</span></span>
+            <button type="button" aria-pressed={settings.showStoreContact} onClick={() => updateSettings('showStoreContact', !settings.showStoreContact)} className={cn('relative h-7 w-12 shrink-0 rounded-full transition', settings.showStoreContact ? 'bg-[#15EA3E]' : 'bg-white/15')}><span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white transition', settings.showStoreContact ? 'left-6' : 'left-1')} /></button>
+          </label>
+        </div>
+      </section>
+
+      <section className="px-4 pt-5">
+        <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-300 text-black"><AfriZiaIcon name="market" size={18} /></span>
+            <div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">Diffusion commerciale</p><h2 className="mt-1 text-base font-black">Visibilité des prochaines publications</h2></div>
+          </div>
+          <div className="mt-4 space-y-3">
+            <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+              <span><span className="block text-xs font-black">Publier aussi dans AfriZia</span><span className="mt-1 block text-[10px] font-semibold text-white/42">Propose cette option par défaut pour chaque nouveau produit.</span></span>
+              <button type="button" aria-pressed={settings.defaultPublishToAfriZia} onClick={() => updateSettings('defaultPublishToAfriZia', !settings.defaultPublishToAfriZia)} className={cn('relative h-7 w-12 shrink-0 rounded-full transition', settings.defaultPublishToAfriZia ? 'bg-[#15EA3E]' : 'bg-white/15')}><span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white transition', settings.defaultPublishToAfriZia ? 'left-6' : 'left-1')} /></button>
+            </label>
+            <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+              <span><span className="block text-xs font-black">Proposer ZikMart</span><span className="mt-1 block text-[10px] font-semibold text-white/42">Active ce canal par défaut pour les produits physiques.</span></span>
+              <button type="button" aria-pressed={settings.defaultPublishToZikMart} onClick={() => updateSettings('defaultPublishToZikMart', !settings.defaultPublishToZikMart)} className={cn('relative h-7 w-12 shrink-0 rounded-full transition', settings.defaultPublishToZikMart ? 'bg-[#15EA3E]' : 'bg-white/15')}><span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white transition', settings.defaultPublishToZikMart ? 'left-6' : 'left-1')} /></button>
+            </label>
+            <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+              <span><span className="block text-xs font-black">Afficher le stock</span><span className="mt-1 block text-[10px] font-semibold text-white/42">Rends les quantités restantes visibles sur les produits physiques.</span></span>
+              <button type="button" aria-pressed={settings.showInventory} onClick={() => updateSettings('showInventory', !settings.showInventory)} className={cn('relative h-7 w-12 shrink-0 rounded-full transition', settings.showInventory ? 'bg-[#15EA3E]' : 'bg-white/15')}><span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white transition', settings.showInventory ? 'left-6' : 'left-1')} /></button>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 pt-5">
+        <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5">
+          <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-black"><AfriZiaIcon name="notifications" size={18} /></span><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/52">Pilotage</p><h2 className="mt-1 text-base font-black">Alertes vendeur</h2></div></div>
+          <div className="mt-4 space-y-3">
+            {([
+              ['orderNotifications', 'Nouvelles commandes', 'Reçois une alerte lorsqu’un client finalise un achat.'],
+              ['lowStockNotifications', 'Stock faible', 'Sois averti avant la rupture sur les produits suivis.'],
+              ['marketingNotifications', 'Conseils commerciaux', 'Reçois les recommandations et opportunités WeZandofy.']
+            ] as Array<[keyof Pick<ZandofyStoreSettings, 'orderNotifications' | 'lowStockNotifications' | 'marketingNotifications'>, string, string]>).map(([key, label, detail]) => (
+              <label key={key} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 p-3">
+                <span><span className="block text-xs font-black">{label}</span><span className="mt-1 block text-[10px] font-semibold text-white/42">{detail}</span></span>
+                <button type="button" aria-pressed={settings[key]} onClick={() => updateSettings(key, !settings[key])} className={cn('relative h-7 w-12 shrink-0 rounded-full transition', settings[key] ? 'bg-[#15EA3E]' : 'bg-white/15')}><span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white transition', settings[key] ? 'left-6' : 'left-1')} /></button>
+              </label>
+            ))}
+          </div>
+          <textarea value={settings.returnPolicy} onChange={(event) => updateSettings('returnPolicy', event.target.value)} rows={3} placeholder="Politique de retour, échange ou remboursement" className="mt-3 w-full resize-none rounded-2xl border border-white/10 bg-black/25 px-3 py-3 text-xs font-bold outline-none" />
         </div>
       </section>
 
@@ -2478,8 +2722,12 @@ export function ZandofyDomainScreen() {
               {domainResult.status !== 'verified' && <button type="button" onClick={() => void verifyDomain()} className="mt-3 w-full rounded-xl border border-[#15EA3E]/30 bg-[#15EA3E]/10 py-3 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">Vérifier maintenant</button>}
             </div>
           )}
-          {status && <p className="mt-4 text-xs font-bold text-[#15EA3E]">{status}</p>}
         </div>
+      </section>
+
+      <section className="px-4 pb-6 pt-5">
+        {status && <p className={cn('mb-3 rounded-2xl border p-3 text-center text-xs font-bold', /impossible|introuvable|erreur|ajoute/i.test(status.toLowerCase()) ? 'border-red-400/18 bg-red-500/10 text-red-100' : 'border-[#15EA3E]/20 bg-[#15EA3E]/10 text-[#15EA3E]')}>{status}</p>}
+        <button type="button" onClick={() => void saveProfile()} className="w-full rounded-2xl bg-[#15EA3E] py-4 text-[10px] font-black uppercase tracking-[0.18em] text-black">Enregistrer tous les réglages</button>
       </section>
     </main>
   );
@@ -2647,6 +2895,17 @@ export function ZandofyPublicStoreScreen() {
     );
   }
 
+  if (publicStore.settings.storefrontVisibility === 'private' && publicStore.ownerId !== user?.uid) {
+    return (
+      <main className="flex min-h-full flex-col items-center justify-center bg-[#030604] p-6 text-center text-white">
+        <span className="flex h-16 w-16 items-center justify-center rounded-3xl border border-white/10 bg-white/[0.04] text-[#15EA3E]"><AfriZiaIcon name="lock" size={26} /></span>
+        <h1 className="mt-5 text-xl font-black">Boutique privée</h1>
+        <p className="mt-2 max-w-xs text-sm font-semibold leading-relaxed text-white/48">Cette boutique n’accepte pas encore de visiteurs publics.</p>
+        <Link to="/zandofy" className="mt-5 rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">Retour Zandofy</Link>
+      </main>
+    );
+  }
+
   return (
     <main className="zandofy-public-store min-h-full min-w-0 overflow-x-hidden bg-[#030604] pb-[7.5rem] text-white">
       <style>{`
@@ -2709,13 +2968,13 @@ export function ZandofyPublicStoreScreen() {
 
       {promotionProducts.length > 0 && <section id="promos" className="scroll-mt-24 mx-auto max-w-6xl px-4 pt-9 sm:px-6 lg:px-8"><div className="flex items-end justify-between gap-3"><div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300">Offres limitées</p><h2 className="mt-1 text-xl font-black sm:text-2xl">Les promotions du moment</h2></div><span className="text-[9px] font-black text-amber-200">{promotionProducts.length} offre(s)</span></div><div className="scrollbar-hide mt-4 flex gap-3 overflow-x-auto pb-1">{promotionProducts.slice(0, 6).map((product) => <Link key={product.id} to={getZandofyProductPath(product)} className="group w-[220px] shrink-0 overflow-hidden rounded-xl border border-amber-300/18 bg-[#151006]"><div className="relative aspect-[16/10] overflow-hidden"><img src={product.coverURL} alt={product.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" /><span className="absolute left-2 top-2 rounded-full bg-amber-300 px-2 py-1 text-[8px] font-black uppercase text-black">Promo</span></div><div className="p-3"><p className="truncate text-xs font-black">{product.title}</p><div className="mt-2 flex items-center gap-2"><span className="text-sm font-black text-amber-200">{product.salePrice?.toLocaleString('fr-FR')} {product.currency}</span><span className="text-[9px] font-bold text-white/35 line-through">{product.regularPrice.toLocaleString('fr-FR')} {product.currency}</span></div></div></Link>)}</div></section>}
 
-      <section id="products" className="scroll-mt-24 mt-9 border-y border-white/10 bg-[#071007]"><div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Le catalogue</p><h2 className="mt-1 text-xl font-black sm:text-2xl">Produits de la boutique</h2><p className="mt-2 max-w-xl text-xs font-semibold leading-relaxed text-white/44">Produits physiques et digitaux publiés par {publicStore.name}.</p></div><div className="relative w-full sm:max-w-[250px]"><AfriZiaIcon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" /><input value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} placeholder="Rechercher dans la boutique" className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.05] pl-9 pr-3 text-xs font-bold outline-none focus:border-[#15EA3E]/45" /></div></div><div className="scrollbar-hide mt-4 flex gap-2 overflow-x-auto pb-1">{['Tout', ...collections].map((collection) => <button key={collection} type="button" onClick={() => setActiveCollection(collection)} className={cn('shrink-0 rounded-full border px-3 py-2 text-[9px] font-black', activeCollection === collection ? 'border-[#15EA3E] bg-[#15EA3E] text-black' : 'border-white/10 bg-white/[0.04] text-white/55')}>{collection}</button>)}</div>{visibleProducts.length > 0 ? <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{visibleProducts.slice(0, 16).map((product) => <article key={product.id} className="group overflow-hidden rounded-xl border border-white/10 bg-[#0b130b] transition-colors hover:border-[#15EA3E]/35"><Link to={getZandofyProductPath(product)} onClick={() => { void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="block"><div className="relative aspect-square overflow-hidden"><img src={product.coverURL} alt={product.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />{product.salePrice !== undefined && product.salePrice < product.regularPrice && <span className="absolute left-2 top-2 rounded-full bg-amber-300 px-2 py-1 text-[8px] font-black text-black">PROMO</span>}</div><div className="p-3"><p className="line-clamp-2 min-h-[30px] text-[11px] font-black leading-tight">{product.title}</p><p className="mt-2 truncate text-[8px] font-black uppercase tracking-wider text-[#15EA3E]">{product.productKind === 'physical' ? product.catalogCategory || 'Produit physique' : product.digitalType}</p><div className="mt-1 flex flex-wrap items-baseline gap-1"><span className="text-xs font-black">{product.isFree ? 'Gratuit' : `${product.price.toLocaleString('fr-FR')} ${product.currency}`}</span>{product.salePrice !== undefined && product.salePrice < product.regularPrice && <span className="text-[8px] font-bold text-white/35 line-through">{product.regularPrice.toLocaleString('fr-FR')} {product.currency}</span>}</div>{product.productKind === 'physical' && product.stockMode === 'tracked' && <p className={`mt-1 text-[8px] font-bold ${product.stock && product.stock > 0 ? 'text-white/42' : 'text-red-300'}`}>{product.stock && product.stock > 0 ? `${product.stock} disponible(s)` : 'Rupture de stock'}</p>}</div></Link><Link to={getZandofyProductPath(product)} className="flex items-center justify-between border-t border-white/8 px-3 py-2.5 text-[8px] font-black uppercase tracking-wider text-[#15EA3E]">Voir le détail <AfriZiaIcon name="arrow" size={11} /></Link></article>)}</div> : <div className="mt-5 border border-dashed border-white/14 p-8 text-center"><AfriZiaIcon name="market" size={28} className="mx-auto text-[#15EA3E]" /><h3 className="mt-3 text-base font-black">{products.length ? 'Aucun résultat' : 'Catalogue bientôt disponible'}</h3><p className="mt-2 text-xs font-semibold text-white/42">{products.length ? 'Aucun produit ne correspond à ta recherche.' : 'Les produits de cette boutique apparaîtront ici.'}</p></div>}</div></section>
+      <section id="products" className="scroll-mt-24 mt-9 border-y border-white/10 bg-[#071007]"><div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Le catalogue</p><h2 className="mt-1 text-xl font-black sm:text-2xl">Produits de la boutique</h2><p className="mt-2 max-w-xl text-xs font-semibold leading-relaxed text-white/44">Produits physiques et digitaux publiés par {publicStore.name}.</p></div><div className="relative w-full sm:max-w-[250px]"><AfriZiaIcon name="search" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/35" /><input value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} placeholder="Rechercher dans la boutique" className="h-10 w-full rounded-xl border border-white/10 bg-white/[0.05] pl-9 pr-3 text-xs font-bold outline-none focus:border-[#15EA3E]/45" /></div></div><div className="scrollbar-hide mt-4 flex gap-2 overflow-x-auto pb-1">{['Tout', ...collections].map((collection) => <button key={collection} type="button" onClick={() => setActiveCollection(collection)} className={cn('shrink-0 rounded-full border px-3 py-2 text-[9px] font-black', activeCollection === collection ? 'border-[#15EA3E] bg-[#15EA3E] text-black' : 'border-white/10 bg-white/[0.04] text-white/55')}>{collection}</button>)}</div>{visibleProducts.length > 0 ? <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{visibleProducts.slice(0, 16).map((product) => <article key={product.id} className="group overflow-hidden rounded-xl border border-white/10 bg-[#0b130b] transition-colors hover:border-[#15EA3E]/35"><Link to={getZandofyProductPath(product)} onClick={() => { void recordZandofyAnalyticsEvent({ storeId: publicStore.id, eventType: 'product_view', productId: product.id, country: profile?.country || publicStore.country, city: profile?.city || publicStore.city }); }} className="block"><div className="relative aspect-square overflow-hidden"><img src={product.coverURL} alt={product.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />{product.salePrice !== undefined && product.salePrice < product.regularPrice && <span className="absolute left-2 top-2 rounded-full bg-amber-300 px-2 py-1 text-[8px] font-black text-black">PROMO</span>}</div><div className="p-3"><p className="line-clamp-2 min-h-[30px] text-[11px] font-black leading-tight">{product.title}</p><p className="mt-2 truncate text-[8px] font-black uppercase tracking-wider text-[#15EA3E]">{product.productKind === 'physical' ? product.catalogCategory || 'Produit physique' : product.digitalType}</p><div className="mt-1 flex flex-wrap items-baseline gap-1"><span className="text-xs font-black">{product.isFree ? 'Gratuit' : `${product.price.toLocaleString('fr-FR')} ${product.currency}`}</span>{product.salePrice !== undefined && product.salePrice < product.regularPrice && <span className="text-[8px] font-bold text-white/35 line-through">{product.regularPrice.toLocaleString('fr-FR')} {product.currency}</span>}</div>{publicStore.settings.showInventory && product.productKind === 'physical' && product.stockMode === 'tracked' && <p className={`mt-1 text-[8px] font-bold ${product.stock && product.stock > 0 ? 'text-white/42' : 'text-red-300'}`}>{product.stock && product.stock > 0 ? `${product.stock} disponible(s)` : 'Rupture de stock'}</p>}</div></Link><Link to={getZandofyProductPath(product)} className="flex items-center justify-between border-t border-white/8 px-3 py-2.5 text-[8px] font-black uppercase tracking-wider text-[#15EA3E]">Voir le détail <AfriZiaIcon name="arrow" size={11} /></Link></article>)}</div> : <div className="mt-5 border border-dashed border-white/14 p-8 text-center"><AfriZiaIcon name="market" size={28} className="mx-auto text-[#15EA3E]" /><h3 className="mt-3 text-base font-black">{products.length ? 'Aucun résultat' : 'Catalogue bientôt disponible'}</h3><p className="mt-2 text-xs font-semibold text-white/42">{products.length ? 'Aucun produit ne correspond à ta recherche.' : 'Les produits de cette boutique apparaîtront ici.'}</p></div>}</div></section>
 
       <section id="about" className="scroll-mt-24 border-b border-white/10"><div className="mx-auto grid max-w-6xl gap-7 px-4 py-9 sm:px-6 lg:grid-cols-[.85fr_1.15fr] lg:px-8"><div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">À propos de la boutique</p><h2 className="mt-2 text-2xl font-black">Une vitrine pensée pour acheter en confiance.</h2><p className="mt-3 text-sm font-semibold leading-relaxed text-white/52">{publicStore.tagline} Cette boutique rassemble ses collections dans un espace simple à parcourir, avec un paiement sécurisé et un accompagnement direct.</p><div className="mt-5 flex items-center gap-3"><img src={publicStore.logoURL} alt="" className="h-11 w-11 rounded-xl object-cover" /><div><p className="text-xs font-black">{publicStore.ownerName}</p><p className="mt-1 text-[10px] font-semibold text-white/40">Vendeur · {publicStore.city}, {publicStore.country}</p></div></div></div><div className="grid gap-5 sm:grid-cols-3"><div><AfriZiaIcon name="pay" size={20} className="text-[#15EA3E]" /><h3 className="mt-3 text-sm font-black">Paiement AfriSpay</h3><p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/42">Paie depuis ton portefeuille et retrouve ton achat dans tes commandes.</p></div><div><AfriZiaIcon name="chat" size={20} className="text-[#15EA3E]" /><h3 className="mt-3 text-sm font-black">Échange direct</h3><p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/42">Une question? Contacte directement la boutique.</p></div><div><AfriZiaIcon name="shield" size={20} className="text-[#15EA3E]" /><h3 className="mt-3 text-sm font-black">Achat suivi</h3><p className="mt-2 text-[10px] font-semibold leading-relaxed text-white/42">Retrouve le détail et le statut de tes commandes à tout moment.</p></div></div></div></section>
 
-      <section id="contact" className="scroll-mt-24 mx-auto max-w-6xl px-4 pt-9 sm:px-6 lg:px-8"><div className="flex flex-col justify-between gap-5 border-y border-[#15EA3E]/18 bg-[#071007] px-5 py-6 sm:flex-row sm:items-center"><div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Besoin d'aide?</p><h2 className="mt-2 text-xl font-black">Parle avec {publicStore.name}.</h2><p className="mt-2 text-xs font-semibold text-white/44">Une question sur les produits, la livraison ou une commande?</p></div><div className="flex w-full gap-2 sm:w-auto"><Link to={`/chat?contact=${encodeURIComponent(publicStore.ownerId)}&name=${encodeURIComponent(publicStore.ownerName)}&store=${publicStore.id}`} className="flex-1 rounded-xl bg-[#15EA3E] px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-black sm:flex-none">Contacter</Link><button type="button" onClick={() => void shareStore()} className="flex-1 rounded-xl border border-white/12 bg-black/20 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-white/75 sm:flex-none">Partager</button></div></div></section>
+      <section id="contact" className="scroll-mt-24 mx-auto max-w-6xl px-4 pt-9 sm:px-6 lg:px-8"><div className="flex flex-col justify-between gap-5 border-y border-[#15EA3E]/18 bg-[#071007] px-5 py-6 sm:flex-row sm:items-center"><div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Besoin d'aide?</p><h2 className="mt-2 text-xl font-black">Parle avec {publicStore.name}.</h2><p className="mt-2 text-xs font-semibold text-white/44">Une question sur les produits, la livraison ou une commande?</p>{publicStore.settings.showStoreContact && (publicStore.settings.customerEmail || publicStore.settings.customerPhone || publicStore.settings.businessAddress) && <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-bold text-white/56">{publicStore.settings.customerEmail && <a href={`mailto:${publicStore.settings.customerEmail}`} className="text-[#15EA3E]">{publicStore.settings.customerEmail}</a>}{publicStore.settings.customerPhone && <a href={`tel:${publicStore.settings.customerPhone}`} className="text-[#15EA3E]">{publicStore.settings.customerPhone}</a>}{publicStore.settings.businessAddress && <span>{publicStore.settings.businessAddress}</span>}</div>}</div><div className="flex w-full gap-2 sm:w-auto"><Link to={`/chat?contact=${encodeURIComponent(publicStore.ownerId)}&name=${encodeURIComponent(publicStore.ownerName)}&store=${publicStore.id}`} className="flex-1 rounded-xl bg-[#15EA3E] px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-black sm:flex-none">Contacter</Link><button type="button" onClick={() => void shareStore()} className="flex-1 rounded-xl border border-white/12 bg-black/20 px-4 py-3 text-[10px] font-black uppercase tracking-wider text-white/75 sm:flex-none">Partager</button></div></div></section>
 
-      <section className="mx-auto max-w-6xl px-4 pt-9 sm:px-6 lg:px-8"><div className="grid gap-7 lg:grid-cols-[1.2fr_.8fr]"><div><div className="flex items-center justify-between gap-3"><div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Avis clients</p><h2 className="mt-1 text-xl font-black">Ils parlent de la boutique</h2></div><span className="flex items-center gap-1 text-sm font-black text-[#FFD84D]"><AfriZiaIcon name="star" size={15} className="fill-current" />{reviewAverage ? reviewAverage.toFixed(1) : '0.0'}</span></div>{reviews.length > 0 ? <div className="mt-4 grid gap-2 sm:grid-cols-2">{reviews.slice(0, 4).map((review) => <article key={review.id} className="border border-white/10 bg-white/[0.035] p-3"><div className="flex items-center justify-between gap-2"><p className="truncate text-xs font-black">{review.authorName}</p><span className="flex items-center gap-1 text-[10px] font-black text-[#FFD84D]"><AfriZiaIcon name="star" size={11} className="fill-current" />{review.rating}</span></div>{review.text && <p className="mt-2 text-[11px] font-semibold leading-relaxed text-white/52">{review.text}</p>}</article>)}</div> : <p className="mt-4 border border-dashed border-white/12 p-4 text-xs font-semibold text-white/42">Cette boutique n'a pas encore reçu d'avis.</p>}</div><div className="border border-white/10 bg-white/[0.035] p-5"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Ton expérience</p><h2 className="mt-1 text-xl font-black">Évalue la boutique</h2><div className="mt-4 flex gap-1">{[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" onClick={() => setReviewRating(rating)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/22" aria-label={`Noter ${rating}`}><AfriZiaIcon name="star" size={16} className={rating <= reviewRating ? 'fill-current text-[#FFD84D]' : 'text-white/24'} /></button>)}</div><textarea value={reviewText} onChange={(event) => setReviewText(event.target.value)} rows={3} placeholder="Ton avis sur cette boutique..." className="mt-3 w-full resize-none border border-white/10 bg-black/22 px-3 py-3 text-xs font-semibold outline-none focus:border-[#15EA3E]/45" /><button type="button" onClick={() => void submitStoreReview()} disabled={submittingFeedback} className="mt-3 h-10 w-full rounded-xl bg-[#15EA3E] text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-50">{submittingFeedback ? 'Envoi...' : 'Publier la note'}</button></div></div></section>
+      {publicStore.settings.allowProductReviews && <section className="mx-auto max-w-6xl px-4 pt-9 sm:px-6 lg:px-8"><div className="grid gap-7 lg:grid-cols-[1.2fr_.8fr]"><div><div className="flex items-center justify-between gap-3"><div><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Avis clients</p><h2 className="mt-1 text-xl font-black">Ils parlent de la boutique</h2></div><span className="flex items-center gap-1 text-sm font-black text-[#FFD84D]"><AfriZiaIcon name="star" size={15} className="fill-current" />{reviewAverage ? reviewAverage.toFixed(1) : '0.0'}</span></div>{reviews.length > 0 ? <div className="mt-4 grid gap-2 sm:grid-cols-2">{reviews.slice(0, 4).map((review) => <article key={review.id} className="border border-white/10 bg-white/[0.035] p-3"><div className="flex items-center justify-between gap-2"><p className="truncate text-xs font-black">{review.authorName}</p><span className="flex items-center gap-1 text-[10px] font-black text-[#FFD84D]"><AfriZiaIcon name="star" size={11} className="fill-current" />{review.rating}</span></div>{review.text && <p className="mt-2 text-[11px] font-semibold leading-relaxed text-white/52">{review.text}</p>}</article>)}</div> : <p className="mt-4 border border-dashed border-white/12 p-4 text-xs font-semibold text-white/42">Cette boutique n'a pas encore reçu d'avis.</p>}</div><div className="border border-white/10 bg-white/[0.035] p-5"><p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Ton expérience</p><h2 className="mt-1 text-xl font-black">Évalue la boutique</h2><div className="mt-4 flex gap-1">{[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" onClick={() => setReviewRating(rating)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-black/22" aria-label={`Noter ${rating}`}><AfriZiaIcon name="star" size={16} className={rating <= reviewRating ? 'fill-current text-[#FFD84D]' : 'text-white/24'} /></button>)}</div><textarea value={reviewText} onChange={(event) => setReviewText(event.target.value)} rows={3} placeholder="Ton avis sur cette boutique..." className="mt-3 w-full resize-none border border-white/10 bg-black/22 px-3 py-3 text-xs font-semibold outline-none focus:border-[#15EA3E]/45" /><button type="button" onClick={() => void submitStoreReview()} disabled={submittingFeedback} className="mt-3 h-10 w-full rounded-xl bg-[#15EA3E] text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-50">{submittingFeedback ? 'Envoi...' : 'Publier la note'}</button></div></div></section>}
 
       <section className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-8"><button type="button" onClick={() => void reportStore()} disabled={submittingFeedback} className="w-full border border-red-500/30 bg-red-500/10 px-4 py-3 text-[10px] font-black uppercase tracking-[0.18em] text-red-300 disabled:opacity-50">Signaler cette boutique</button>{feedbackStatus && <p className="mt-3 border border-white/10 bg-white/[0.04] p-3 text-center text-xs font-bold text-white/58">{feedbackStatus}</p>}</section>
 
