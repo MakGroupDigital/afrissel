@@ -12,6 +12,8 @@ import { shareLink } from '../lib/shareLink';
 import { recordZandofyAnalyticsEvent, ZandofyAnalyticsSnapshot } from '../domains/commerce/zandofyAnalytics';
 import { AfriMarketContent, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { useAppStore } from '../store/useAppStore';
+import { downloadZandofyReport } from '../lib/zandofyReport';
+import { getZandofyProductShareURL } from '../lib/zandofyShare';
 
 const themeStyles: Record<ZandofyTheme, string> = {
   emerald: 'from-[#15EA3E]/24 via-white/[0.05] to-black',
@@ -822,46 +824,94 @@ export function ZandofyDashboardScreen() {
 export function ZandofyAffiliationScreen() {
   const navigate = useNavigate();
   const { user } = useFirebaseAuth();
-  const { ownerStore, products, loading } = useZandofyStore();
+  const { products: ownedProducts, loading: loadingStore } = useZandofyStore();
+  const { marketProducts, zikMartProducts, loading: loadingMarket } = useAfriMarket();
   const [status, setStatus] = useState('');
+  const [earnings, setEarnings] = useState<Array<{ id: string; amount: number; currency: string; productName: string; level: string; createdAt: number }>>([]);
 
-  const shareAffiliate = async (product: typeof products[number], level: 'direct' | 'indirect') => {
-    if (!user || user.isAnonymous) return;
-    const productURL = `${window.location.origin}${getZandofyProductPath(product)}`;
+  useEffect(() => {
+    if (!user || user.isAnonymous) {
+      setEarnings([]);
+      return undefined;
+    }
+    const earningsRef = ref(realtimeDb, `affiliateEarnings/${user.uid}`);
+    return onValue(earningsRef, (snapshot) => {
+      const data = snapshot.val() as Record<string, { id?: string; amount?: number; currency?: string; productName?: string; level?: string; createdAt?: number }> | null;
+      setEarnings(Object.entries(data || {})
+        .map(([id, earning]) => ({ id, amount: Number(earning.amount || 0), currency: earning.currency || 'USD', productName: earning.productName || 'Produit', level: earning.level || 'direct', createdAt: Number(earning.createdAt || 0) }))
+        .sort((first, second) => second.createdAt - first.createdAt));
+    }, () => setEarnings([]));
+  }, [user]);
+
+  const affiliateProducts = useMemo(() => {
+    const combined = [...marketProducts, ...zikMartProducts, ...ownedProducts];
+    return Array.from(new Map(combined.map((product) => [product.id, product])).values())
+      .filter((product) => (
+        product.affiliateEnabled === true &&
+        (Number(product.affiliateDirectRate || 0) > 0 || Number(product.affiliateIndirectRate || 0) > 0) &&
+        product.authorId !== user?.uid &&
+        product.sellerId !== user?.uid &&
+        Boolean(product.storeId || product.offerModule === 'Zandofy' || product.category === 'Zandofy')
+      ));
+  }, [marketProducts, ownedProducts, user?.uid, zikMartProducts]);
+
+  const totalEarnings = earnings.reduce((total, earning) => total + earning.amount, 0);
+  const affiliateProductPath = (product: typeof affiliateProducts[number]) => product.storeSlug
+    ? getZandofyProductPath(product)
+    : `/market/${encodeURIComponent(product.id)}`;
+
+  const shareAffiliate = async (product: typeof affiliateProducts[number], level: 'direct' | 'indirect') => {
+    if (!user || user.isAnonymous) {
+      navigate('/login', { state: { next: '/zandofy/affiliation' } });
+      return;
+    }
+    if (!product.affiliateEnabled) {
+      setStatus('Ce produit ne propose plus de commission.');
+      return;
+    }
+    const rate = level === 'direct' ? Number(product.affiliateDirectRate || 0) : Number(product.affiliateIndirectRate || 0);
+    if (rate <= 0) {
+      setStatus(`La commission ${level === 'direct' ? 'directe' : 'indirecte'} n’est pas activée sur ce produit.`);
+      return;
+    }
+    const productURL = product.storeId
+      ? getZandofyProductShareURL(product)
+      : `${window.location.origin}${affiliateProductPath(product)}`;
     const url = new URL(productURL);
     url.searchParams.set('ref', user.uid);
     url.searchParams.set('level', level);
+    url.searchParams.set('campaign', 'wezandofy');
     try {
-      const result = await shareLink({ title: `${product.title} - recommandation`, text: `Découvre ${product.title} sur AfriZia.`, url: url.toString() });
-      setStatus(result === 'copied' ? 'Lien copié.' : 'Lien partagé.');
+      const result = await shareLink({ title: `${product.title} - recommandation`, text: `Découvre ${product.title} sur AfriZia. Recommandé via WeZandofy.`, url: url.toString() });
+      setStatus(result === 'copied' ? `Lien ${level === 'direct' ? 'direct' : 'indirect'} copié.` : 'Lien partagé.');
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
       setStatus(error instanceof Error ? error.message : 'Partage impossible.');
     }
   };
 
-  if (loading) return <ZandofyLoadingScreen label="Chargement affiliation" />;
-  if (!ownerStore) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Boutique introuvable.</main>;
-  const affiliateProducts = products.filter((product) => product.affiliateEnabled);
+  if (loadingStore || loadingMarket) return <ZandofyLoadingScreen label="Chargement affiliation" />;
+  if (!user || user.isAnonymous) return <main className="flex min-h-full flex-col items-center justify-center bg-[#030604] p-6 text-center text-white"><AfriZiaIcon name="share" size={30} className="text-[#15EA3E]" /><h1 className="mt-4 text-xl font-black">Recommande et gagne</h1><p className="mt-2 max-w-xs text-sm font-semibold leading-relaxed text-white/48">Connecte-toi pour créer tes liens d’affiliation et recevoir tes commissions AfriSpay.</p><Link to="/login" state={{ next: '/zandofy/affiliation' }} className="mt-5 rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">Se connecter</Link></main>;
 
   return (
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
       <header className="sticky top-0 z-20 flex items-center justify-between bg-[#030604]/90 px-4 pb-3 pt-4 backdrop-blur-xl">
         <button type="button" onClick={() => navigate('/zandofy/dashboard')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]"><AfriZiaIcon name="arrow" size={16} className="rotate-180" /></button>
-        <div className="text-center"><p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy</p><h1 className="text-sm font-black">Affiliation</h1></div>
+        <div className="text-center"><p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">WeZandofy</p><h1 className="text-sm font-black">Affiliation</h1></div>
         <AfriZiaIcon name="share" size={19} className="text-[#15EA3E]" />
       </header>
       <ZandofyMenuBar />
-      <section className="px-4 pt-4"><div className="rounded-[1.7rem] border border-sky-300/18 bg-sky-300/7 p-5"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-200">Recommandations</p><h2 className="mt-2 text-xl font-black">Tes liens directs et indirects</h2><p className="mt-2 text-xs font-semibold leading-relaxed text-white/48">Partage un produit et reçois la commission définie par le vendeur après un achat confirmé.</p></div></section>
+      <section className="px-4 pt-4"><div className="rounded-[1.7rem] border border-sky-300/18 bg-sky-300/7 p-5"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-200">Recommandations</p><h2 className="mt-2 text-xl font-black">Tes liens directs et indirects</h2><p className="mt-2 text-xs font-semibold leading-relaxed text-white/48">Choisis un produit d’un autre vendeur, partage ton lien et reçois la commission définie après un achat confirmé.</p><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-2xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-black uppercase tracking-wider text-white/40">Commissions reçues</p><p className="mt-2 text-lg font-black text-[#15EA3E]">{formatZandofyMoney(totalEarnings, earnings[0]?.currency || 'USD')}</p></div><div className="rounded-2xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-black uppercase tracking-wider text-white/40">Ventes attribuées</p><p className="mt-2 text-lg font-black">{earnings.length}</p></div></div></div></section>
       {status && <p className="mx-4 mt-4 rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-3 text-center text-xs font-bold text-[#15EA3E]">{status}</p>}
       <section className="space-y-3 px-4 pt-5">
         {affiliateProducts.length ? affiliateProducts.map((product) => (
           <article key={product.id} className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-3">
-            <div className="flex items-center gap-3"><img src={product.coverURL} alt="" className="h-14 w-14 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{product.title}</p><p className="mt-1 text-[10px] font-bold text-white/42">Direct {product.affiliateDirectRate}% · Indirect {product.affiliateIndirectRate}%</p></div><Link to={getZandofyProductPath(product)} className="text-[9px] font-black uppercase text-[#15EA3E]">Voir</Link></div>
-            <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => void shareAffiliate(product, 'direct')} className="rounded-xl border border-white/10 bg-black/20 py-2.5 text-[9px] font-black uppercase tracking-wider text-white/70">Lien direct</button><button type="button" onClick={() => void shareAffiliate(product, 'indirect')} className="rounded-xl bg-[#15EA3E] py-2.5 text-[9px] font-black uppercase tracking-wider text-black">Lien indirect</button></div>
+            <div className="flex items-center gap-3"><img src={product.coverURL} alt="" className="h-14 w-14 rounded-2xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-black">{product.title}</p><p className="mt-1 text-[10px] font-bold text-white/42">Direct {product.affiliateDirectRate}% · Indirect {product.affiliateIndirectRate}%</p></div><Link to={affiliateProductPath(product)} className="text-[9px] font-black uppercase text-[#15EA3E]">Voir</Link></div>
+            <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" disabled={Number(product.affiliateDirectRate || 0) <= 0} onClick={() => void shareAffiliate(product, 'direct')} className="rounded-xl border border-white/10 bg-black/20 py-2.5 text-[9px] font-black uppercase tracking-wider text-white/70 disabled:opacity-35">Lien direct</button><button type="button" disabled={Number(product.affiliateIndirectRate || 0) <= 0} onClick={() => void shareAffiliate(product, 'indirect')} className="rounded-xl bg-[#15EA3E] py-2.5 text-[9px] font-black uppercase tracking-wider text-black disabled:opacity-35">Lien indirect</button></div>
           </article>
-        )) : <div className="rounded-[1.4rem] border border-dashed border-white/14 p-6 text-center text-xs font-bold text-white/45">Active les recommandations sur un produit pour générer tes liens.</div>}
+        )) : <div className="rounded-[1.4rem] border border-dashed border-white/14 p-6 text-center text-xs font-bold text-white/45">Aucune campagne disponible. Les vendeurs doivent activer une commission dans les réglages de leurs produits.</div>}
       </section>
+      {earnings.length > 0 && <section className="px-4 pt-5"><div className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Dernières commissions</p><div className="mt-3 space-y-2">{earnings.slice(0, 5).map((earning) => <div key={earning.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-3"><span className="min-w-0"><span className="block truncate text-xs font-black">{earning.productName}</span><span className="mt-1 block text-[9px] font-bold text-white/42">Lien {earning.level}</span></span><span className="shrink-0 text-xs font-black text-[#15EA3E]">+ {formatZandofyMoney(earning.amount, earning.currency)}</span></div>)}</div></div></section>}
     </main>
   );
 }
@@ -894,6 +944,8 @@ export function ZandofyStatsScreen() {
   const [reviewCount, setReviewCount] = useState(0);
   const [analytics, setAnalytics] = useState<ZandofyAnalyticsSnapshot>({});
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('week');
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportStatus, setReportStatus] = useState('');
 
   useEffect(() => {
     if (!ownerStore?.id) {
@@ -984,12 +1036,60 @@ export function ZandofyStatsScreen() {
       periodDays, periodRevenue, periodSales, periodStoreViews, periodProductViews, conversionRate, recurrentClients,
       repeatRate: clients ? (recurrentClients / clients) * 100 : 0,
       devices: topDimension(dimensions.devices), countries: topDimension(dimensions.countries), cities: topDimension(dimensions.cities), sources: topDimension(dimensions.sources),
-      uniqueVisitors: uniqueVisitors.size
+      uniqueVisitors: uniqueVisitors.size,
+      dailySeries: periodDaily.map(([day, item]) => ({
+        label: day,
+        sales: periodOrders.filter((order) => new Date(Number(order.createdAt || 0)).toISOString().slice(0, 10) === day).length,
+        revenue: periodOrders
+          .filter((order) => new Date(Number(order.createdAt || 0)).toISOString().slice(0, 10) === day)
+          .reduce((total, order) => total + Number(order.sellerNetAmount ?? order.totalAmount ?? 0), 0),
+        views: Number(item.storeViews || 0) + Number(item.productViews || 0)
+      }))
     };
   }, [analytics, orders, period, products]);
 
   if (loading || loadingOrders) return <ZandofyLoadingScreen label="Chargement des statistiques" />;
   if (!ownerStore) return <main className="flex min-h-full items-center justify-center bg-[#030604] text-white">Boutique introuvable.</main>;
+
+  const generateReport = async () => {
+    setReportBusy(true);
+    setReportStatus('');
+    const periodLabel = period === 'day' ? "Aujourd'hui" : period === 'week' ? 'Les 7 derniers jours' : period === 'month' ? 'Les 30 derniers jours' : 'Les 12 derniers mois';
+    try {
+      await downloadZandofyReport({
+        storeName: ownerStore.name,
+        storeSlug: ownerStore.slug,
+        currency: ownerStore.currency,
+        periodLabel,
+        generatedAt: new Date(),
+        summary: {
+          netRevenue: stats.netRevenue,
+          periodRevenue: stats.periodRevenue,
+          periodSales: stats.periodSales,
+          paidOrders: stats.paidOrders,
+          inProgress: stats.inProgress,
+          clients: stats.clients,
+          uniqueVisitors: stats.uniqueVisitors,
+          conversionRate: stats.conversionRate,
+          averageOrder: stats.averageOrder,
+          recurrentClients: stats.recurrentClients,
+          repeatRate: stats.repeatRate,
+          fppTotal: stats.fppTotal,
+          lowStock: stats.lowStock,
+          rating: Number(ownerStore.rating || 0),
+          reviewCount
+        },
+        dailySeries: stats.dailySeries,
+        topProducts: stats.topProducts.map(({ product, orders: productOrders, revenue }) => ({ title: product.title, orders: productOrders, revenue, currency: product.currency })),
+        dimensions: { devices: stats.devices, countries: stats.countries, cities: stats.cities, sources: stats.sources }
+      });
+      setReportStatus('Rapport PDF téléchargé.');
+    } catch (error) {
+      setReportStatus(error instanceof Error ? error.message : 'Génération du rapport impossible.');
+    } finally {
+      setReportBusy(false);
+    }
+  };
 
   return (
     <main className="min-h-full overflow-y-auto bg-[#030604] pb-24 text-white scrollbar-hide">
@@ -1001,8 +1101,19 @@ export function ZandofyStatsScreen() {
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy</p>
           <h1 className="text-sm font-black">Statistique</h1>
         </div>
-        <AfriZiaIcon name="signal" size={20} className="text-[#15EA3E]" />
+        <button type="button" onClick={() => void generateReport()} disabled={reportBusy} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#15EA3E]/30 bg-[#15EA3E]/10 text-[#15EA3E] disabled:opacity-45" aria-label="Télécharger le rapport PDF">
+          <AfriZiaIcon name="file" size={18} />
+        </button>
       </header>
+
+      <section className="px-4 pt-4">
+        <button type="button" onClick={() => void generateReport()} disabled={reportBusy} className="flex w-full items-center justify-between gap-3 rounded-[1.5rem] border border-[#15EA3E]/24 bg-[#15EA3E]/10 p-4 text-left disabled:opacity-45">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black"><AfriZiaIcon name="file" size={18} /></span>
+          <span className="min-w-0 flex-1"><span className="block text-xs font-black">Rapport de performance PDF</span><span className="mt-1 block text-[10px] font-semibold leading-relaxed text-white/52">Métriques, graphiques, produits, audience et acquisition sur plusieurs pages.</span></span>
+          <AfriZiaIcon name="arrow" size={15} className="shrink-0" />
+        </button>
+        {reportStatus && <p className={cn('mt-2 rounded-xl border p-3 text-center text-xs font-bold', /impossible|erreur/i.test(reportStatus) ? 'border-red-400/18 bg-red-500/10 text-red-100' : 'border-[#15EA3E]/20 bg-[#15EA3E]/8 text-[#15EA3E]')}>{reportStatus}</p>}
+      </section>
 
       <section className="px-4 pt-5">
         <div className="rounded-[2rem] border border-[#15EA3E]/18 bg-[radial-gradient(circle_at_20%_10%,rgba(21,234,62,0.18),transparent_38%),#071007] p-5">
@@ -2352,7 +2463,7 @@ export function ZandofyProductsScreen() {
       const result = await shareLink({
         title: product.title,
         text: `Découvre ${product.title} dans la boutique ${ownerStore?.name || 'Zandofy'}.`,
-        url: `${window.location.origin}${getZandofyProductPath(product)}`
+        url: getZandofyProductShareURL(product)
       });
       setStockStatus(result === 'copied' ? 'Lien produit copié.' : 'Lien produit partagé.');
     } catch (error) {

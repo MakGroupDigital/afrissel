@@ -12,6 +12,7 @@ import { realtimeDb } from '../lib/firebase';
 import { cn } from '../lib/utils';
 import { shareLink } from '../lib/shareLink';
 import { CloudinaryResourceType } from '../lib/cloudinary';
+import { getZandofyProductShareURL } from '../lib/zandofyShare';
 
 const deliveryOptions: CheckoutDelivery[] = [
   {
@@ -153,8 +154,6 @@ const getZandofyProductPath = (product: Pick<AfriMarketContent, 'id' | 'storeSlu
     ? `/zandofy/${encodeURIComponent(product.storeSlug)}/product/${encodeURIComponent(product.id)}`
     : `/zandofy/product/${encodeURIComponent(product.id)}`
 );
-
-const getZandofyProductURL = (product: AfriMarketContent) => `${window.location.origin}${getZandofyProductPath(product)}`;
 
 const toMarketContent = (product: ZandofyDigitalProduct): AfriMarketContent => ({
   id: product.id,
@@ -463,13 +462,12 @@ export default function ProductDetailScreen() {
     return <EmptyDetail />;
   }
 
-  const isZandofyDigital = product.productKind === 'digital' || (
-    product.productKind === undefined && Boolean(product.isDigital || product.offerModule === 'Zandofy' || product.category === 'Zandofy')
-  );
-  const productDetailPath = isZandofyDigital ? getZandofyProductPath(product) : `/market/${product.id}`;
+  const isZandofyProduct = Boolean(product.storeId || product.offerModule === 'Zandofy' || product.category === 'Zandofy');
+  const isZandofyDigital = product.productKind === 'digital' || (product.productKind === undefined && Boolean(product.isDigital || isZandofyProduct));
+  const productDetailPath = isZandofyProduct ? getZandofyProductPath(product) : `/market/${product.id}`;
   const digitalMeta = getDigitalMeta(product);
   const productSpec = product.productSpec || {};
-  const productShareURL = isZandofyDigital ? getZandofyProductURL(product) : `${window.location.origin}/market/${product.id}`;
+  const productShareURL = isZandofyProduct ? getZandofyProductShareURL(product) : `${window.location.origin}/market/${product.id}`;
 
   const handleAddToCart = () => {
     addToCart(checkoutProduct);
@@ -477,7 +475,6 @@ export default function ProductDetailScreen() {
   };
 
   const handleBuy = () => {
-    const isZandofyProduct = Boolean(product.storeId || product.offerModule === 'Zandofy' || product.category === 'Zandofy');
     if (isZandofyProduct && zandofyStore && !zandofyStore.settings.acceptGuestCheckout && (!user || user.isAnonymous)) {
       navigate('/login', { state: { next: location.pathname + location.search } });
       return;

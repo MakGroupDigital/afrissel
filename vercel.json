@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/share/zandofy/:storeId/:productId",
+      "destination": "/api/share/zandofy-product?storeId=:storeId&productId=:productId"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
