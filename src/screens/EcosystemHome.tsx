@@ -749,7 +749,7 @@ export default function EcosystemHome() {
       >
       <div data-home-chrome className={`relative z-40 shrink-0 transition-[max-height,opacity,transform] duration-300 ease-out ${
         isHomeChromeVisible
-          ? 'max-h-[320px] translate-y-0 overflow-visible pb-1 pt-2 opacity-100'
+          ? 'max-h-[640px] translate-y-0 overflow-visible pb-1 pt-2 opacity-100'
           : 'pointer-events-none max-h-0 -translate-y-3 overflow-hidden opacity-0'
       }`}>
       <header className="ecosystem-home-header shrink-0 px-4">
@@ -820,7 +820,7 @@ export default function EcosystemHome() {
       <section className="mt-2 shrink-0 px-4">
         <div
           className={cn(
-            'ecosystem-wallet-card relative overflow-hidden rounded-2xl border p-2.5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]',
+            'ecosystem-wallet-card relative mx-auto flex w-[342px] max-w-full aspect-[1.586] shrink-0 flex-col overflow-hidden rounded-2xl border p-3 shadow-[0_12px_28px_rgba(0,0,0,0.24)]',
             isAfriSpayActive ? 'border-gray-800 bg-black' : 'border-amber-300/24 bg-[#100E07]'
           )}
           style={{
@@ -896,30 +896,7 @@ export default function EcosystemHome() {
             </div>
           </div>
 
-          {isAfriSpayActive && walletSecurityStatus && !showWalletBalance && (
-            <form onSubmit={unlockWalletWithPin} className="relative z-10 mt-2 flex items-center gap-1.5">
-              <input
-                value={walletPinInput}
-                onChange={(event) => setWalletPinInput(event.target.value.replace(/[^\d]/g, '').slice(0, 8))}
-                inputMode="numeric"
-                type="password"
-                placeholder="PIN"
-                className="h-8 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/50 px-3 text-[11px] font-bold text-white outline-none placeholder:text-white/28 focus:border-[#15EA3E]/50"
-              />
-              <button type="submit" disabled={!hasWalletPin} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black disabled:bg-white/10 disabled:text-white/30">
-                <AfriZiaIcon name="check" size={13} />
-              </button>
-              <button type="button" onClick={unlockWalletWithBiometric} disabled={!canUseBiometric} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.055] text-[#15EA3E] disabled:text-white/25">
-                <AfriZiaIcon name="shield" size={13} />
-              </button>
-            </form>
-          )}
-
-          {isAfriSpayActive && walletSecurityStatus && !showWalletBalance && (
-            <p className="relative z-10 mt-1 text-[9px] font-semibold text-white/40">{walletSecurityStatus}</p>
-          )}
-
-          <div className="relative z-10 mt-2 flex items-center justify-between gap-1.5">
+          <div className="relative z-10 mt-auto flex items-center justify-between gap-1.5">
             {afriSpayHomeActions.map((action) => (
               <button
                 key={action.label}
@@ -939,6 +916,27 @@ export default function EcosystemHome() {
             ))}
           </div>
         </div>
+        {isAfriSpayActive && walletSecurityStatus && !showWalletBalance && (
+          <div className="mx-auto mt-2 w-[342px] max-w-full rounded-xl border border-white/10 bg-black/35 p-2.5">
+            <form onSubmit={unlockWalletWithPin} className="flex items-center gap-1.5">
+              <input
+                value={walletPinInput}
+                onChange={(event) => setWalletPinInput(event.target.value.replace(/[^\d]/g, '').slice(0, 8))}
+                inputMode="numeric"
+                type="password"
+                placeholder="PIN AfriSpay"
+                className="h-8 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/50 px-3 text-[11px] font-bold text-white outline-none placeholder:text-white/28 focus:border-[#15EA3E]/50"
+              />
+              <button type="submit" disabled={!hasWalletPin} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black disabled:bg-white/10 disabled:text-white/30" aria-label="Valider le PIN">
+                <AfriZiaIcon name="check" size={13} />
+              </button>
+              <button type="button" onClick={unlockWalletWithBiometric} disabled={!canUseBiometric} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.055] text-[#15EA3E] disabled:text-white/25" aria-label="Déverrouiller avec la biométrie">
+                <AfriZiaIcon name="shield" size={13} />
+              </button>
+            </form>
+            <p className="mt-1.5 text-[9px] font-semibold text-white/40">{walletSecurityStatus}</p>
+          </div>
+        )}
       </section>
 
       <section className="mt-3 shrink-0 px-4">

@@ -513,7 +513,7 @@ export default function WalletDashboard() {
       </header>
 
       {/* afrisPay payment card */}
-      <div className="relative w-full aspect-[1.586] rounded-2xl p-5 flex flex-col justify-between overflow-hidden border border-gray-800"
+      <div className="relative mx-auto w-[342px] max-w-full aspect-[1.586] shrink-0 rounded-2xl p-4 flex flex-col justify-between overflow-hidden border border-gray-800"
            style={{
              background: 'linear-gradient(135deg, #0A0A0A 0%, #000000 100%)',
              boxShadow: '0 10px 40px rgba(21, 234, 62, 0.10)'
