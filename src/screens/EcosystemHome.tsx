@@ -755,8 +755,9 @@ export default function EcosystemHome() {
       <header className="ecosystem-home-header shrink-0 px-4">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <img src="/logo du haut de page d'acceuil.png" alt="AfriZia" className="h-10 w-auto max-w-[156px] object-contain" />
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <img src="/afrisell-super-app-icon-removebg-preview.png" alt="AfriZia" className="h-8 w-8 shrink-0 object-contain" />
+              <span className="shrink-0 font-sans text-[14px] font-black leading-none text-[#15EA3E]">afrizia</span>
               <h1 className="truncate text-[11px] font-black text-white/78">{timeGreeting} {firstName}</h1>
             </div>
           </div>
