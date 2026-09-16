@@ -33,6 +33,7 @@ import { CloudinaryUploadResult } from '../lib/cloudinary';
 import { AccountRole } from '../lib/accountTypes';
 import { isOfflineNow, offlineCacheKey, readOfflineCache, readOfflineCacheAsync, writeOfflineCache } from '../lib/offlineCache';
 import { isTauriAndroid, signInWithNativeGoogle } from '../lib/nativePlatform';
+import { awardPendingAffiliateReferral, syncAffiliateReferralActivity } from '../domains/commerce/affiliateProgram';
 
 export interface AfriZiaUserProfile {
   uid: string;
@@ -60,6 +61,9 @@ export interface AfriZiaUserProfile {
   country?: string;
   countryCode?: string;
   bio?: string;
+  affiliateReferrerId?: string;
+  affiliateReferrerCode?: string;
+  affiliateRewardedAt?: unknown;
   businessName?: string;
   businessAccount?: {
     categoryId?: string;
@@ -340,6 +344,13 @@ const syncUserProfile = async (user: User): Promise<AfriZiaUserProfile> => {
   const profile = buildProfile(user, existing);
   const demographicsSetupCompleted = user.isAnonymous || Boolean(existing.demographicsSetupCompleted && hasDemographics) || hasDemographics;
   const demographicsSetupRequired = user.isAnonymous ? false : !demographicsSetupCompleted;
+  let referralAward: Awaited<ReturnType<typeof awardPendingAffiliateReferral>> = null;
+  try {
+    referralAward = await awardPendingAffiliateReferral(user, profile, !snap.exists());
+  } catch (error) {
+    // Referral attribution must never prevent a new member from using AfriZia.
+    console.error('Attribution affiliation AfriZia impossible:', error);
+  }
 
   await withDatabaseTimeout(update(userRef, stripUndefined({
     ...profile,
@@ -347,8 +358,16 @@ const syncUserProfile = async (user: User): Promise<AfriZiaUserProfile> => {
     demographicsSetupCompleted,
     createdAt: snap.exists() ? existing.createdAt : serverTimestamp(),
     updatedAt: serverTimestamp(),
-    lastLoginAt: serverTimestamp()
+    lastLoginAt: serverTimestamp(),
+    ...(referralAward ? {
+      affiliateReferrerId: referralAward.referrerId,
+      affiliateRewardedAt: serverTimestamp()
+    } : {})
   })), 'Enregistrement du profil');
+
+  if (existing.affiliateReferrerId) {
+    void syncAffiliateReferralActivity(user.uid, existing.affiliateReferrerId).catch(() => undefined);
+  }
 
   const syncedProfile = {
     ...profile,

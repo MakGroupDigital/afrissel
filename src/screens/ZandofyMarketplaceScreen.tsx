@@ -8,12 +8,19 @@ import { ZandofyOrderProcessingMode, ZandofyProductMedia, ZandofyStoreSettings, 
 import { AFRICAN_COUNTRIES_BY_PRIORITY, getCountryByCode, getDeviceCityHint, getDeviceCountryCode } from '../lib/africaLocation';
 import { realtimeDb } from '../lib/firebase';
 import { cn } from '../lib/utils';
-import { shareLink } from '../lib/shareLink';
+import { copyShareLink, shareLink } from '../lib/shareLink';
 import { recordZandofyAnalyticsEvent, ZandofyAnalyticsSnapshot } from '../domains/commerce/zandofyAnalytics';
 import { AfriMarketContent, toCheckoutProduct, useAfriMarket } from '../hooks/useAfriMarket';
 import { useAppStore } from '../store/useAppStore';
 import { downloadZandofyReport } from '../lib/zandofyReport';
 import { getZandofyProductShareURL } from '../lib/zandofyShare';
+import {
+  AFFILIATE_POINTS_PER_USD,
+  AffiliateProfile,
+  AffiliateReferral,
+  ensureAffiliateProfile,
+  getAffiliateReferralURL
+} from '../domains/commerce/affiliateProgram';
 
 const themeStyles: Record<ZandofyTheme, string> = {
   emerald: 'from-[#15EA3E]/24 via-white/[0.05] to-black',
@@ -828,6 +835,9 @@ export function ZandofyAffiliationScreen() {
   const { marketProducts, zikMartProducts, loading: loadingMarket } = useAfriMarket();
   const [status, setStatus] = useState('');
   const [earnings, setEarnings] = useState<Array<{ id: string; amount: number; currency: string; productName: string; level: string; createdAt: number }>>([]);
+  const [affiliateProfile, setAffiliateProfile] = useState<AffiliateProfile | null>(null);
+  const [referrals, setReferrals] = useState<AffiliateReferral[]>([]);
+  const [linkBusy, setLinkBusy] = useState(false);
 
   useEffect(() => {
     if (!user || user.isAnonymous) {
@@ -843,6 +853,52 @@ export function ZandofyAffiliationScreen() {
     }, () => setEarnings([]));
   }, [user]);
 
+  useEffect(() => {
+    if (!user || user.isAnonymous) {
+      setAffiliateProfile(null);
+      setReferrals([]);
+      return undefined;
+    }
+
+    let active = true;
+    void ensureAffiliateProfile(user)
+      .then((profile) => {
+        if (active) setAffiliateProfile(profile);
+      })
+      .catch(() => {
+        if (active) setStatus('La création du lien d’affiliation est momentanément indisponible.');
+      });
+
+    const profileRef = ref(realtimeDb, `affiliateProfiles/${user.uid}`);
+    const referralsRef = ref(realtimeDb, `affiliateReferrals/${user.uid}`);
+    const stopProfile = onValue(profileRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+      const data = snapshot.val() as AffiliateProfile;
+      setAffiliateProfile({ uid: user.uid, referralCode: data.referralCode || '' });
+    });
+    const stopReferrals = onValue(referralsRef, (snapshot) => {
+      const data = snapshot.val() as Record<string, Partial<AffiliateReferral>> | null;
+      setReferrals(Object.entries(data || {})
+        .map(([referredId, referral]) => ({
+          referredId,
+          displayName: referral.displayName || 'Membre AfriZia',
+          photoURL: referral.photoURL || '',
+          points: Number(referral.points || 0),
+          status: 'registered' as const,
+          createdAt: Number(referral.createdAt || 0),
+          lastActivityAt: Number(referral.lastActivityAt || referral.createdAt || 0),
+          lastActivityLabel: referral.lastActivityLabel || 'Inscription validée'
+        }))
+        .sort((first, second) => Number(second.lastActivityAt || 0) - Number(first.lastActivityAt || 0)));
+    });
+
+    return () => {
+      active = false;
+      stopProfile();
+      stopReferrals();
+    };
+  }, [user]);
+
   const affiliateProducts = useMemo(() => {
     const combined = [...marketProducts, ...zikMartProducts, ...ownedProducts];
     return Array.from(new Map(combined.map((product) => [product.id, product])).values())
@@ -856,6 +912,9 @@ export function ZandofyAffiliationScreen() {
   }, [marketProducts, ownedProducts, user?.uid, zikMartProducts]);
 
   const totalEarnings = earnings.reduce((total, earning) => total + earning.amount, 0);
+  const referralPoints = referrals.reduce((total, referral) => total + referral.points, 0);
+  const referralValue = referralPoints / AFFILIATE_POINTS_PER_USD;
+  const referralURL = affiliateProfile?.referralCode ? getAffiliateReferralURL(affiliateProfile.referralCode) : '';
   const affiliateProductPath = (product: typeof affiliateProducts[number]) => product.storeSlug
     ? getZandofyProductPath(product)
     : `/market/${encodeURIComponent(product.id)}`;
@@ -890,6 +949,52 @@ export function ZandofyAffiliationScreen() {
     }
   };
 
+  const createAffiliateLink = async () => {
+    if (!user || user.isAnonymous) return;
+    setLinkBusy(true);
+    setStatus('');
+    try {
+      const profile = await ensureAffiliateProfile(user);
+      setAffiliateProfile(profile);
+      setStatus('Ton lien d’affiliation est prêt. Chaque inscription validée rapporte 10 points.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Création du lien impossible.');
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
+  const shareReferralLink = async () => {
+    if (!referralURL) {
+      await createAffiliateLink();
+      return;
+    }
+    try {
+      const result = await shareLink({
+        title: 'Rejoins AfriZia avec mon lien',
+        text: 'Crée ton compte AfriZia avec mon lien de recommandation.',
+        url: referralURL
+      });
+      setStatus(result === 'copied' ? 'Lien d’inscription copié.' : 'Lien d’inscription partagé.');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setStatus(error instanceof Error ? error.message : 'Partage du lien impossible.');
+    }
+  };
+
+  const copyReferralLink = async () => {
+    if (!referralURL) {
+      await createAffiliateLink();
+      return;
+    }
+    try {
+      await copyShareLink(referralURL);
+      setStatus('Lien d’inscription copié.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Copie du lien impossible.');
+    }
+  };
+
   if (loadingStore || loadingMarket) return <ZandofyLoadingScreen label="Chargement affiliation" />;
   if (!user || user.isAnonymous) return <main className="flex min-h-full flex-col items-center justify-center bg-[#030604] p-6 text-center text-white"><AfriZiaIcon name="share" size={30} className="text-[#15EA3E]" /><h1 className="mt-4 text-xl font-black">Recommande et gagne</h1><p className="mt-2 max-w-xs text-sm font-semibold leading-relaxed text-white/48">Connecte-toi pour créer tes liens d’affiliation et recevoir tes commissions AfriSpay.</p><Link to="/login" state={{ next: '/zandofy/affiliation' }} className="mt-5 rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">Se connecter</Link></main>;
 
@@ -901,7 +1006,26 @@ export function ZandofyAffiliationScreen() {
         <AfriZiaIcon name="share" size={19} className="text-[#15EA3E]" />
       </header>
       <ZandofyMenuBar />
-      <section className="px-4 pt-4"><div className="rounded-[1.7rem] border border-sky-300/18 bg-sky-300/7 p-5"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-200">Recommandations</p><h2 className="mt-2 text-xl font-black">Tes liens directs et indirects</h2><p className="mt-2 text-xs font-semibold leading-relaxed text-white/48">Choisis un produit d’un autre vendeur, partage ton lien et reçois la commission définie après un achat confirmé.</p><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-2xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-black uppercase tracking-wider text-white/40">Commissions reçues</p><p className="mt-2 text-lg font-black text-[#15EA3E]">{formatZandofyMoney(totalEarnings, earnings[0]?.currency || 'USD')}</p></div><div className="rounded-2xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-black uppercase tracking-wider text-white/40">Ventes attribuées</p><p className="mt-2 text-lg font-black">{earnings.length}</p></div></div></div></section>
+      <section className="px-4 pt-4">
+        <div className="rounded-[1.7rem] border border-sky-300/18 bg-sky-300/7 p-5">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-sky-200">Programme d’affiliation</p>
+          <h2 className="mt-2 text-xl font-black">Invite, suis et cumule tes points</h2>
+          <p className="mt-2 text-xs font-semibold leading-relaxed text-white/48">Une inscription validée depuis ton lien rapporte 10 points. 100 points correspondent à 1 USD de valeur d’affiliation.</p>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-3"><p className="text-[8px] font-black uppercase tracking-wider text-white/40">Points</p><p className="mt-2 text-lg font-black text-[#15EA3E]">{referralPoints}</p></div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-3"><p className="text-[8px] font-black uppercase tracking-wider text-white/40">Valeur</p><p className="mt-2 text-lg font-black">{referralValue.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $</p></div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-3"><p className="text-[8px] font-black uppercase tracking-wider text-white/40">Filleuls</p><p className="mt-2 text-lg font-black">{referrals.length}</p></div>
+          </div>
+          {referralURL ? <div className="mt-4 rounded-2xl border border-white/10 bg-black/24 p-3"><div className="flex items-center gap-3"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(referralURL)}`} alt="QR code du lien d’affiliation" className="h-20 w-20 rounded-xl bg-white p-1" /><div className="min-w-0 flex-1"><p className="text-[9px] font-black uppercase tracking-wider text-sky-200">Ton lien d’inscription</p><p className="mt-1 break-all text-[10px] font-bold leading-relaxed text-white/56">{referralURL}</p><p className="mt-2 text-[9px] font-semibold text-white/38">Code : {affiliateProfile?.referralCode}</p></div></div><div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => void shareReferralLink()} className="rounded-xl bg-[#15EA3E] py-2.5 text-[9px] font-black uppercase tracking-wider text-black">Partager</button><button type="button" onClick={() => void copyReferralLink()} className="rounded-xl border border-white/12 bg-white/[0.05] py-2.5 text-[9px] font-black uppercase tracking-wider text-white/75">Copier le lien</button></div></div> : <button type="button" onClick={() => void createAffiliateLink()} disabled={linkBusy} className="mt-4 w-full rounded-xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black disabled:opacity-50">{linkBusy ? 'Création...' : 'Créer mon lien d’affiliation'}</button>}
+        </div>
+      </section>
+      <section className="px-4 pt-5">
+        <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4">
+          <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Mes affiliés</p><h2 className="mt-1 text-sm font-black">Personnes et activité</h2></div><span className="rounded-full border border-white/10 px-2.5 py-1 text-[9px] font-black text-white/50">{referrals.length}</span></div>
+          {referrals.length ? <div className="mt-4 space-y-2">{referrals.slice(0, 12).map((referral) => <article key={referral.referredId} className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-3"><img src={referral.photoURL || '/afrizia-super-app-icon.png'} alt="" className="h-10 w-10 rounded-xl object-cover" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-black">{referral.displayName}</p><p className="mt-1 truncate text-[9px] font-semibold text-white/42">{referral.lastActivityLabel || 'Inscription validée'} · {referral.lastActivityAt ? new Date(referral.lastActivityAt).toLocaleDateString('fr-FR') : 'Aujourd’hui'}</p></div><span className="shrink-0 text-xs font-black text-[#15EA3E]">+{referral.points}</span><Link to={`/u/${encodeURIComponent(referral.referredId)}`} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 text-white/65" aria-label={`Voir ${referral.displayName}`}><AfriZiaIcon name="arrow" size={13} /></Link></article>)}</div> : <div className="mt-4 rounded-xl border border-dashed border-white/14 p-5 text-center"><AfriZiaIcon name="contact" size={22} className="mx-auto text-[#15EA3E]" /><p className="mt-2 text-xs font-bold text-white/48">Partage ton lien ou ton QR code. Les personnes inscrites apparaîtront ici.</p></div>}
+        </div>
+      </section>
+      <section className="px-4 pt-5"><div className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#15EA3E]">Commissions produit</p><div className="mt-3 grid grid-cols-2 gap-2"><div className="rounded-2xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-black uppercase tracking-wider text-white/40">Commissions reçues</p><p className="mt-2 text-lg font-black text-[#15EA3E]">{formatZandofyMoney(totalEarnings, earnings[0]?.currency || 'USD')}</p></div><div className="rounded-2xl border border-white/10 bg-black/20 p-3"><p className="text-[9px] font-black uppercase tracking-wider text-white/40">Ventes attribuées</p><p className="mt-2 text-lg font-black">{earnings.length}</p></div></div></div></section>
       {status && <p className="mx-4 mt-4 rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-3 text-center text-xs font-bold text-[#15EA3E]">{status}</p>}
       <section className="space-y-3 px-4 pt-5">
         {affiliateProducts.length ? affiliateProducts.map((product) => (

@@ -6,6 +6,7 @@ import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { getAfriZiaAuthErrorMessage, useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { AFRICAN_COUNTRIES_BY_PRIORITY, buildInternationalPhone, getDefaultCountry } from '../lib/africaLocation';
 import { AFRIZIA_MAIN_LOGO } from '../lib/branding';
+import { captureAffiliateReferral } from '../domains/commerce/affiliateProgram';
 
 export default function LoginScreen() {
   const navigate = useNavigate();
@@ -51,6 +52,7 @@ export default function LoginScreen() {
         : 'Créer mon compte';
 
   useEffect(() => {
+    captureAffiliateReferral(location.search);
     if (authState?.flow) {
       setFlow(authState.flow);
     }
@@ -81,6 +83,7 @@ export default function LoginScreen() {
   };
 
   const runAuth = async (action: () => Promise<void>, options: { redirectOnSuccess?: boolean } = {}) => {
+    captureAffiliateReferral(location.search);
     setAttemptedAuth(true);
     setBusy(true);
     setAuthError('');

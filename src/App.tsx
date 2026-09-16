@@ -148,6 +148,7 @@ function AppRoutes() {
         <Route path="/" element={isCustomStoreDomain ? <ZandofyPublicStoreScreen /> : <SplashScreen />} />
         <Route path="/onboarding" element={<OnboardingScreen />} />
         <Route path="/login" element={<LoginScreen />} />
+        <Route path="/join" element={<LoginScreen />} />
         <Route path="/identity-setup" element={<RequireAuth><IdentitySetupScreen /></RequireAuth>} />
         <Route path="/account-setup" element={<RequireAuth requireCompletedProfile={false}><AccountSetupScreen /></RequireAuth>} />
         <Route path="/ecosystem" element={<EcosystemHome />} />

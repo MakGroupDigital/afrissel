@@ -23,6 +23,8 @@ const copyWithLegacyFallback = async (value: string) => {
   if (!copied) throw new Error('Copie du lien impossible.');
 };
 
+export const copyShareLink = async (value: string) => copyWithLegacyFallback(toAbsoluteShareURL(value));
+
 export const toAbsoluteShareURL = (value: string) => {
   try {
     return new URL(value, window.location.origin).toString();
@@ -43,6 +45,6 @@ export async function shareLink({ url, title, text }: ShareLinkInput): Promise<'
     }
   }
 
-  await copyWithLegacyFallback(absoluteURL);
+  await copyShareLink(absoluteURL);
   return 'copied';
 }
