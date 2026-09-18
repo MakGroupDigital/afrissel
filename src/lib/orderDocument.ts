@@ -100,13 +100,13 @@ export async function generateOrderDocumentPng(input: OrderDocumentInput) {
   if (!context) throw new Error('Canvas indisponible.');
 
   const isReceipt = input.kind === 'receipt';
-  const title = isReceipt ? 'RECU AFRISELL' : 'FACTURE AFRISELL';
+  const title = isReceipt ? 'RECU AFRIZIA' : 'FACTURE AFRIZIA';
   const secureLabel = isReceipt ? 'PAIEMENT CONFIRME' : 'PAIEMENT A LA LIVRAISON';
   const date = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(input.createdAt || Date.now()));
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(input.verificationUrl)}`;
 
   const [afriSellLogo, marketLogo, qrImage, productImage] = await Promise.all([
-    loadImage('/afrisell-super-app-icon.png'),
+    loadImage('/afrizia-super-app-icon.png'),
     loadImage('/afrimarket sans nom icone sans fond.png').catch(() => loadImage('/afrimarket.jpeg')),
     loadImage(qrUrl),
     loadImage(input.product.imageUrl || '/afrimarket.jpeg').catch(() => loadImage('/afrimarket.jpeg'))
@@ -141,7 +141,7 @@ export async function generateOrderDocumentPng(input: OrderDocumentInput) {
 
   context.fillStyle = '#15EA3E';
   context.font = '900 24px Arial';
-  context.fillText('AFRISELL SUPER APP', 212, 122);
+  context.fillText('AFRIZIA SUPER APP', 212, 122);
   context.fillStyle = '#ffffff';
   context.font = '900 52px Arial';
   context.fillText(title, 212, 178);
@@ -207,7 +207,7 @@ export async function generateOrderDocumentPng(input: OrderDocumentInput) {
   context.fillStyle = 'rgba(255,255,255,0.42)';
   context.font = '700 20px Arial';
   context.textAlign = 'center';
-  context.fillText(`Document ${input.orderId} • AfriSell Market • Non modifiable`, 540, 1470);
+  context.fillText(`Document ${input.orderId} • AfriZia Market • Non modifiable`, 540, 1470);
 
   return canvas.toDataURL('image/png');
 }

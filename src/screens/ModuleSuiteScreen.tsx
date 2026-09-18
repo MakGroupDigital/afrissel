@@ -1,7 +1,7 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { onValue, ref, remove, set } from 'firebase/database';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { useAfriMarket } from '../hooks/useAfriMarket';
 import { realtimeDb } from '../lib/firebase';
@@ -11,7 +11,7 @@ import { createBiasharaOpportunity } from '../domains/business';
 import { AfriAiIntent, AfriAiResponse, resolveAfriAiRequest } from '../domains/ai';
 import { enrollSchoolTrack, joinSchoolClass, updateSchoolProgress } from '../domains/education';
 import { createTéléconsultationRequest, saveHealthProfile } from '../domains/health';
-import { AFRISELL_MAIN_LOGO } from '../lib/branding';
+import { AFRIZIA_MAIN_LOGO } from '../lib/branding';
 
 type ModuleId = 'school' | 'med' | 'freelance' | 'biashara' | 'afriai' | 'fpp';
 
@@ -23,7 +23,7 @@ type ActionCard = {
   id: string;
   title: string;
   body: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   requiresAuth?: boolean;
   highlight?: boolean;
 };
@@ -49,13 +49,13 @@ const moduleMeta: Record<ModuleId, {
   logo: string;
   hero: string;
   body: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
 }> = {
   school: {
     title: 'AfriSchool',
     eyebrow: 'Éducation utile',
     logo: '/afrischool.jpeg',
-    hero: 'Apprendre, certifier et gagner depuis AfriSell.',
+    hero: 'Apprendre, certifier et gagner depuis AfriZia.',
     body: 'Cours vidéo, bibliothèque, tuteur IA et communautés de classe pour former vendeurs, créateurs et jeunes talents.',
     icon: 'school'
   },
@@ -86,7 +86,7 @@ const moduleMeta: Record<ModuleId, {
   afriai: {
     title: 'AfriAI',
     eyebrow: 'Assistant vocal',
-    logo: AFRISELL_MAIN_LOGO,
+    logo: AFRIZIA_MAIN_LOGO,
     hero: 'Comprendre, traduire et agir dans tout l’écosystème.',
     body: 'Assistant multilingue pour chercher, expliquer, traduire, guider les achats, paiements, cours et services.',
     icon: 'language'
@@ -94,7 +94,7 @@ const moduleMeta: Record<ModuleId, {
   fpp: {
     title: 'FPP',
     eyebrow: 'Impact transparent',
-    logo: AFRISELL_MAIN_LOGO,
+    logo: AFRIZIA_MAIN_LOGO,
     hero: 'Financer education, santé et paix par le commerce.',
     body: 'Contribution volontaire depuis les Stands, projets publics, suivi transparent, AfriCoin et mobilisation communautaire.',
     icon: 'heart'
@@ -228,7 +228,7 @@ function ModuleShell({ moduleId, children }: { moduleId: ModuleId; children: Rea
     <main className="min-h-full bg-[#050705] px-4 pb-8 pt-4 text-white">
       <header className="flex items-center justify-between">
         <Link to="/apps" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Retour">
-          <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
         </Link>
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{meta.eyebrow}</p>
@@ -242,8 +242,8 @@ function ModuleShell({ moduleId, children }: { moduleId: ModuleId; children: Rea
           <img src={meta.logo} alt={meta.title} className="h-20 w-20 rounded-[1.5rem] object-cover" />
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[#15EA3E]">
-              <AfriSellIcon name={meta.icon} size={17} />
-              <span className="text-[10px] font-black uppercase tracking-[0.18em]">Module AfriSell</span>
+              <AfriZiaIcon name={meta.icon} size={17} />
+              <span className="text-[10px] font-black uppercase tracking-[0.18em]">Module AfriZia</span>
             </div>
             <h2 className="mt-2 text-2xl font-black leading-tight">{meta.hero}</h2>
             <p className="mt-2 line-clamp-3 text-xs font-semibold leading-relaxed text-white/52">{meta.body}</p>
@@ -276,7 +276,7 @@ function ModuleActions({ moduleId }: { moduleId: ModuleId }) {
                 : 'border-white/10 bg-white/[0.04] text-white'
             )}
           >
-            <AfriSellIcon name={action.icon} size={19} className={action.highlight ? 'text-black' : 'text-[#15EA3E]'} />
+            <AfriZiaIcon name={action.icon} size={19} className={action.highlight ? 'text-black' : 'text-[#15EA3E]'} />
             <h3 className="mt-3 line-clamp-2 text-[11px] font-black leading-tight">{action.title}</h3>
             <p className={cn('mt-1 line-clamp-2 text-[9px] font-semibold leading-snug', action.highlight ? 'text-black/58' : 'text-white/42')}>
               {action.body}
@@ -494,7 +494,7 @@ function MedModule() {
           {medServices.map((service, index) => (
             <Link key={service.title} to={index === 0 ? '/med/teleconsultation' : index === 1 ? '/med/pharmacie' : '/med/dossier'} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 active:scale-[0.98]">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
-                <AfriSellIcon name="health" size={20} />
+                <AfriZiaIcon name="health" size={20} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-black">{service.title}</span>
@@ -537,9 +537,9 @@ function FreelanceModule() {
 
           return {
             id: uid,
-            name: getText(rawProfile.displayName) || getText(rawProfile.businessName) || 'Talent AfriSell',
+            name: getText(rawProfile.displayName) || getText(rawProfile.businessName) || 'Talent AfriZia',
             role: getText(freelanceAccount?.segmentLabel) || getText(freelanceAccount?.serviceLabel) || 'Freelance',
-            city: getText(rawProfile.city) || getText(rawProfile.country) || 'AfriSell',
+            city: getText(rawProfile.city) || getText(rawProfile.country) || 'AfriZia',
             image: getText(rawProfile.photoURL) || getText(rawProfile.logoURL) || '/a-freelance.jpeg',
             bio: getText(rawProfile.bio) || 'Services professionnels disponibles sur A-Freelance.',
             score: Number(rawProfile.freelanceScore || rawProfile.rating || rawProfile.recommendations || 0)
@@ -654,7 +654,7 @@ function FreelanceModule() {
               <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-wider text-[#15EA3E]">{selectedTalent.role} - {selectedTalent.city}</p>
             </div>
             <Link to={user ? getContactChatRoute(selectedTalent) : '/login'} state={!user ? { next: getContactChatRoute(selectedTalent) } : undefined} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#15EA3E] text-black">
-              <AfriSellIcon name="chat" size={17} />
+              <AfriZiaIcon name="chat" size={17} />
             </Link>
           </div>
 
@@ -713,13 +713,13 @@ function FreelanceModule() {
                     <p className="mt-2 line-clamp-2 text-[10px] font-semibold leading-snug text-white/45">{talent.bio}</p>
                     <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-black/24 px-2 py-2">
                       <button type="button" onClick={() => void toggleLikeTalent(talent)} className={cn('flex items-center gap-1 text-[10px] font-black', isLiked ? 'text-[#15EA3E]' : 'text-white/55')}>
-                        <AfriSellIcon name="heart" size={13} />
+                        <AfriZiaIcon name="heart" size={13} />
                         {formatCompactCount(stats.likes)}
                       </button>
                       <div className="flex items-center gap-0.5">
                         {[1, 2, 3, 4, 5].map((rating) => (
                           <button key={rating} type="button" onClick={() => void rateTalent(talent, rating)} className={rating <= userRating ? 'text-[#15EA3E]' : 'text-white/25'}>
-                            <AfriSellIcon name="star" size={11} />
+                            <AfriZiaIcon name="star" size={11} />
                           </button>
                         ))}
                       </div>
@@ -772,7 +772,7 @@ function BiasharaModule() {
   const generatePlan = (event: FormEvent) => {
     event.preventDefault();
     const cleanIdea = idea.trim() || 'une activité locale';
-    const cleanMarket = market.trim() || 'clients AfriSell';
+    const cleanMarket = market.trim() || 'clients AfriZia';
     const cleanNeed = need.trim() || 'un partenaire terrain';
     setPlan(`Plan rapide: valider ${cleanIdea} avec 10 clients ${cleanMarket}, publier une Vitrine ABC, mesurer les demandes via AfriChat, encaisser via AfriSpay, puis chercher ${cleanNeed} dans Biashara et animer le suivi dans Kyaghanda.`);
   };
@@ -925,11 +925,11 @@ function AfriAiModule() {
   const [result, setResult] = useState<(AfriAiResponse & { intent: AfriAiIntent }) | null>(null);
   const [busy, setBusy] = useState(false);
   const suggestions = useMemo(() => [
-    { label: 'Acheter', prompt: 'Je veux acheter un produit avec bon prix', icon: 'market' as AfriSellIconName },
-    { label: 'Vendre', prompt: 'Je veux vendre avec une vitrine vidéo', icon: 'video' as AfriSellIconName },
-    { label: 'Payer', prompt: 'Je veux faire un transfert ou payer', icon: 'pay' as AfriSellIconName },
-    { label: 'Apprendre', prompt: 'Je veux apprendre à vendre en ligne', icon: 'school' as AfriSellIconName },
-    { label: 'Talent', prompt: 'Je cherche un freelance pour une mission', icon: 'work' as AfriSellIconName },
+    { label: 'Acheter', prompt: 'Je veux acheter un produit avec bon prix', icon: 'market' as AfriZiaIconName },
+    { label: 'Vendre', prompt: 'Je veux vendre avec une vitrine vidéo', icon: 'video' as AfriZiaIconName },
+    { label: 'Payer', prompt: 'Je veux faire un transfert ou payer', icon: 'pay' as AfriZiaIconName },
+    { label: 'Apprendre', prompt: 'Je veux apprendre à vendre en ligne', icon: 'school' as AfriZiaIconName },
+    { label: 'Talent', prompt: 'Je cherche un freelance pour une mission', icon: 'work' as AfriZiaIconName },
   ], []);
 
   const runAssistant = async (nextPrompt = prompt) => {
@@ -966,7 +966,7 @@ function AfriAiModule() {
         }} className="flex gap-2">
           <input value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Parle ou écris ton besoin..." className="h-12 min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/24 px-4 text-xs font-bold text-white outline-none focus:border-[#15EA3E]/50" />
           <button type="submit" disabled={busy} className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#15EA3E] text-black disabled:opacity-60">
-            <AfriSellIcon name={busy ? 'flash' : 'language'} size={18} />
+            <AfriZiaIcon name={busy ? 'flash' : 'language'} size={18} />
           </button>
         </form>
         {result && (
@@ -991,7 +991,7 @@ function AfriAiModule() {
       <section className="mt-5 grid grid-cols-2 gap-3">
         {suggestions.map((suggestion) => (
           <button key={suggestion.label} type="button" onClick={() => void runAssistant(suggestion.prompt)} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left active:scale-[0.98]">
-            <AfriSellIcon name={suggestion.icon} size={18} className="text-[#15EA3E]" />
+            <AfriZiaIcon name={suggestion.icon} size={18} className="text-[#15EA3E]" />
             <span className="text-xs font-black">{suggestion.label}</span>
           </button>
         ))}
@@ -1027,7 +1027,7 @@ function FppModule() {
   );
 }
 
-const actionSteps: Record<ModuleId, Record<string, Array<{ title: string; body: string; icon: AfriSellIconName }>>> = {
+const actionSteps: Record<ModuleId, Record<string, Array<{ title: string; body: string; icon: AfriZiaIconName }>>> = {
   school: {
     cours: [
       { title: 'Choisir un parcours', body: 'Sélectionne vente vidéo, gestion boutique ou paiement sécurisé.', icon: 'school' },
@@ -1158,7 +1158,7 @@ function ModuleActionDetail({ moduleId, actionId }: { moduleId: ModuleId; action
     return (
       <ModuleShell moduleId={moduleId}>
         <section className="mt-6 rounded-[1.4rem] border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-5 text-center">
-          <AfriSellIcon name="lock" size={28} className="mx-auto text-[#15EA3E]" />
+          <AfriZiaIcon name="lock" size={28} className="mx-auto text-[#15EA3E]" />
           <h2 className="mt-4 text-lg font-black">Connexion requise</h2>
           <p className="mt-2 text-xs font-semibold leading-relaxed text-white/55">Connecte-toi pour continuer cette action dans {meta.title}.</p>
           <Link to="/login" state={{ next: getModuleActionRoute(moduleId, action.id) }} className="mt-5 inline-flex rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">
@@ -1174,7 +1174,7 @@ function ModuleActionDetail({ moduleId, actionId }: { moduleId: ModuleId; action
       <section className="mt-5 rounded-[1.4rem] border border-[#15EA3E]/20 bg-[#0A0F0A] p-4">
         <div className="flex items-center gap-3">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-            <AfriSellIcon name={action.icon} size={21} />
+            <AfriZiaIcon name={action.icon} size={21} />
           </span>
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">{meta.title}</p>
@@ -1188,7 +1188,7 @@ function ModuleActionDetail({ moduleId, actionId }: { moduleId: ModuleId; action
         {steps.map((step, index) => (
           <article key={step.title} className="flex gap-3 rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
-              <AfriSellIcon name={step.icon} size={18} />
+              <AfriZiaIcon name={step.icon} size={18} />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#15EA3E]">Etape {index + 1}</p>

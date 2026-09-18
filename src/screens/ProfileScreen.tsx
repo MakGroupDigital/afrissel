@@ -3,13 +3,13 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { Loader2 } from 'lucide-react';
 import { updateProfile } from 'firebase/auth';
 import { get, ref, serverTimestamp, update } from 'firebase/database';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { uploadMediaToCloudinary } from '../lib/cloudinary';
 import { realtimeDb } from '../lib/firebase';
-import { updateAfriSellUserPhoto, useFirebaseAuth } from '../hooks/useFirebaseAuth';
+import { updateAfriZiaUserPhoto, useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { useAfriMarket } from '../hooks/useAfriMarket';
 import { getAccountRoleDefinition, getAccountSubtypeDefinition } from '../lib/accountTypes';
-import { AFRISELL_MAIN_LOGO } from '../lib/branding';
+import { AFRIZIA_MAIN_LOGO } from '../lib/branding';
 import {
   AFRICAN_COUNTRIES_BY_PRIORITY,
   buildInternationalPhone,
@@ -25,7 +25,7 @@ type ProfileAction = {
   id: Exclude<ProfilePanel, null> | 'addAccount' | 'logout';
   title: string;
   description: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   danger?: boolean;
 };
 
@@ -75,7 +75,7 @@ type BusinessService = BusinessOption & {
 };
 
 type BusinessCategory = BusinessOption & {
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   moduleName: string;
   role: 'seller' | 'creator' | 'agent' | 'provider' | 'business';
   services: BusinessService[];
@@ -101,7 +101,7 @@ const businessCategories: BusinessCategory[] = [
     id: 'commerce',
     label: 'E-commerce',
     moduleName: 'ABC + Market',
-    description: 'Vendre, distribuer, produire ou gèrer une boutique dans AfriSell.',
+    description: 'Vendre, distribuer, produire ou gèrer une boutique dans AfriZia.',
     icon: 'market',
     role: 'seller',
     services: [
@@ -516,7 +516,7 @@ function PanelShell({
             onClick={onClose}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/50"
           >
-            <AfriSellIcon name="close" size={18} />
+            <AfriZiaIcon name="close" size={18} />
           </button>
         </div>
 
@@ -557,9 +557,9 @@ export default function ProfileScreen() {
   const [businessSegmentId, setBusinessSegmentId] = useState('');
   const [rememberedAccounts, setRememberedAccounts] = useState<RememberedAccount[]>([]);
 
-  const displayName = profile?.displayName || user?.displayName || 'Utilisateur AfriSell';
+  const displayName = profile?.displayName || user?.displayName || 'Utilisateur AfriZia';
   const email = profile?.email || user?.email || 'Compte Firebase';
-  const photoURL = profile?.photoURL || user?.photoURL || AFRISELL_MAIN_LOGO;
+  const photoURL = profile?.photoURL || user?.photoURL || AFRIZIA_MAIN_LOGO;
   const roleDefinition = getAccountRoleDefinition(profile?.primaryRole);
   const subtypeDefinition = getAccountSubtypeDefinition(profile?.primaryRole, profile?.primarySubtype);
   const selectedCountry = getCountryByCode(profileForm.countryCode) || getDefaultCountry();
@@ -581,8 +581,8 @@ export default function ProfileScreen() {
   const authorContents = abcContents.filter((content) => content.authorId === user?.uid).slice(0, 8);
   const authorProducts = marketProducts.filter((product) => product.authorId === user?.uid).slice(0, 6);
   const coverImage = profile?.mediaURL || authorContents[0]?.coverURL || authorProducts[0]?.coverURL || photoURL || '/biashara.jpeg';
-  const publicRole = businessAccount?.moduleName || businessAccount?.categoryLabel || roleDefinition?.label || 'AfriSell';
-  const publicHeadline = profile?.bio || businessAccount?.serviceLabel || 'Membre de l’écosystème AfriSell.';
+  const publicRole = businessAccount?.moduleName || businessAccount?.categoryLabel || roleDefinition?.label || 'AfriZia';
+  const publicHeadline = profile?.bio || businessAccount?.serviceLabel || 'Membre de l’écosystème AfriZia.';
   const publicLocation = [profile?.city, profile?.country].filter(Boolean).join(', ');
   const isSettingsPage = location.pathname === '/settings';
 
@@ -749,11 +749,11 @@ export default function ProfileScreen() {
 
     try {
       const upload = await uploadMediaToCloudinary(file, user.uid);
-      await updateAfriSellUserPhoto(user, upload.secureUrl);
+      await updateAfriZiaUserPhoto(user, upload.secureUrl);
       await refreshProfile();
       setStatus('Photo mise à jour.');
     } catch (error) {
-      console.error('Photo profil AfriSell impossible:', error);
+      console.error('Photo profil AfriZia impossible:', error);
       setStatus(error instanceof Error ? error.message : 'Photo impossible à enregistrer.');
     } finally {
       setBusy(false);
@@ -969,12 +969,12 @@ export default function ProfileScreen() {
   };
 
   return (
-    <div className="relative min-h-full overflow-y-auto bg-black pb-8 text-white scrollbar-hide">
+    <div className="profile-private relative min-h-full overflow-y-auto bg-black pb-8 text-white scrollbar-hide">
       {isSettingsPage ? (
-        <main className="min-h-full px-4 pb-8 pt-4">
+        <main className="profile-settings min-h-full px-4 pb-8 pt-4">
           <header className="flex items-center justify-between">
             <button type="button" onClick={() => navigate('/profile')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70">
-              <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+              <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
             </button>
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Réglages</p>
             <div className="h-10 w-10" />
@@ -997,7 +997,7 @@ export default function ProfileScreen() {
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black/30 text-[#15EA3E]">
-                  <AfriSellIcon name={roleDefinition.icon} size={20} />
+                  <AfriZiaIcon name={roleDefinition.icon} size={20} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate text-sm font-black text-white">{roleDefinition.label}</h2>
@@ -1008,7 +1008,7 @@ export default function ProfileScreen() {
                 <span className="rounded-full bg-[#15EA3E] px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-black">
                   Actif
                 </span>
-                <AfriSellIcon name="arrow" size={15} className="text-white/28" />
+                <AfriZiaIcon name="arrow" size={15} className="text-white/28" />
               </div>
             </Link>
           )}
@@ -1028,26 +1028,26 @@ export default function ProfileScreen() {
                   'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl',
                   item.danger ? 'bg-red-500/10 text-red-200' : 'bg-[#15EA3E]/10 text-[#15EA3E]'
                 )}>
-                  <AfriSellIcon name={item.icon} size={20} />
+                  <AfriZiaIcon name={item.icon} size={20} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-black text-white">{item.title}</span>
                   <span className="mt-0.5 block line-clamp-1 text-[11px] font-semibold text-white/42">{item.description}</span>
                 </span>
-                <AfriSellIcon name="arrow" size={15} className={item.danger ? 'text-red-200/60' : 'text-white/25'} />
+                <AfriZiaIcon name="arrow" size={15} className={item.danger ? 'text-red-200/60' : 'text-white/25'} />
               </button>
             ))}
           </section>
         </main>
       ) : (
       <>
-      <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-4">
+      <header className="profile-private-header absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-4">
         <div className="h-10 w-10" />
         <p className="rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E] backdrop-blur-xl">Mon profil</p>
         <div className="h-10 w-10" />
       </header>
 
-      <section className="relative overflow-hidden border-b border-white/10 bg-[#050805]">
+      <section className="profile-private-hero relative overflow-hidden border-b border-white/10 bg-[#050805]">
         <div className="relative h-48">
           <img src={coverImage} alt="" className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.86))]" />
@@ -1062,7 +1062,7 @@ export default function ProfileScreen() {
             <div className="mb-2 flex items-center gap-2">
               <Link
                 to={`/u/${user?.uid || ''}`}
-                className="flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-[10px] font-black uppercase tracking-widest text-white"
+                className="profile-hero-action flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-[10px] font-black uppercase tracking-widest text-white"
               >
                 Voir public
               </Link>
@@ -1095,7 +1095,7 @@ export default function ProfileScreen() {
               { value: ownedBusinessAccounts.length, label: 'Apps' },
               { value: profile?.kycStatus === 'verified' ? 'OK' : 'ID', label: 'KYC' }
             ].map((stat) => (
-              <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-3 text-center">
+              <div key={stat.label} className="profile-hero-stat rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-3 text-center">
                 <p className="text-base font-black text-white">{stat.value}</p>
                 <p className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-white/38">{stat.label}</p>
               </div>
@@ -1104,13 +1104,13 @@ export default function ProfileScreen() {
         </div>
       </section>
 
-      <div className="px-4">
+      <div className="profile-private-content px-4">
         {ownedBusinessAccounts.length > 0 && (
           <section className="mt-5">
             <h2 className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/52">Comptes business</h2>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
               {ownedBusinessAccounts.map((account) => (
-                <Link key={account.categoryId} to={`/business?account=${account.categoryId}`} className="w-[190px] shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3 active:scale-[0.99]">
+                <Link key={account.categoryId} to={`/business?account=${account.categoryId}`} className="profile-private-business-card w-[190px] shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3 active:scale-[0.99]">
                   <p className="truncate text-sm font-black">{account.categoryLabel}</p>
                   <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-relaxed text-white/45">
                     {account.serviceLabel} - {account.segmentLabel}
@@ -1122,13 +1122,13 @@ export default function ProfileScreen() {
         )}
 
         <section className="mt-5 grid grid-cols-2 gap-3">
-          <Link to="/profile/contents" className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
-            <AfriSellIcon name="video" size={20} className="text-[#15EA3E]" />
+          <Link to="/profile/contents" className="profile-private-action-card rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
+            <AfriZiaIcon name="video" size={20} className="text-[#15EA3E]" />
             <p className="mt-3 text-sm font-black">Mes contenus</p>
             <p className="mt-1 text-[11px] font-semibold text-white/42">ABC, posts et vidéos.</p>
           </Link>
-          <Link to="/profile/storefronts" className="rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
-            <AfriSellIcon name="market" size={20} className="text-[#15EA3E]" />
+          <Link to="/profile/storefronts" className="profile-private-action-card rounded-[1.35rem] border border-white/10 bg-white/[0.04] p-4">
+            <AfriZiaIcon name="market" size={20} className="text-[#15EA3E]" />
             <p className="mt-3 text-sm font-black">Mes vitrines</p>
             <p className="mt-1 text-[11px] font-semibold text-white/42">Produits et services.</p>
           </Link>
@@ -1138,7 +1138,7 @@ export default function ProfileScreen() {
       )}
 
       {activePanel === 'multiAccount' && (
-        <PanelShell title="Comptes AfriSell" subtitle="Multi-compte" busy={busy} status={status} onClose={() => setActivePanel(null)}>
+        <PanelShell title="Comptes AfriZia" subtitle="Multi-compte" busy={busy} status={status} onClose={() => setActivePanel(null)}>
           <div className="space-y-3">
             <div className="rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 p-4">
               <p className="text-sm font-black text-white">Compte actif</p>
@@ -1159,7 +1159,7 @@ export default function ProfileScreen() {
               onClick={handleAddAccount}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-widest text-black active:scale-[0.98]"
             >
-              <AfriSellIcon name="plus" size={16} />
+              <AfriZiaIcon name="plus" size={16} />
               Ajouter un compte
             </button>
 
@@ -1178,10 +1178,10 @@ export default function ProfileScreen() {
                   <div key={account.uid} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/24 p-2">
                     {account.uid === user?.uid ? (
                       <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <img src={account.photoURL || AFRISELL_MAIN_LOGO} alt="" className="h-11 w-11 rounded-xl object-cover" />
+                        <img src={account.photoURL || AFRIZIA_MAIN_LOGO} alt="" className="h-11 w-11 rounded-xl object-cover" />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-black text-white">{account.displayName || 'Utilisateur AfriSell'}</p>
-                          <p className="mt-0.5 truncate text-[10px] font-semibold text-white/42">{account.email || 'Compte AfriSell'}</p>
+                          <p className="truncate text-xs font-black text-white">{account.displayName || 'Utilisateur AfriZia'}</p>
+                          <p className="mt-0.5 truncate text-[10px] font-semibold text-white/42">{account.email || 'Compte AfriZia'}</p>
                         </div>
                         <span className="rounded-xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-2.5 py-2 text-[8px] font-black uppercase tracking-wider text-[#15EA3E]">
                           Actif
@@ -1193,10 +1193,10 @@ export default function ProfileScreen() {
                         onClick={() => handleSwitchAccount(account)}
                         className="flex min-w-0 flex-1 items-center gap-2 rounded-xl text-left active:scale-[0.99]"
                       >
-                        <img src={account.photoURL || AFRISELL_MAIN_LOGO} alt="" className="h-11 w-11 rounded-xl object-cover" />
+                        <img src={account.photoURL || AFRIZIA_MAIN_LOGO} alt="" className="h-11 w-11 rounded-xl object-cover" />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-xs font-black text-white">{account.displayName || 'Utilisateur AfriSell'}</span>
-                          <span className="mt-0.5 block truncate text-[10px] font-semibold text-white/42">{account.email || 'Compte AfriSell'}</span>
+                          <span className="block truncate text-xs font-black text-white">{account.displayName || 'Utilisateur AfriZia'}</span>
+                          <span className="mt-0.5 block truncate text-[10px] font-semibold text-white/42">{account.email || 'Compte AfriZia'}</span>
                         </span>
                         <span className="rounded-xl bg-white px-3 py-2 text-[9px] font-black uppercase tracking-wider text-black">
                           Connecter
@@ -1209,7 +1209,7 @@ export default function ProfileScreen() {
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 text-white/35"
                       aria-label="Retirer ce compte"
                     >
-                      <AfriSellIcon name="close" size={13} />
+                      <AfriZiaIcon name="close" size={13} />
                     </button>
                   </div>
                 )) : (
@@ -1231,7 +1231,7 @@ export default function ProfileScreen() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-black text-white">Photo de profil</p>
                 <label className="mt-2 inline-flex h-9 items-center gap-2 rounded-xl bg-[#15EA3E] px-3 text-[10px] font-black uppercase tracking-wider text-black">
-                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <AfriSellIcon name="profile" size={14} />}
+                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <AfriZiaIcon name="profile" size={14} />}
                   Changer photo
                   <input type="file" accept="image/*" disabled={busy} onChange={handleProfilePhoto} className="hidden" />
                 </label>
@@ -1270,7 +1270,7 @@ export default function ProfileScreen() {
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-black/30 text-[#15EA3E]">
-                    <AfriSellIcon name={roleDefinition.icon} size={20} />
+                    <AfriZiaIcon name={roleDefinition.icon} size={20} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <h2 className="truncate text-sm font-black text-white">{roleDefinition.label}</h2>
@@ -1281,7 +1281,7 @@ export default function ProfileScreen() {
                   <span className="rounded-full bg-[#15EA3E] px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-black">
                     Actif
                   </span>
-                  <AfriSellIcon name="arrow" size={15} className="text-white/28" />
+                  <AfriZiaIcon name="arrow" size={15} className="text-white/28" />
                 </div>
               </Link>
             )}
@@ -1299,13 +1299,13 @@ export default function ProfileScreen() {
                   'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl',
                   item.danger ? 'bg-red-500/10 text-red-200' : 'bg-[#15EA3E]/10 text-[#15EA3E]'
                 )}>
-                  <AfriSellIcon name={item.icon} size={20} />
+                  <AfriZiaIcon name={item.icon} size={20} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-black text-white">{item.title}</span>
                   <span className="mt-0.5 block line-clamp-1 text-[11px] font-semibold text-white/42">{item.description}</span>
                 </span>
-                <AfriSellIcon name="arrow" size={15} className={item.danger ? 'text-red-200/60' : 'text-white/25'} />
+                <AfriZiaIcon name="arrow" size={15} className={item.danger ? 'text-red-200/60' : 'text-white/25'} />
               </button>
             ))}
           </div>
@@ -1391,7 +1391,7 @@ export default function ProfileScreen() {
                   )}
                 >
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E]/10 text-[#15EA3E]">
-                    <AfriSellIcon name={category.icon} size={20} />
+                    <AfriZiaIcon name={category.icon} size={20} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-black text-white">{category.label}</span>

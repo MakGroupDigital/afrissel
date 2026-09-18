@@ -1,4 +1,4 @@
-import type { AfriSellIconName } from '../components/AfriSellIcon';
+import type { AfriZiaIconName } from '../components/AfriZiaIcon';
 
 export type AccountRole =
   | 'buyer'
@@ -18,7 +18,7 @@ export type AccountSubtype = {
 export type DashboardAction = {
   label: string;
   description: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   route: string;
 };
 
@@ -27,7 +27,7 @@ export type AccountRoleDefinition = {
   label: string;
   shortLabel: string;
   description: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   systemOnly?: boolean;
   subtypes: AccountSubtype[];
   dashboard: {
@@ -43,14 +43,14 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
     id: 'buyer',
     label: 'Utilisateur / Client',
     shortLabel: 'Personnel',
-    description: 'Acheter, publier, discuter, regarder des vidéos et utiliser les services AfriSell.',
+    description: 'Acheter, publier, discuter, regarder des vidéos et utiliser les services AfriZia.',
     icon: 'market',
     subtypes: [
-      { id: 'personal_account', label: 'Compte personnel', description: 'Je veux acheter, publier, discuter et utiliser les services AfriSell.' }
+      { id: 'personal_account', label: 'Compte personnel', description: 'Je veux acheter, publier, discuter et utiliser les services AfriZia.' }
     ],
     dashboard: {
       title: 'Espace personnel',
-      subtitle: 'Market, vidéos, messages, wallet et services AfriSell.',
+      subtitle: 'Market, vidéos, messages, wallet et services AfriZia.',
       metrics: [
         { label: 'Achats', value: '0' },
         { label: 'Vidéos', value: '0' },
@@ -122,7 +122,7 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
   },
   {
     id: 'agent',
-    label: 'Agent AfriSell',
+    label: 'Agent AfriZia',
     shortLabel: 'Agent',
     description: 'Aider les utilisateurs, valider le terrain, dépôt/retrait, livraison et support local.',
     icon: 'shield',
@@ -131,7 +131,7 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
       { id: 'delivery_agent', label: 'Agent livraison', description: 'Je livre ou coordonne les livraisons.' },
       { id: 'support_agent', label: 'Support local', description: "J'aide les utilisateurs sur le terrain." },
       { id: 'field_validator', label: 'Validateur terrain', description: 'Je vérifie vendeurs, boutiques et services.' },
-      { id: 'community_manager', label: 'Community manager', description: 'J’anime une communauté AfriSell.' }
+      { id: 'community_manager', label: 'Community manager', description: 'J’anime une communauté AfriZia.' }
     ],
     dashboard: {
       title: 'Console agent',
@@ -209,7 +209,7 @@ export const ACCOUNT_ROLE_DEFINITIONS: AccountRoleDefinition[] = [
   },
   {
     id: 'admin',
-    label: 'Administrateur AfriSell',
+    label: 'Administrateur AfriZia',
     shortLabel: 'Admin',
     description: 'Role interne pour modération, support, finance, KYC et opérations.',
     icon: 'shield',

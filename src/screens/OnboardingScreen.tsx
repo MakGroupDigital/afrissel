@@ -2,29 +2,29 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
-import { AFRISELL_MAIN_LOGO } from '../lib/branding';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
+import { AFRIZIA_MAIN_LOGO } from '../lib/branding';
 
 const slides = [
   {
     kicker: 'Un écosystème',
     title: 'La super app africaine.',
     body: 'Tout-en-un : vendre, acheter, payer, discuter et acceder aux services du quotidien.',
-    icon: 'hub' as AfriSellIconName,
-    image: AFRISELL_MAIN_LOGO,
+    icon: 'hub' as AfriZiaIconName,
+    image: AFRIZIA_MAIN_LOGO,
   },
   {
     kicker: 'Offline-first',
     title: 'Pensée pour nos réalités.',
     body: 'Fluide sur réseau faible, utile en ville comme dans les zones moins connectées.',
-    icon: 'offline' as AfriSellIconName,
+    icon: 'offline' as AfriZiaIconName,
     image: '/afrispay.jpeg',
   },
   {
     kicker: 'Commerce social',
-    title: 'Un seul compte, tout AfriSell.',
+    title: 'Un seul compte, tout AfriZia.',
     body: 'ABC, Market, AfriChat, AfriSpay et nos apps travaillent ensemble.',
-    icon: 'market' as AfriSellIconName,
+    icon: 'market' as AfriZiaIconName,
     image: '/afrimarket.jpeg',
   },
 ];
@@ -85,7 +85,7 @@ export default function OnboardingScreen() {
               transition={{ duration: 0.35 }}
             >
               <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#15EA3E]/30 bg-[#15EA3E]/12">
-                <AfriSellIcon name={slide.icon} size={25} className="text-[#15EA3E]" />
+                <AfriZiaIcon name={slide.icon} size={25} className="text-[#15EA3E]" />
               </div>
               <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#15EA3E]">{slide.kicker}</p>
               <h1 className="mt-3 text-4xl font-black leading-[1.02] tracking-normal">{slide.title}</h1>
@@ -123,7 +123,7 @@ export default function OnboardingScreen() {
               aria-label={isLast ? 'Continuer vers la connexion' : 'Etape suivante'}
             >
               {isLast ? 'Connexion' : 'Suivant'}
-              <AfriSellIcon name="arrow" size={18} />
+              <AfriZiaIcon name="arrow" size={18} />
             </button>
           </div>
         </div>

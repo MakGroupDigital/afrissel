@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { off, onValue, ref } from 'firebase/database';
 import { realtimeDb } from '../lib/firebase';
 import { useFirebaseAuth } from './useFirebaseAuth';
-import { AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIconName } from '../components/AfriZiaIcon';
 import { isOfflineNow, offlineCacheKey, readOfflineCache, readOfflineCacheAsync, writeOfflineCache } from '../lib/offlineCache';
 import { reconcileWonyaPayOperation } from '../domains/payment';
 
@@ -21,7 +21,7 @@ export type AfriSpayTransaction = {
   amount: number;
   currency: string;
   dateLabel: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   status?: string;
 };
 
@@ -71,7 +71,7 @@ const getTransactionTimestamp = (transaction?: RawTransaction) => {
   return Number.isFinite(timestamp) ? timestamp : 0;
 };
 
-const getTransactionIcon = (transaction: RawTransaction): AfriSellIconName => {
+const getTransactionIcon = (transaction: RawTransaction): AfriZiaIconName => {
   const source = `${transaction.channel || ''} ${transaction.module || ''} ${transaction.title || ''} ${transaction.name || ''}`.toLowerCase();
 
   if (source.includes('market')) return 'market';

@@ -1,8 +1,9 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { AfriMarketContent, formatMarketPrice, useAfriMarket } from '../hooks/useAfriMarket';
+import { getMediaFileKind, isVideoMediaFile } from '../lib/mediaFile';
 import { cn } from '../lib/utils';
 
 type CreationIntent = 'media' | 'text' | 'product' | 'offer';
@@ -265,7 +266,7 @@ export default function CreatePostScreen() {
         return;
       } catch (error) {
         lastError = error;
-        console.warn('Tentative caméra AfriSell impossible:', error);
+        console.warn('Tentative caméra AfriZia impossible:', error);
       }
     }
 
@@ -285,8 +286,6 @@ export default function CreatePostScreen() {
   };
 
   useEffect(() => {
-    void startCamera('environment', false);
-
     return () => {
       stopCamera();
       if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -300,17 +299,17 @@ export default function CreatePostScreen() {
   }, [previewUrl]);
 
   const setFilesForPublish = (files: File[]) => {
-    const mediaFiles = files.filter((file) => file.type.startsWith('image/') || file.type.startsWith('video/'));
+    const mediaFiles = files.filter((file) => getMediaFileKind(file));
     if (!mediaFiles.length) {
       setStatus('Choisis une image ou une vidéo compatible.');
       return;
     }
-    const hasVideo = mediaFiles.some((file) => file.type.startsWith('video/'));
+    const hasVideo = mediaFiles.some((file) => getMediaFileKind(file) === 'video');
     if (isMarketIntent && hasVideo) {
       setStatus('Produit et offre utilisent des photos. Choisis une ou plusieurs images.');
       return;
     }
-    const normalizedFiles = hasVideo ? [mediaFiles.find((file) => file.type.startsWith('video/')) as File] : mediaFiles.slice(0, 7);
+    const normalizedFiles = hasVideo ? [mediaFiles.find((file) => getMediaFileKind(file) === 'video') as File] : mediaFiles.slice(0, 7);
     if (!hasVideo && mediaFiles.length > 7) {
       setStatus('Maximum 7 photos par publication.');
     }
@@ -331,7 +330,7 @@ export default function CreatePostScreen() {
   const capturePhoto = () => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) {
-      setStatus('Caméra pas encore prête.');
+      void startCamera(cameraFacing, true);
       return;
     }
 
@@ -365,7 +364,13 @@ export default function CreatePostScreen() {
     }
 
     chunksRef.current = [];
-    const recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : undefined });
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : undefined });
+    } catch {
+      setStatus('Enregistrement vidéo indisponible sur cet appareil. Utilise la caméra native ou la galerie.');
+      return;
+    }
     recorderRef.current = recorder;
     recorder.ondataavailable = (event) => {
       if (event.data.size) chunksRef.current.push(event.data);
@@ -431,7 +436,8 @@ export default function CreatePostScreen() {
         stock: stock ? Number(stock) : undefined,
         location,
         offerModule,
-        textStyle: isTextIntent ? textStyle : undefined
+        textStyle: isTextIntent ? textStyle : undefined,
+        onUploadProgress: (completed, total) => setStatus(`Envoi du média ${completed}/${total}...`)
       });
       navigate(isMarketIntent ? '/market' : '/feed');
     } catch (error) {
@@ -445,7 +451,7 @@ export default function CreatePostScreen() {
     <main className="relative h-full overflow-hidden bg-black text-white">
       <video ref={videoRef} muted playsInline autoPlay className={cn('absolute inset-0 h-full w-full object-cover', cameraFacing === 'user' && '-scale-x-100')} />
       {previewUrl && (
-        selectedFiles[0]?.type.startsWith('video/') ? (
+        selectedFiles[0] && isVideoMediaFile(selectedFiles[0]) ? (
           <video src={previewUrl} controls playsInline className="absolute inset-0 h-full w-full object-cover" />
         ) : (
           <img src={previewUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -455,28 +461,28 @@ export default function CreatePostScreen() {
 
       <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-5">
         <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md">
-          <AfriSellIcon name="close" size={17} />
+          <AfriZiaIcon name="close" size={17} />
         </button>
         <div className="flex max-w-[78vw] items-center gap-1.5 overflow-x-auto rounded-full bg-black/42 p-1.5 backdrop-blur-md scrollbar-hide">
           <button type="button" onClick={() => navigate('/create/hub')} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
-            <AfriSellIcon name="hub" size={13} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="hub" size={13} className="text-[#15EA3E]" />
             Hub
           </button>
           <button type="button" onClick={() => galleryInputRef.current?.click()} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
-            <AfriSellIcon name="app" size={13} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="app" size={13} className="text-[#15EA3E]" />
             Galerie
           </button>
           <button type="button" onClick={switchCamera} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
-            <AfriSellIcon name="camera" size={13} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="camera" size={13} className="text-[#15EA3E]" />
             {cameraFacing === 'environment' ? 'Selfie' : 'Arrière'}
           </button>
           <button type="button" onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
-            <AfriSellIcon name="clip" size={13} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="clip" size={13} className="text-[#15EA3E]" />
             Memoire
           </button>
           {canAddBusiness && (
             <button type="button" onClick={() => navigate('/business?account=commerce')} className="flex items-center gap-1 rounded-full px-3 py-2 text-[10px] font-black text-white">
-              <AfriSellIcon name="market" size={13} className="text-[#15EA3E]" />
+              <AfriZiaIcon name="market" size={13} className="text-[#15EA3E]" />
               Produit
             </button>
           )}
@@ -509,11 +515,11 @@ export default function CreatePostScreen() {
           </button>
           {!isMarketIntent && (
           <button type="button" onClick={toggleRecording} className={cn('flex h-13 w-13 items-center justify-center rounded-full border border-white/20 backdrop-blur-md', isRecording ? 'bg-red-500 text-white' : 'bg-black/45 text-[#15EA3E]')} aria-label={isRecording ? 'Arrêter vidéo' : 'Enregistrer vidéo'}>
-            <AfriSellIcon name={isRecording ? 'close' : 'video'} size={18} />
+            <AfriZiaIcon name={isRecording ? 'close' : 'video'} size={18} />
           </button>
           )}
           <button type="button" onClick={() => cameraCaptureInputRef.current?.click()} className="flex h-13 w-13 items-center justify-center rounded-full border border-white/20 bg-black/45 text-[#15EA3E] backdrop-blur-md" aria-label="Caméra native">
-            <AfriSellIcon name="camera" size={18} />
+            <AfriZiaIcon name="camera" size={18} />
           </button>
         </div>
         )}

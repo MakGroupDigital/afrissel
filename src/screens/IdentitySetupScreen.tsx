@@ -1,9 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
-import { AFRISELL_MAIN_LOGO } from '../lib/branding';
+import { AFRIZIA_MAIN_LOGO } from '../lib/branding';
 
 const genderOptions = [
   { value: 'female', label: 'Femme' },
@@ -82,16 +82,16 @@ export default function IdentitySetupScreen() {
       <div className="relative z-10 flex h-full flex-col px-5 pb-7 pt-6">
         <div className="flex items-center justify-between">
           <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-[#15EA3E]/25 bg-black/40">
-            <img src={AFRISELL_MAIN_LOGO} alt="AfriSell" className="h-full w-full object-cover" />
+            <img src={AFRIZIA_MAIN_LOGO} alt="AfriZia" className="h-full w-full object-cover" />
           </div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Compte AfriSell</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Compte AfriZia</p>
         </div>
 
         <section className="mt-8">
           <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#15EA3E]">Dernière étape</p>
           <h1 className="mt-2 text-3xl font-black leading-none">Complète ton profil</h1>
           <p className="mt-3 text-sm font-semibold leading-relaxed text-white/52">
-            Ces informations sont obligatoires pour adapter l’expérience, la sécurité et les accès dans l’écosystème AfriSell.
+            Ces informations sont obligatoires pour adapter l’expérience, la sécurité et les accès dans l’écosystème AfriZia.
           </p>
         </section>
 
@@ -100,7 +100,7 @@ export default function IdentitySetupScreen() {
             <label className="grid gap-2">
               <span className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45">Date de naissance</span>
               <div className="flex h-14 items-center gap-3 rounded-2xl border border-white/10 bg-black/42 px-4 focus-within:border-[#15EA3E]/50">
-                <AfriSellIcon name="clock" size={18} className="text-[#15EA3E]" />
+                <AfriZiaIcon name="clock" size={18} className="text-[#15EA3E]" />
                 <input
                   type="date"
                   value={dateOfBirth}
@@ -147,7 +147,7 @@ export default function IdentitySetupScreen() {
             >
               {busy || loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Continuer
-              <AfriSellIcon name="arrow" size={18} />
+              <AfriZiaIcon name="arrow" size={18} />
             </button>
           </div>
         </form>

@@ -1,13 +1,13 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AfriSellIcon, AfriSellIconName } from './AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from './AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { cn } from '../lib/utils';
 
 type Shortcut = {
   label: string;
   route: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   description: string;
 };
 
@@ -85,9 +85,9 @@ export default function AppQuickActions() {
           type="button"
           onClick={() => setMenuOpen(true)}
           className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-2xl border border-white/12 bg-black/58 text-white shadow-[0_10px_24px_rgba(0,0,0,0.32)] backdrop-blur-xl transition-transform active:scale-95"
-          aria-label="Ouvrir le menu AfriSell"
+          aria-label="Ouvrir le menu AfriZia"
         >
-          <AfriSellIcon name="menu" size={17} />
+          <AfriZiaIcon name="menu" size={17} />
         </button>
 
         {isProfilePage && (
@@ -99,7 +99,7 @@ export default function AppQuickActions() {
               className="flex h-8 w-8 items-center justify-center rounded-xl text-white/82 transition-colors hover:bg-white/10 hover:text-[#15EA3E]"
               aria-label={isOwnProfile ? 'Modifier le profil' : 'Créer'}
             >
-              <AfriSellIcon name="edit" size={15} />
+              <AfriZiaIcon name="edit" size={15} />
             </button>
           )}
           <button
@@ -108,7 +108,7 @@ export default function AppQuickActions() {
             className="flex h-8 w-8 items-center justify-center rounded-xl text-white/82 transition-colors hover:bg-white/10 hover:text-[#15EA3E]"
             aria-label="Rechercher"
           >
-            <AfriSellIcon name="search" size={16} />
+            <AfriZiaIcon name="search" size={16} />
           </button>
           <button
             type="button"
@@ -116,7 +116,7 @@ export default function AppQuickActions() {
             className="flex h-8 w-8 items-center justify-center rounded-xl text-white/82 transition-colors hover:bg-white/10 hover:text-[#15EA3E]"
             aria-label="Réglages"
           >
-            <AfriSellIcon name="settings" size={16} />
+            <AfriZiaIcon name="settings" size={16} />
           </button>
         </div>
         )}
@@ -125,7 +125,7 @@ export default function AppQuickActions() {
       {isProfilePage && searchOpen && (
         <form onSubmit={submitSearch} className="absolute inset-x-4 top-[4.25rem] z-[72] rounded-[1.4rem] border border-[#15EA3E]/22 bg-black/78 p-2 shadow-[0_18px_42px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
           <div className="flex items-center gap-2">
-            <AfriSellIcon name="search" size={16} className="text-[#15EA3E]" />
+            <AfriZiaIcon name="search" size={16} className="text-[#15EA3E]" />
             <input
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
@@ -148,17 +148,17 @@ export default function AppQuickActions() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#15EA3E]">AfriSell</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#15EA3E]">AfriZia</p>
                 <h2 className="mt-1 text-xl font-black text-white">Menu rapide</h2>
               </div>
               <button type="button" onClick={() => setMenuOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 text-white/55">
-                <AfriSellIcon name="close" size={16} />
+                <AfriZiaIcon name="close" size={16} />
               </button>
             </div>
 
             <div className="mt-5 rounded-[1.35rem] border border-[#15EA3E]/18 bg-[#15EA3E]/8 p-3">
               <p className="text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">Page active</p>
-              <p className="mt-1 text-sm font-black text-white">{activeShortcut?.label || 'AfriSell'}</p>
+              <p className="mt-1 text-sm font-black text-white">{activeShortcut?.label || 'AfriZia'}</p>
               <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/48">{activeShortcut?.description || 'Accès rapide aux fonctions utiles.'}</p>
             </div>
 
@@ -176,7 +176,7 @@ export default function AppQuickActions() {
                   )}
                 >
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/45 text-[#15EA3E]">
-                    <AfriSellIcon name={shortcut.icon} size={17} />
+                    <AfriZiaIcon name={shortcut.icon} size={17} />
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-black text-white">{shortcut.label}</span>

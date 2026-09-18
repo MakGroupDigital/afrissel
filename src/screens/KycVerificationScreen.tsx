@@ -1,7 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { push, ref, serverTimestamp, update } from 'firebase/database';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import {
   AFRICAN_COUNTRIES_BY_PRIORITY,
@@ -188,7 +188,7 @@ export default function KycVerificationScreen() {
         });
       })
       .catch(() => {
-        if (active) setLocationStatus('Villes chargées depuis la liste locale AfriSell.');
+        if (active) setLocationStatus('Villes chargées depuis la liste locale AfriZia.');
       });
 
     return () => {
@@ -325,11 +325,11 @@ export default function KycVerificationScreen() {
       const credential = await navigator.credentials.create({
         publicKey: {
           challenge: crypto.getRandomValues(new Uint8Array(32)),
-          rp: { name: 'AfriSell' },
+          rp: { name: 'AfriZia' },
           user: {
             id: new TextEncoder().encode(user.uid),
             name: user.email || user.uid,
-            displayName: displayName || user.displayName || 'AfriSell'
+            displayName: displayName || user.displayName || 'AfriZia'
           },
           pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
           authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
@@ -492,7 +492,7 @@ export default function KycVerificationScreen() {
       await refreshProfile();
       setStatus(hasPendingUpload
         ? 'Vérification envoyée. Certains fichiers seront revérifiés manuellement à cause de l’envoi instable sur cet appareil.'
-        : 'Vérification envoyée. Ce KYC servira pour tous les modules AfriSell qui exigent une vérification.');
+        : 'Vérification envoyée. Ce KYC servira pour tous les modules AfriZia qui exigent une vérification.');
       window.setTimeout(() => navigate('/wallet'), 1400);
     } catch (error) {
       console.error('Soumission KYC impossible:', error);
@@ -506,21 +506,21 @@ export default function KycVerificationScreen() {
     <main className="min-h-full bg-black px-4 pb-8 pt-4 text-white">
       <header className="flex items-center justify-between">
         <Link to="/wallet" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]">
-          <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
         </Link>
         <div className="text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriSell ID</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriZia ID</p>
           <h1 className="text-sm font-black">Vérification KYC</h1>
         </div>
         <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/10 text-[#15EA3E]">
-          <AfriSellIcon name="shield" size={18} />
+          <AfriZiaIcon name="shield" size={18} />
         </div>
       </header>
 
       <section className="mt-6 rounded-[2rem] border border-[#15EA3E]/20 bg-[#071007] p-5">
         <h2 className="text-xl font-black leading-tight">Complète ton identité une seule fois</h2>
         <p className="mt-2 text-sm font-semibold leading-relaxed text-white/52">
-          Ce KYC active AfriSpay et tous les modules AfriSell qui demandent une vérification.
+          Ce KYC active AfriSpay et tous les modules AfriZia qui demandent une vérification.
         </p>
       </section>
 

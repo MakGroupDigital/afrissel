@@ -1,6 +1,6 @@
-# AfriSell Native Builds
+# AfriZia Native Builds
 
-AfriSell utilise Tauri v2 pour emballer l'application React/Vite en applications natives macOS, Android et iOS.
+AfriZia utilise Tauri v2 pour emballer l'application React/Vite en applications natives macOS, Android et iOS.
 
 ## Scripts
 
@@ -31,8 +31,8 @@ Ce client ID se trouve dans Firebase Console, Project settings, General, Web cli
 macOS:
 
 ```text
-src-tauri/target/release/bundle/macos/AfriSell.app
-src-tauri/target/release/bundle/dmg/AfriSell_0.1.0_x64.dmg
+src-tauri/target/release/bundle/macos/AfriZia.app
+src-tauri/target/release/bundle/dmg/AfriZia_0.1.0_x64.dmg
 ```
 
 Android:

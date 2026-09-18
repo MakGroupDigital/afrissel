@@ -32,7 +32,7 @@ export async function createFreelanceMissionRequest(input: FreelanceMissionInput
   const payload = {
     id: requestId,
     clientId: input.user.uid,
-    clientName: input.user.displayName || 'Client AfriSell',
+    clientName: input.user.displayName || 'Client AfriZia',
     clientAvatar: input.user.photoURL || '',
     freelancerId: cleanText(input.freelancerId, 'Freelance'),
     freelancerName: cleanText(input.freelancerName, 'Nom freelance'),

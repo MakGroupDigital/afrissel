@@ -26,7 +26,7 @@ export async function createBiasharaOpportunity(input: BiasharaOpportunityInput)
   const payload = {
     id: opportunityId,
     ownerId: input.user.uid,
-    ownerName: input.user.displayName || 'Entrepreneur AfriSell',
+    ownerName: input.user.displayName || 'Entrepreneur AfriZia',
     ownerAvatar: input.user.photoURL || '',
     idea: cleanText(input.idea, 'Idee business'),
     market: cleanText(input.market, 'Marche cible'),

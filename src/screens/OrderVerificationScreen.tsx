@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { onValue, ref } from 'firebase/database';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { realtimeDb } from '../lib/firebase';
 import { formatMarketPrice } from '../hooks/useAfriMarket';
-import { AFRISELL_MAIN_LOGO } from '../lib/branding';
+import { AFRIZIA_MAIN_LOGO } from '../lib/branding';
 
 type VerifiedOrder = {
   id: string;
@@ -27,6 +27,8 @@ type VerifiedOrder = {
 const statusLabel = (value?: string) => {
   if (value === 'paid' || value === 'confirmed') return 'Confirmé';
   if (value === 'pay_on_delivery' || value === 'awaiting_delivery_payment') return 'À payer à la livraison';
+  if (value === 'pending_operator' || value === 'awaiting_mobile_payment') return 'Validation Mobile Money';
+  if (value === 'failed' || value === 'payment_failed') return 'Paiement refusé';
   if (value === 'delivered') return 'Livré';
   if (value === 'pending_assignment') return 'Livraison en préparation';
   if (value === 'pickup_requested') return 'Retrait demandé';
@@ -57,8 +59,8 @@ export default function OrderVerificationScreen() {
   if (loading) {
     return (
       <main className="flex min-h-full flex-col items-center justify-center bg-black px-8 text-center text-white">
-        <AfriSellIcon name="scan" size={36} className="text-[#15EA3E]" />
-        <p className="mt-4 text-sm font-black uppercase tracking-wide">Vérification AfriSell</p>
+        <AfriZiaIcon name="scan" size={36} className="text-[#15EA3E]" />
+        <p className="mt-4 text-sm font-black uppercase tracking-wide">Vérification AfriZia</p>
       </main>
     );
   }
@@ -67,10 +69,10 @@ export default function OrderVerificationScreen() {
     return (
       <main className="flex min-h-full flex-col items-center justify-center bg-black px-8 text-center text-white">
         <div className="flex h-16 w-16 items-center justify-center rounded-3xl border border-red-500/20 bg-red-500/10 text-red-200">
-          <AfriSellIcon name="close" size={28} />
+          <AfriZiaIcon name="close" size={28} />
         </div>
         <h1 className="mt-5 text-lg font-black">Document introuvable</h1>
-        <p className="mt-2 text-sm leading-relaxed text-white/45">Ce QR code ne correspond à aucune commande AfriSell active.</p>
+        <p className="mt-2 text-sm leading-relaxed text-white/45">Ce QR code ne correspond à aucune commande AfriZia active.</p>
         <Link to="/market" className="mt-5 rounded-2xl bg-[#15EA3E] px-5 py-3 text-xs font-black uppercase tracking-wider text-black">
           Ouvrir Market
         </Link>
@@ -78,21 +80,22 @@ export default function OrderVerificationScreen() {
     );
   }
 
-  const isReceipt = order.documentType !== 'invoice';
+  const isPaymentPending = order.paymentStatus === 'pending_operator' || order.status === 'awaiting_mobile_payment';
+  const isReceipt = order.documentType !== 'invoice' && !isPaymentPending;
 
   return (
     <main className="min-h-full bg-black px-4 pb-24 pt-4 text-white">
       <header className="rounded-[1.7rem] border border-[#15EA3E]/24 bg-[#071007] p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-black/30 p-2">
-            <img src={AFRISELL_MAIN_LOGO} alt="" className="h-full w-full object-contain" />
+            <img src={AFRIZIA_MAIN_LOGO} alt="" className="h-full w-full object-contain" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Document vérifié</p>
-            <h1 className="mt-1 text-xl font-black">{isReceipt ? 'Reçu AfriSell' : 'Facture AfriSell'}</h1>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">{isPaymentPending ? 'Paiement sécurisé' : 'Document vérifié'}</p>
+            <h1 className="mt-1 text-xl font-black">{isPaymentPending ? 'Paiement en attente' : isReceipt ? 'Reçu AfriZia' : 'Facture AfriZia'}</h1>
           </div>
           <span className="rounded-full bg-[#15EA3E] px-3 py-1 text-[9px] font-black uppercase tracking-wider text-black">
-            Authentique
+            {isPaymentPending ? 'En attente' : 'Authentique'}
           </span>
         </div>
       </header>
@@ -115,7 +118,7 @@ export default function OrderVerificationScreen() {
           { label: 'Commande', value: order.id.slice(-8).toUpperCase(), icon: 'order' as const }
         ].map((item) => (
           <div key={item.label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-            <AfriSellIcon name={item.icon} size={17} className="text-[#15EA3E]" />
+            <AfriZiaIcon name={item.icon} size={17} className="text-[#15EA3E]" />
             <p className="mt-2 truncate text-sm font-black">{item.value}</p>
             <p className="mt-0.5 text-[9px] font-black uppercase tracking-wider text-white/38">{item.label}</p>
           </div>
@@ -125,7 +128,9 @@ export default function OrderVerificationScreen() {
       <section className="mt-4 rounded-[1.4rem] border border-[#15EA3E]/22 bg-[#15EA3E]/10 p-4">
         <p className="text-sm font-black text-[#15EA3E]">État actuel</p>
         <p className="mt-2 text-xs font-semibold leading-relaxed text-white/58">
-          {isReceipt
+          {isPaymentPending
+            ? 'La demande Mobile Money a été envoyée. Valide-la sur ton téléphone: la commande sera confirmée automatiquement.'
+            : isReceipt
             ? 'Le paiement a été confirmé dans AfriSpay. La commande peut être suivie jusqu’à la livraison.'
             : 'Cette facture attend un paiement à la livraison. Le paiement devra être confirmé avant clôture.'}
         </p>

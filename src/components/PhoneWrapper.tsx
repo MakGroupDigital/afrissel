@@ -7,6 +7,7 @@ import { InvertedAfricaLogo } from './InvertedAfricaLogo';
 import OfflineStatus from './OfflineStatus';
 import PwaInstallPrompt from './PwaInstallPrompt';
 import AppQuickActions from './AppQuickActions';
+import { useCommercePaymentReconciliation } from '../hooks/useCommercePaymentReconciliation';
 
 interface PhoneWrapperProps {
   children: React.ReactNode;
@@ -20,6 +21,7 @@ export default function PhoneWrapper({ children }: PhoneWrapperProps) {
   const isImmersive = immersivePaths.includes(location.pathname);
   const isFeed = location.pathname === '/feed';
   const [isLightMode, setIsLightMode] = useState(isLightThemePreferred);
+  useCommercePaymentReconciliation();
 
   useEffect(() => {
     const syncTheme = () => {
@@ -44,7 +46,7 @@ export default function PhoneWrapper({ children }: PhoneWrapperProps) {
       </div>
 
       <div className="pointer-events-none absolute left-10 top-10 hidden opacity-[0.18] md:block">
-        <h1 className="text-6xl font-black text-[#15EA3E] leading-none tracking-normal" style={{ fontFamily: 'Quicksand' }}>AFRISELL</h1>
+        <h1 className="text-6xl font-black text-[#15EA3E] leading-none tracking-normal" style={{ fontFamily: 'Quicksand' }}>AFRIZIA</h1>
       </div>
 
       <div className={cn(

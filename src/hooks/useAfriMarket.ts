@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { get, off, onValue, push, ref, runTransaction, serverTimestamp, update } from 'firebase/database';
 import { Product } from '../store/useAppStore';
-import { CloudinaryUploadResult, uploadMediaToCloudinary } from '../lib/cloudinary';
+import { CloudinaryUploadResult, uploadMediaBatchToCloudinary } from '../lib/cloudinary';
 import { realtimeDb } from '../lib/firebase';
+import { getMediaFileKind } from '../lib/mediaFile';
 import { useFirebaseAuth } from './useFirebaseAuth';
 import { isOfflineNow, offlineCacheKey, readOfflineCache, readOfflineCacheAsync, writeOfflineCache } from '../lib/offlineCache';
 
@@ -27,6 +28,7 @@ export type AfriMarketContent = {
   linkedProductImage?: string;
   linkedProductPrice?: number;
   linkedProductVillagePrice?: number;
+  abcPostId?: string;
   linkedProductCurrency?: string;
   price?: number;
   villagePrice?: number;
@@ -47,6 +49,7 @@ export type AfriMarketContent = {
   storeId?: string;
   storeSlug?: string;
   storeName?: string;
+  productKind?: 'digital' | 'physical';
   deliveryMode?: 'file' | 'link' | string;
   deliveryURL?: string;
   deliveryFile?: Record<string, unknown> | null;
@@ -54,6 +57,36 @@ export type AfriMarketContent = {
   accessNote?: string;
   productSpec?: Record<string, unknown>;
   stock?: number;
+  stockMode?: 'unlimited' | 'tracked';
+  regularPrice?: number;
+  salePrice?: number;
+  pricingMode?: 'paid' | 'free';
+  isFree?: boolean;
+  sku?: string;
+  shippingPrice?: number;
+  shippingRegions?: string[];
+  fppRate?: number;
+  affiliateEnabled?: boolean;
+  affiliateDirectRate?: number;
+  affiliateIndirectRate?: number;
+  orderProcessingMode?: 'automatic' | 'manual';
+  sourceProductId?: string;
+  sourceProductURL?: string;
+  sourceMarketplace?: string;
+  sourceSellerId?: string;
+  sourceSellerName?: string;
+  sourcePrice?: number;
+  publishToAfriZia?: boolean;
+  catalogCategory?: string;
+  publishToZikMart?: boolean;
+  supplierType?: 'self' | 'supplier' | 'dropshipper';
+  supplierId?: string;
+  supplierName?: string;
+  supplierSKU?: string;
+  supplierCost?: number;
+  supplierLeadTimeDays?: number;
+  dropshippingEnabled?: boolean;
+  sellerMargin?: number;
   location?: string;
   textStyle?: string;
   createdAt?: number | string | { seconds?: number };
@@ -84,9 +117,21 @@ export type AfriMarketPostInput = {
   currency?: string;
   target?: 'abc' | 'text' | 'market' | 'offer';
   stock?: number;
+  productKind?: 'digital' | 'physical';
+  regularPrice?: number;
+  salePrice?: number;
+  pricingMode?: 'paid' | 'free';
+  fppRate?: number;
+  affiliateEnabled?: boolean;
+  affiliateDirectRate?: number;
+  affiliateIndirectRate?: number;
+  orderProcessingMode?: 'automatic' | 'manual';
+  publishToAfriZia?: boolean;
+  catalogCategory?: string;
   location?: string;
   offerModule?: string;
   textStyle?: string;
+  onUploadProgress?: (completed: number, total: number) => void;
 };
 
 type RawContent = Omit<AfriMarketContent, 'id'> & {
@@ -200,16 +245,16 @@ const normalizeMedia = (content: RawContent): AfriMarketMedia[] => {
   return [];
 };
 
-const normalizeContent = (id: string, content: RawContent): AfriMarketContent => {
+export const normalizeContent = (id: string, content: RawContent): AfriMarketContent => {
   const media = normalizeMedia(content);
   const isSellable = Boolean(content.isSellable || content.linkedProductId || content.format === 'article' || content.villagePrice);
 
   return {
     id,
     authorId: content.authorId || '',
-    authorName: content.authorName || content.seller || 'AfriSeller',
+    authorName: content.authorName || content.seller || 'Vendeur Afrizia',
     authorAvatar: content.authorAvatar || '',
-    title: content.title || content.name || 'Publication AfriSell',
+    title: content.title || content.name || 'Publication AfriZia',
     description: content.description || '',
     category: content.category || 'Services',
     format: content.format || (isSellable ? 'article' : media.some((item) => item.resourceType === 'video') ? 'video' : 'gallery'),
@@ -221,6 +266,7 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     linkedProductImage: content.linkedProductImage || '',
     linkedProductPrice: content.linkedProductPrice !== undefined ? toNumber(content.linkedProductPrice) : undefined,
     linkedProductVillagePrice: content.linkedProductVillagePrice !== undefined ? toNumber(content.linkedProductVillagePrice) : undefined,
+    abcPostId: content.abcPostId || '',
     linkedProductCurrency: content.linkedProductCurrency || content.currency || 'USD',
     price: content.price !== undefined ? toNumber(content.price) : undefined,
     villagePrice: content.villagePrice !== undefined ? toNumber(content.villagePrice) : undefined,
@@ -235,6 +281,7 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     liveStatus: content.liveStatus || '',
     target: content.target || '',
     offerModule: content.offerModule || '',
+    productKind: content.productKind || (content.isDigital ? 'digital' : 'physical'),
     isDigital: Boolean(content.isDigital),
     digitalType: content.digitalType || '',
     collection: content.collection || '',
@@ -248,6 +295,26 @@ const normalizeContent = (id: string, content: RawContent): AfriMarketContent =>
     accessNote: content.accessNote || '',
     productSpec: content.productSpec || {},
     stock: content.stock !== undefined ? toNumber(content.stock) : undefined,
+    stockMode: content.stockMode || (content.productKind === 'physical' ? 'tracked' : 'unlimited'),
+    regularPrice: content.regularPrice !== undefined ? toNumber(content.regularPrice) : content.price,
+    salePrice: content.salePrice !== undefined ? toNumber(content.salePrice) : undefined,
+    pricingMode: content.pricingMode || (content.isFree || content.price === 0 ? 'free' : 'paid'),
+    isFree: content.isFree ?? content.price === 0,
+    sku: content.sku || '',
+    shippingPrice: content.shippingPrice !== undefined ? toNumber(content.shippingPrice) : 0,
+    shippingRegions: Array.isArray(content.shippingRegions) ? content.shippingRegions : [],
+    fppRate: Math.min(Math.max(toNumber(content.fppRate), 0), 20),
+    publishToAfriZia: content.publishToAfriZia !== false,
+    catalogCategory: content.catalogCategory || '',
+    publishToZikMart: content.publishToZikMart === true,
+    supplierType: content.supplierType || 'self',
+    supplierId: content.supplierId || '',
+    supplierName: content.supplierName || '',
+    supplierSKU: content.supplierSKU || '',
+    supplierCost: content.supplierCost !== undefined ? toNumber(content.supplierCost) : 0,
+    supplierLeadTimeDays: content.supplierLeadTimeDays !== undefined ? toNumber(content.supplierLeadTimeDays) : 0,
+    dropshippingEnabled: Boolean(content.dropshippingEnabled),
+    sellerMargin: content.sellerMargin !== undefined ? toNumber(content.sellerMargin) : Math.max(0, toNumber(content.price) - toNumber(content.supplierCost)),
     location: content.location || '',
     textStyle: content.textStyle || '',
     createdAt: content.createdAt,
@@ -260,7 +327,7 @@ const normalizeComment = (id: string, comment: RawComment): AfriMarketComment =>
   id,
   postId: comment.postId || '',
   authorId: comment.authorId || '',
-  authorName: comment.authorName || 'Utilisateur AfriSell',
+  authorName: comment.authorName || 'Utilisateur AfriZia',
   authorAvatar: comment.authorAvatar || '',
   text: comment.text || '',
   createdAt: comment.createdAt
@@ -295,21 +362,54 @@ export const toCheckoutProduct = (content: AfriMarketContent): Product => ({
   storeId: content.storeId || '',
   storeSlug: content.storeSlug || '',
   storeName: content.storeName || '',
+  productKind: content.productKind || (content.isDigital ? 'digital' : 'physical'),
   isDigital: Boolean(content.isDigital),
   name: content.title,
   seller: content.authorName,
   description: content.description,
   category: content.category,
   price: content.price || content.villagePrice || 0,
+  regularPrice: content.regularPrice ?? content.price ?? content.villagePrice ?? 0,
+  salePrice: content.salePrice,
+  pricingMode: content.pricingMode || (content.isFree || content.price === 0 ? 'free' : 'paid'),
+  isFree: content.isFree ?? content.price === 0,
   villagePrice: content.villagePrice || content.price || 0,
   currency: content.currency || 'USD',
   imageUrl: content.coverURL,
   buyersCount: content.buyersCount || 0,
-  buyersNeeded: content.buyersNeeded || 1
+  buyersNeeded: content.buyersNeeded || 1,
+  stockMode: content.stockMode,
+  stock: content.stock,
+  deliveryMode: content.deliveryMode,
+  shippingPrice: content.shippingPrice,
+  shippingRegions: content.shippingRegions,
+  fppRate: content.fppRate,
+  affiliateEnabled: content.affiliateEnabled === true,
+  affiliateDirectRate: content.affiliateDirectRate,
+  affiliateIndirectRate: content.affiliateIndirectRate,
+  orderProcessingMode: content.orderProcessingMode || 'manual',
+  sourceProductId: content.sourceProductId || '',
+  sourceProductURL: content.sourceProductURL || '',
+  sourceMarketplace: content.sourceMarketplace || '',
+  sourceSellerId: content.sourceSellerId || '',
+  sourceSellerName: content.sourceSellerName || '',
+  sourcePrice: content.sourcePrice !== undefined ? toNumber(content.sourcePrice) : undefined,
+  publishToAfriZia: content.publishToAfriZia !== false,
+  publishToZikMart: content.publishToZikMart === true,
+  supplierType: content.supplierType,
+  supplierId: content.supplierId,
+  supplierName: content.supplierName,
+  supplierSKU: content.supplierSKU,
+  supplierCost: content.supplierCost,
+  supplierLeadTimeDays: content.supplierLeadTimeDays,
+  dropshippingEnabled: content.dropshippingEnabled,
+  sellerMargin: content.sellerMargin,
+  catalogCategory: content.catalogCategory || ''
 });
 
 const shouldSyncWithMarket = (content: AfriMarketContent) => (
   content.isSellable &&
+  content.publishToAfriZia !== false &&
   !content.linkedProductId &&
   content.media.length > 0 &&
   content.media.every((item) => item.resourceType === 'image')
@@ -323,6 +423,7 @@ export const useAfriMarket = () => {
   const { user, profile } = useFirebaseAuth();
   const [abcContents, setAbcContents] = useState<AfriMarketContent[]>(() => readOfflineCache(ABC_CACHE_KEY, []));
   const [marketProducts, setMarketProducts] = useState<AfriMarketContent[]>(() => readOfflineCache(MARKET_CACHE_KEY, []));
+  const [zikMartProducts, setZikMartProducts] = useState<AfriMarketContent[]>([]);
   const [followedAuthors, setFollowedAuthors] = useState<Record<string, boolean>>({});
   const [followerAuthors, setFollowerAuthors] = useState<Record<string, boolean>>({});
   const [mutualAuthors, setMutualAuthors] = useState<Record<string, boolean>>({});
@@ -367,6 +468,7 @@ export const useAfriMarket = () => {
 
     const abcRef = ref(realtimeDb, 'abcPosts');
     const marketRef = ref(realtimeDb, 'marketProducts');
+    const zikMartRef = ref(realtimeDb, 'zikMartProducts');
     const followsRef = user ? ref(realtimeDb, `follows/${user.uid}`) : null;
     const followersRef = user ? ref(realtimeDb, `followers/${user.uid}`) : null;
     const likesRef = user ? ref(realtimeDb, `contentLikesByUser/${user.uid}`) : null;
@@ -428,6 +530,13 @@ export const useAfriMarket = () => {
       }
     );
 
+    const unsubscribeZikMart = onValue(zikMartRef, (snapshot) => {
+      const data = snapshot.val() as Record<string, RawContent> | null;
+      setZikMartProducts(Object.entries(data || {})
+        .map(([id, content]) => normalizeContent(id, content))
+        .filter((content) => content.status !== 'deleted' && content.status !== 'hidden' && content.productKind === 'physical'));
+    }, () => setZikMartProducts([]));
+
     const unsubscribeFollows = followsRef
       ? onValue(followsRef, (snapshot) => {
           const fallback = readOfflineCache<Record<string, boolean>>(scopedCacheKey('follows', user?.uid), {});
@@ -471,11 +580,13 @@ export const useAfriMarket = () => {
       mounted = false;
       unsubscribeAbc();
       unsubscribeMarket();
+      unsubscribeZikMart();
       unsubscribeFollows?.();
       unsubscribeFollowers?.();
       unsubscribeLikes?.();
       off(abcRef);
       off(marketRef);
+      off(zikMartRef);
       if (followsRef) off(followsRef);
       if (followersRef) off(followersRef);
       if (likesRef) off(likesRef);
@@ -501,15 +612,15 @@ export const useAfriMarket = () => {
     const title = input.title.trim();
     const description = input.description.trim();
     const files = (input.files || []).filter(Boolean);
-    const hasVideo = files.some((file) => file.type.startsWith('video/'));
-    const hasImage = files.some((file) => file.type.startsWith('image/'));
+    const hasVideo = files.some((file) => getMediaFileKind(file) === 'video');
+    const hasImage = files.some((file) => getMediaFileKind(file) === 'image');
     const isTextPost = input.target === 'text';
     const isDirectMarketItem = input.target === 'market' || input.target === 'offer';
 
     if (!title) throw new Error('Ajoute un titre.');
     if (!description) throw new Error('Ajoute une description.');
     if (!files.length && !isTextPost) throw new Error('Ajoute une video ou des photos.');
-    if (files.filter((file) => file.type.startsWith('image/')).length > 7) {
+    if (files.filter((file) => getMediaFileKind(file) === 'image').length > 7) {
       throw new Error('Un poste photo accepte maximum 7 photos.');
     }
     if (hasVideo && (files.length > 1 || hasImage)) {
@@ -522,13 +633,15 @@ export const useAfriMarket = () => {
     const postId = postRef.key;
     if (!postId) throw new Error('Publication impossible pour le moment.');
 
-    const uploads = files.length ? await Promise.all(files.map((file) => uploadMediaToCloudinary(file, user.uid))) : [];
+    const uploads = files.length
+      ? await uploadMediaBatchToCloudinary(files, user.uid, { onProgress: input.onUploadProgress })
+      : [];
     const media: AfriMarketMedia[] = uploads.map((upload, index) => ({
       ...upload,
       id: `${postId}_${index}`
     }));
     const now = Date.now();
-    const authorName = profile?.businessName || profile?.displayName || user.displayName || 'Utilisateur AfriSell';
+    const authorName = profile?.businessName || profile?.displayName || user.displayName || 'Utilisateur AfriZia';
     const authorAvatar = profile?.logoURL || profile?.photoURL || user.photoURL || '';
     const isVideo = media.some((item) => item.resourceType === 'video');
     const linkedProduct = input.linkedProductId
@@ -555,6 +668,12 @@ export const useAfriMarket = () => {
       linkedProductPrice: linkedProduct?.price,
       linkedProductVillagePrice: linkedProduct?.villagePrice,
       linkedProductCurrency: linkedProduct?.currency,
+      productKind: linkedProduct?.productKind,
+      isDigital: linkedProduct?.isDigital,
+      storeId: linkedProduct?.storeId,
+      storeSlug: linkedProduct?.storeSlug,
+      storeName: linkedProduct?.storeName,
+      fppRate: linkedProduct?.fppRate || 0,
       price: isDirectMarketItem ? input.price : undefined,
       villagePrice: isDirectMarketItem ? input.villagePrice : undefined,
       currency: linkedProduct?.currency || input.currency || 'USD',
@@ -623,7 +742,7 @@ export const useAfriMarket = () => {
       },
       [`followers/${content.authorId}/${user.uid}`]: {
         uid: user.uid,
-        displayName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        displayName: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
         followedAt: serverTimestamp()
       }
     });
@@ -778,7 +897,7 @@ export const useAfriMarket = () => {
       id: commentId,
       postId: content.id,
       authorId: user.uid,
-      authorName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+      authorName: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
       authorAvatar: profile?.photoURL || user.photoURL || '',
       text: trimmedText,
       createdAt: Date.now()
@@ -821,6 +940,7 @@ export const useAfriMarket = () => {
   return useMemo(() => ({
     abcContents,
     marketProducts,
+    zikMartProducts,
     followedAuthors,
     mutualAuthors,
     likedContents,
@@ -833,5 +953,5 @@ export const useAfriMarket = () => {
     watchComments,
     addComment,
     recordShare
-  }), [abcContents, commentsByContent, error, followedAuthors, likedContents, loading, marketProducts, mutualAuthors]);
+  }), [abcContents, commentsByContent, error, followedAuthors, likedContents, loading, marketProducts, mutualAuthors, zikMartProducts]);
 };

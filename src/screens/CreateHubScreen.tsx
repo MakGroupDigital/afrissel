@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { AfriSellIcon, AfriSellIconName } from '../components/AfriSellIcon';
+import { AfriZiaIcon, AfriZiaIconName } from '../components/AfriZiaIcon';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { cn } from '../lib/utils';
 
@@ -18,7 +18,7 @@ type CreationOption = {
   id: string;
   title: string;
   shortLabel: string;
-  icon: AfriSellIconName;
+  icon: AfriZiaIconName;
   route: string;
   tone: string;
   requiresBusiness?: boolean;
@@ -184,14 +184,14 @@ export default function CreateHubScreen() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_82%_6%,rgba(21,234,62,0.22),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_34%)]" />
       <header className="relative z-10 flex shrink-0 items-center justify-between px-4 pb-3 pt-5">
         <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-white/72">
-          <AfriSellIcon name="close" size={16} />
+          <AfriZiaIcon name="close" size={16} />
         </button>
         <div className="text-center">
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Créer</p>
           <h1 className="text-sm font-black">AfriStudio</h1>
         </div>
         <Link to="/profile?panel=business" className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-          <AfriSellIcon name="account" size={16} />
+          <AfriZiaIcon name="account" size={16} />
         </Link>
       </header>
 
@@ -216,7 +216,7 @@ export default function CreateHubScreen() {
                     'flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.15rem] shadow-[0_12px_24px_rgba(0,0,0,0.28)]',
                     allowed ? 'bg-[#15EA3E] text-black' : 'bg-amber-300 text-black'
                   )}>
-                    <AfriSellIcon name={option.icon} size={21} />
+                    <AfriZiaIcon name={option.icon} size={21} />
                   </span>
                   <span className="min-w-0">
                     <span className="block text-[13px] font-black leading-tight text-white">{option.title}</span>
@@ -224,7 +224,7 @@ export default function CreateHubScreen() {
                       {allowed ? option.shortLabel : 'Accès requis'}
                     </span>
                   </span>
-                  <AfriSellIcon name="arrow" size={13} className={cn('absolute right-0 top-0', allowed ? 'text-[#15EA3E]' : 'text-amber-200')} />
+                  <AfriZiaIcon name="arrow" size={13} className={cn('absolute right-0 top-0', allowed ? 'text-[#15EA3E]' : 'text-amber-200')} />
                 </div>
               </Link>
             );
@@ -245,7 +245,7 @@ export default function CreateHubScreen() {
                   'flex flex-col items-center gap-2 rounded-2xl border p-3 text-center active:scale-[0.98]',
                   allowed ? 'border-white/10 bg-black/22' : 'border-amber-300/18 bg-amber-300/[0.06]'
                 )}>
-                  <AfriSellIcon name={scope.icon} size={18} className={allowed ? 'text-[#15EA3E]' : 'text-amber-200'} />
+                  <AfriZiaIcon name={scope.icon} size={18} className={allowed ? 'text-[#15EA3E]' : 'text-amber-200'} />
                   <span className="max-w-full truncate text-[9px] font-black text-white/58">{scope.label}</span>
                 </Link>
               );

@@ -57,6 +57,9 @@ android {
         }
         getByName("release") {
             isMinifyEnabled = true
+            ndk {
+                debugSymbolLevel = "NONE"
+            }
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }

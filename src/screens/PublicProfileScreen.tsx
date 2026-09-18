@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { off, onValue, push, ref, set } from 'firebase/database';
-import { AfriSellIcon } from '../components/AfriSellIcon';
-import { AfriSellUserProfile } from '../hooks/useFirebaseAuth';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
+import { AfriZiaLoadingState } from '../components/AfriZiaLottie';
+import { AfriZiaUserProfile } from '../hooks/useFirebaseAuth';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { formatMarketPrice, useAfriMarket } from '../hooks/useAfriMarket';
 import { realtimeDb } from '../lib/firebase';
@@ -17,17 +18,17 @@ type ProfileReview = {
   createdAt: number;
 };
 
-const getBusinessAccounts = (profile?: AfriSellUserProfile | null) => [
+const getBusinessAccounts = (profile?: AfriZiaUserProfile | null) => [
   profile?.businessAccount,
   ...Object.values(profile?.businessAccounts || {})
-].filter((account): account is NonNullable<AfriSellUserProfile['businessAccount']> => Boolean(account?.categoryId));
+].filter((account): account is NonNullable<AfriZiaUserProfile['businessAccount']> => Boolean(account?.categoryId));
 
 export default function PublicProfileScreen() {
   const { userId = '' } = useParams();
   const navigate = useNavigate();
   const { abcContents, marketProducts, followedAuthors, followAuthor } = useAfriMarket();
   const { user, profile } = useFirebaseAuth();
-  const [publicProfile, setPublicProfile] = useState<AfriSellUserProfile | null>(null);
+  const [publicProfile, setPublicProfile] = useState<AfriZiaUserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<ProfileReview[]>([]);
   const [reviewRating, setReviewRating] = useState(5);
@@ -40,7 +41,7 @@ export default function PublicProfileScreen() {
 
     const profileRef = ref(realtimeDb, `users/${userId}`);
     const unsubscribe = onValue(profileRef, (snapshot) => {
-      setPublicProfile(snapshot.exists() ? snapshot.val() as AfriSellUserProfile : null);
+      setPublicProfile(snapshot.exists() ? snapshot.val() as AfriZiaUserProfile : null);
       setLoading(false);
     }, () => {
       setPublicProfile(null);
@@ -78,11 +79,11 @@ export default function PublicProfileScreen() {
   );
   const businessAccounts = getBusinessAccounts(publicProfile);
   const mainBusiness = businessAccounts[0];
-  const displayName = publicProfile?.businessName || publicProfile?.displayName || 'Profil AfriSell';
+  const displayName = publicProfile?.businessName || publicProfile?.displayName || 'Profil AfriZia';
   const avatar = publicProfile?.logoURL || publicProfile?.photoURL || '';
   const coverImage = publicProfile?.mediaURL || authorContents[0]?.coverURL || authorProducts[0]?.coverURL || avatar || '/biashara.jpeg';
-  const profileRole = mainBusiness?.moduleName || mainBusiness?.categoryLabel || publicProfile?.primaryRole || 'AfriSell';
-  const profileHeadline = publicProfile?.bio || mainBusiness?.serviceLabel || 'Membre de l’écosystème AfriSell.';
+  const profileRole = mainBusiness?.moduleName || mainBusiness?.categoryLabel || publicProfile?.primaryRole || 'AfriZia';
+  const profileHeadline = publicProfile?.bio || mainBusiness?.serviceLabel || 'Membre de l’écosystème AfriZia.';
   const profileLocation = [publicProfile?.city, publicProfile?.country].filter(Boolean).join(', ');
   const isFollowed = Boolean(followedAuthors[userId]);
   const followSample = authorContents[0] || authorProducts[0];
@@ -116,7 +117,7 @@ export default function PublicProfileScreen() {
       await set(reviewRef, {
         id: reviewRef.key,
         authorId: user.uid,
-        authorName: profile?.displayName || user.displayName || 'Utilisateur AfriSell',
+        authorName: profile?.displayName || user.displayName || 'Utilisateur AfriZia',
         rating: reviewRating,
         text,
         createdAt: Date.now()
@@ -132,32 +133,30 @@ export default function PublicProfileScreen() {
   };
 
   return (
-    <main className="flex h-full flex-col overflow-hidden bg-black text-white">
-      <header className="shrink-0 px-4 pb-3 pt-5">
+    <main className="profile-public flex h-full flex-col overflow-hidden bg-black text-white">
+      <header className="profile-public-header shrink-0 px-4 pb-3 pt-5">
         <div className="flex items-center justify-between">
           <button type="button" onClick={() => navigate(-1)} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white">
-            <AfriSellIcon name="arrow" size={17} className="rotate-180" />
+            <AfriZiaIcon name="arrow" size={17} className="rotate-180" />
           </button>
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Profil public</p>
           <Link to="/chat" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]">
-            <AfriSellIcon name="chat" size={17} />
+            <AfriZiaIcon name="chat" size={17} />
           </Link>
         </div>
       </header>
 
       {loading ? (
-        <div className="flex flex-1 items-center justify-center">
-          <AfriSellIcon name="profile" size={34} className="text-[#15EA3E]" />
-        </div>
+        <AfriZiaLoadingState label="Chargement du profil" className="flex-1" />
       ) : !publicProfile ? (
         <div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-          <AfriSellIcon name="profile" size={34} className="text-white/20" />
+          <AfriZiaIcon name="profile" size={34} className="text-white/20" />
           <h1 className="mt-4 text-xl font-black">Profil introuvable</h1>
           <p className="mt-2 text-sm font-semibold leading-relaxed text-white/45">Cet utilisateur n'est pas encore visible publiquement.</p>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto pb-8 scrollbar-hide">
-          <section className="relative overflow-hidden border-b border-white/10 bg-[#050805]">
+        <div className="profile-public-content min-h-0 flex-1 overflow-y-auto pb-8 scrollbar-hide">
+          <section className="profile-public-hero relative overflow-hidden border-b border-white/10 bg-[#050805]">
             <div className="relative h-44">
               <img src={coverImage} alt="" className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.82))]" />
@@ -181,13 +180,13 @@ export default function PublicProfileScreen() {
                     className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#15EA3E] text-black shadow-[0_10px_24px_rgba(21,234,62,0.28)]"
                     aria-label="Envoyer un message"
                   >
-                    <AfriSellIcon name="chat" size={18} />
+                    <AfriZiaIcon name="chat" size={18} />
                   </Link>
                   <button
                     type="button"
                     disabled={!followSample || isFollowed}
                     onClick={() => followSample && void followAuthor(followSample)}
-                    className="flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-[10px] font-black uppercase tracking-widest text-white disabled:text-[#15EA3E]"
+                    className="profile-hero-action flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-[10px] font-black uppercase tracking-widest text-white disabled:text-[#15EA3E]"
                   >
                     {isFollowed ? 'Suivi' : 'Suivre'}
                   </button>
@@ -219,7 +218,7 @@ export default function PublicProfileScreen() {
                   { value: businessAccounts.length, label: 'Apps' },
                   { value: reviews.length ? reviewAverage.toFixed(1) : '0.0', label: 'Note' }
                 ].map((stat) => (
-                  <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-3 text-center">
+                  <div key={stat.label} className="profile-hero-stat rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-3 text-center">
                     <p className="text-base font-black text-white">{stat.value}</p>
                     <p className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-white/38">{stat.label}</p>
                   </div>
@@ -236,7 +235,7 @@ export default function PublicProfileScreen() {
                   <div className="mt-2 flex items-center gap-1.5">
                     {[1, 2, 3, 4, 5].map((rating) => (
                       <span key={rating} className="flex">
-                        <AfriSellIcon
+                        <AfriZiaIcon
                           name="star"
                           size={15}
                           className={rating <= Math.round(reviewAverage) ? 'fill-current text-[#FFD84D]' : 'text-white/22'}
@@ -259,7 +258,7 @@ export default function PublicProfileScreen() {
               <h2 className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/52">Comptes business</h2>
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
                 {businessAccounts.map((account) => (
-                  <div key={`${account.categoryId}-${account.serviceId}-${account.segmentId}`} className="w-[190px] shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                  <div key={`${account.categoryId}-${account.serviceId}-${account.segmentId}`} className="profile-public-business-card w-[190px] shrink-0 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
                     <p className="truncate text-sm font-black">{account.categoryLabel}</p>
                     <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-relaxed text-white/45">
                       {account.serviceLabel} - {account.segmentLabel}
@@ -270,7 +269,7 @@ export default function PublicProfileScreen() {
             </section>
           )}
 
-          <section className="mt-5 rounded-[1.45rem] border border-white/10 bg-white/[0.04] p-4">
+          <section className="profile-public-review-panel mt-5 rounded-[1.45rem] border border-white/10 bg-white/[0.04] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xs font-black uppercase tracking-[0.2em] text-white/52">Notes et avis</h2>
@@ -294,7 +293,7 @@ export default function PublicProfileScreen() {
                     className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.04] active:scale-[0.94]"
                     aria-label={`Noter ${rating}`}
                   >
-                    <AfriSellIcon
+                    <AfriZiaIcon
                       name="star"
                       size={16}
                       className={rating <= reviewRating ? 'fill-current text-[#FFD84D]' : 'text-white/25'}
@@ -330,7 +329,7 @@ export default function PublicProfileScreen() {
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-xs font-black">{review.authorName}</p>
                       <span className="flex items-center gap-1 text-[10px] font-black text-[#FFD84D]">
-                        <AfriSellIcon name="star" size={12} className="fill-current" />
+                        <AfriZiaIcon name="star" size={12} className="fill-current" />
                         {review.rating}
                       </span>
                     </div>
@@ -349,7 +348,7 @@ export default function PublicProfileScreen() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {authorProducts.map((product) => (
-                  <Link key={product.id} to={`/market/${product.id}`} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+                  <Link key={product.id} to={`/market/${product.id}`} className="profile-public-product-card overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
                     <img src={product.coverURL || '/afrimarket.jpeg'} alt={product.title} className="h-24 w-full object-cover" />
                     <div className="p-3">
                       <p className="truncate text-xs font-black">{product.title}</p>
@@ -366,7 +365,7 @@ export default function PublicProfileScreen() {
               <h2 className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/52">Publications ABC</h2>
               <div className="grid grid-cols-2 gap-3">
                 {authorContents.map((content) => (
-                  <Link key={content.id} to={`/feed?post=${content.id}`} className="relative h-44 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+                  <Link key={content.id} to={`/feed?post=${content.id}`} className="profile-public-content-card relative h-44 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
                     <img src={content.coverURL || '/biashara.jpeg'} alt={content.title} className="h-full w-full object-cover" />
                     <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_38%,rgba(0,0,0,0.9))]" />
                     <div className="absolute inset-x-0 bottom-0 p-3">

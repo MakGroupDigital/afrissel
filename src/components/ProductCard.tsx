@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AfriSellIcon } from './AfriSellIcon';
+import { AfriZiaIcon } from './AfriZiaIcon';
 import { Product } from '../store/useAppStore';
 
 interface ProductCardProps {
@@ -21,13 +21,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   return (
     <div 
-      className="flex cursor-pointer flex-col overflow-hidden rounded-[1.15rem] border border-white/10 bg-[#0A0A0A] p-2.5 transition-transform active:scale-95"
+      className="market-product-card flex cursor-pointer flex-col overflow-hidden rounded-[1.15rem] border border-white/10 bg-[#0A0A0A] p-2.5 transition-transform active:scale-95"
       onClick={() => navigate(`/market/${product.id}`)}
     >
       <div className="relative mb-2 h-32 overflow-hidden rounded-[0.95rem] bg-[#050505]">
         <img src={product.imageUrl || '/afrimarket.jpeg'} alt={product.name} className="h-full w-full object-cover" />
         <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-black/72 px-2 py-1 text-[8px] font-black uppercase tracking-wider text-[#15EA3E]">
-          <AfriSellIcon name="shield" size={10} />
+          <AfriZiaIcon name="shield" size={10} />
           Stand
         </div>
         {discountPercent > 0 && (

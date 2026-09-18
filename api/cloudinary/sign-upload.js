@@ -92,7 +92,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid JSON body' });
   }
 
-  const resourceType = body.resourceType === 'video' ? 'video' : body.resourceType === 'image' ? 'image' : '';
+  const resourceType = ['video', 'image', 'raw'].includes(body.resourceType) ? body.resourceType : '';
   if (!resourceType) {
     return res.status(400).json({ error: 'Invalid Cloudinary resource type' });
   }

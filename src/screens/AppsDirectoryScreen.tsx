@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ecosystemModules } from '../data/ecosystem';
-import { AfriSellIcon } from '../components/AfriSellIcon';
+import { AfriZiaIcon } from '../components/AfriZiaIcon';
 import { getModuleIconName } from '../lib/moduleIcons';
 import { cn } from '../lib/utils';
 
@@ -15,10 +15,10 @@ export default function AppsDirectoryScreen() {
     <main className="min-h-full bg-[#050705] px-4 pb-7 pt-4 text-white">
       <header className="flex items-center justify-between">
         <Link to="/ecosystem" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#15EA3E]" aria-label="Retour">
-          <AfriSellIcon name="arrow" size={18} className="rotate-180" />
+          <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
         </Link>
         <div className="text-right">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriSell</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">AfriZia</p>
           <h1 className="mt-1 text-xl font-black tracking-normal">Toutes nos apps</h1>
         </div>
       </header>
@@ -39,7 +39,7 @@ export default function AppsDirectoryScreen() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <AfriSellIcon name={iconName} size={17} className="text-[#15EA3E]" />
+                    <AfriZiaIcon name={iconName} size={17} className="text-[#15EA3E]" />
                     <h3 className="truncate text-sm font-black leading-tight">{module.name}</h3>
                   </div>
                   <p className="mt-1 line-clamp-1 text-[11px] font-semibold text-white/46">{module.description}</p>
@@ -47,7 +47,7 @@ export default function AppsDirectoryScreen() {
                 <span className={cn('rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em]', statusStyles[module.status])}>
                   {module.status}
                 </span>
-                <AfriSellIcon name="arrow" size={15} className="shrink-0 text-white/28" />
+                <AfriZiaIcon name="arrow" size={15} className="shrink-0 text-white/28" />
               </Link>
             );
           })}

@@ -157,15 +157,15 @@
   }
 
   :is(.ecosystem-light, .app-light) {
-    --af-light-bg: #f6f8f4;
-    --af-light-bg-soft: #eef6ee;
+    --af-light-bg: #f4f8f2;
+    --af-light-bg-soft: #e8f2e6;
     --af-light-surface: #ffffff;
-    --af-light-surface-soft: #f9fcf7;
-    --af-light-brand-soft: #e8fbea;
-    --af-light-text: #071007;
-    --af-light-muted: #5f6b61;
-    --af-light-border: rgba(19, 74, 32, 0.15);
-    --af-light-shadow: 0 18px 42px rgba(10, 52, 20, 0.11), 0 1px 0 rgba(255, 255, 255, 0.92) inset;
+    --af-light-surface-soft: #f7fbf5;
+    --af-light-brand-soft: #def4e1;
+    --af-light-text: #102416;
+    --af-light-muted: #516556;
+    --af-light-border: rgba(18, 77, 36, 0.16);
+    --af-light-shadow: 0 12px 30px rgba(12, 68, 29, 0.10), 0 1px 0 rgba(255, 255, 255, 0.95) inset;
     background:
       radial-gradient(circle at 16% -8%, rgba(21, 234, 62, 0.18), transparent 32%),
       radial-gradient(circle at 88% 8%, rgba(10, 61, 26, 0.10), transparent 30%),
@@ -202,15 +202,26 @@
     color: rgba(255, 255, 255, 0.72);
   }
 
+  :is(.ecosystem-light, .app-light) [class~="bg-[#0A0F0A]"] [class*="text-[#15EA3E"],
+  :is(.ecosystem-light, .app-light) [class~="bg-[#090D09]"] [class*="text-[#15EA3E"] {
+    color: #15EA3E;
+  }
+
   :is(.ecosystem-light, .app-light) [class~="bg-[#050705]"],
   :is(.ecosystem-light, .app-light) [class~="bg-[#000000]"],
   :is(.ecosystem-light, .app-light) [class~="bg-[#050505]"],
   :is(.ecosystem-light, .app-light) [class~="bg-[#0A0A0A]"],
   :is(.ecosystem-light, .app-light) [class~="bg-black"],
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.04]"],
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.035]"],
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.05]"],
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.06]"] {
+  :is(.ecosystem-light, .app-light) [class*="bg-[#030604"],
+  :is(.ecosystem-light, .app-light) [class*="bg-[#071007"],
+  :is(.ecosystem-light, .app-light) [class*="bg-[#0b130b"],
+  :is(.ecosystem-light, .app-light) [class*="bg-[#050805"],
+  :is(.ecosystem-light, .app-light) [class*="bg-[#070A07"],
+  :is(.ecosystem-light, .app-light) [class*="bg-[#101010"],
+  :is(.ecosystem-light, .app-light) [class*="bg-[#161A16"],
+  :is(.ecosystem-light, .app-light) [class*="bg-[#2B312B"],
+  :is(.ecosystem-light, .app-light) [class*="bg-white/"],
+  :is(.ecosystem-light, .app-light) [class*="bg-gray-"] {
     background: linear-gradient(180deg, var(--af-light-surface), var(--af-light-surface-soft));
     border-color: var(--af-light-border);
     color: var(--af-light-text);
@@ -218,56 +229,32 @@
   }
 
   :is(.ecosystem-light, .app-light) [class*="bg-black/"] {
-    background-color: rgba(255, 255, 255, 0.74);
+    background-color: rgba(255, 255, 255, 0.88);
     border-color: rgba(19, 74, 32, 0.12);
     color: var(--af-light-text);
+  }
+
+  :is(.ecosystem-light, .app-light) [class*="bg-[#151006"],
+  :is(.ecosystem-light, .app-light) [class*="bg-[#100d05"],
+  :is(.ecosystem-light, .app-light) [class*="bg-[#100E07"],
+  :is(.ecosystem-light, .app-light) [class*="bg-[#100F08"] {
+    background: linear-gradient(145deg, #fffaf0, #fff2cf);
+    border-color: rgba(168, 112, 12, 0.22);
+    color: var(--af-light-text);
+    box-shadow: 0 12px 28px rgba(115, 77, 11, 0.10);
+  }
+
+  :is(.ecosystem-light, .app-light) :not(.abc-feed-surface *)[class*="bg-[linear-gradient"],
+  :is(.ecosystem-light, .app-light) :not(.abc-feed-surface *)[class*="bg-[radial-gradient"] {
+    background: linear-gradient(145deg, #ffffff 0%, #e7f5e8 100%);
+    border-color: var(--af-light-border);
+    color: var(--af-light-text);
+    box-shadow: var(--af-light-shadow);
   }
 
   :is(.ecosystem-light, .app-light) [class~="bg-[#15EA3E]"],
   :is(.ecosystem-light, .app-light) [class*="bg-[#15EA3E]"] {
     color: #071007;
-  }
-
-  :is(.ecosystem-light, .app-light) [class~="bg-[#050705]"].text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-[#000000]"].text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-[#050505]"].text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-[#0A0A0A]"].text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-black"].text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.04]"].text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.035]"].text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.05]"].text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.06]"].text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-[#050705]"] .text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-[#000000]"] .text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-[#050505]"] .text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-[#0A0A0A]"] .text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-black"] .text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.04]"] .text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.035]"] .text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.05]"] .text-white,
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.06]"] .text-white {
-    color: var(--af-light-text);
-  }
-
-  :is(.ecosystem-light, .app-light) [class~="bg-[#050705]"][class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-[#000000]"][class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-[#050505]"][class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-[#0A0A0A]"][class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-black"][class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.04]"][class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.035]"][class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.05]"][class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.06]"][class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-[#050705]"] [class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-[#000000]"] [class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-[#050505]"] [class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-[#0A0A0A]"] [class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-black"] [class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.04]"] [class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.035]"] [class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.05]"] [class*="text-white/"],
-  :is(.ecosystem-light, .app-light) [class~="bg-white/[0.06]"] [class*="text-white/"] {
-    color: var(--af-light-muted);
   }
 
   :is(.ecosystem-light, .app-light) [class*="border-white/10"],
@@ -284,11 +271,690 @@
     color: var(--af-light-text);
   }
 
+  :is(.ecosystem-light, .app-light) [class*="text-[#FFFFFF"],
+  :is(.ecosystem-light, .app-light) [class*="text-[#ffffff"],
+  :is(.ecosystem-light, .app-light) [class*="text-[#e0e0e0"] {
+    color: var(--af-light-text);
+  }
+
+  /* The display green and gold are too pale for small text on white surfaces. */
+  :is(.ecosystem-light, .app-light) [class*="text-[#15EA3E"] {
+    color: #087a28;
+  }
+
+  :is(.ecosystem-light, .app-light) [class*="text-[#9dffaf"] {
+    color: #19743a;
+  }
+
+  :is(.ecosystem-light, .app-light) [class*="text-[#FFD84D"] {
+    color: #8a5900;
+  }
+
+  :is(.ecosystem-light, .app-light) [class*="text-red-100"],
+  :is(.ecosystem-light, .app-light) [class*="text-red-200"],
+  :is(.ecosystem-light, .app-light) [class*="text-red-300"] {
+    color: #b42318;
+  }
+
+  :is(.ecosystem-light, .app-light) [class*="text-amber-100"],
+  :is(.ecosystem-light, .app-light) [class*="text-amber-200"],
+  :is(.ecosystem-light, .app-light) [class*="text-amber-300"] {
+    color: #8a5900;
+  }
+
+  :is(.ecosystem-light, .app-light) [class*="placeholder:text-white/"]::placeholder {
+    color: color-mix(in srgb, var(--af-light-muted) 72%, transparent);
+  }
+
+  :is(.ecosystem-light, .app-light) option {
+    background: var(--af-light-surface);
+    color: var(--af-light-text);
+  }
+
+  :is(.ecosystem-light, .app-light) .af-light-on-dark,
+  :is(.ecosystem-light, .app-light) .af-light-on-dark .text-white,
+  :is(.ecosystem-light, .app-light) .af-light-on-dark [class*="text-white/"] {
+    color: #ffffff;
+  }
+
+  /* Video playback retains a dark surface and white controls in both modes. */
+  :is(.ecosystem-light, .app-light) .abc-feed-surface {
+    background: #000000;
+    color: #ffffff;
+  }
+
+  :is(.ecosystem-light, .app-light) .abc-feed-surface [class~="bg-black"] {
+    background: #000000;
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  :is(.ecosystem-light, .app-light) .abc-feed-surface [class*="bg-black/"] {
+    background-color: rgba(0, 0, 0, 0.64);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+  }
+
+  :is(.ecosystem-light, .app-light) .abc-feed-surface [class*="bg-white/"] {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  :is(.ecosystem-light, .app-light) .abc-feed-surface .text-white {
+    color: #ffffff;
+  }
+
+  :is(.ecosystem-light, .app-light) .abc-feed-surface [class*="text-white/"] {
+    color: rgba(255, 255, 255, 0.74);
+  }
+
+  :is(.ecosystem-light, .app-light) .abc-feed-surface [class*="text-[#15EA3E"] {
+    color: #15EA3E;
+  }
+
+  :is(.ecosystem-light, .app-light) .abc-feed-surface [class*="text-[#FFD84D"] {
+    color: #FFD84D;
+  }
+
   :is(.ecosystem-light, .app-light) input,
   :is(.ecosystem-light, .app-light) textarea,
   :is(.ecosystem-light, .app-light) select {
     color: var(--af-light-text);
     border-color: var(--af-light-border);
+  }
+
+  /* Ecosystem home: a bright, layered surface with deliberate AfriZia contrast. */
+  .ecosystem-light.ecosystem-home {
+    background:
+      radial-gradient(circle at 8% 0%, rgba(21, 234, 62, 0.16), transparent 25%),
+      radial-gradient(circle at 96% 16%, rgba(19, 104, 42, 0.11), transparent 24%),
+      linear-gradient(180deg, #f8fcf6 0%, #edf6eb 46%, #f8fbf6 100%);
+  }
+
+  .ecosystem-light .ecosystem-home-header > div {
+    min-height: 3.25rem;
+    padding: 0.35rem 0.45rem 0.35rem 0.75rem;
+    border: 1px solid rgba(16, 88, 37, 0.12);
+    border-radius: 1.15rem;
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 10px 24px rgba(15, 71, 31, 0.08);
+    backdrop-filter: blur(16px);
+  }
+
+  .ecosystem-light .ecosystem-search-bar {
+    border-color: rgba(13, 119, 43, 0.20);
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 12px 28px rgba(10, 76, 31, 0.11), 0 1px 0 rgba(255, 255, 255, 0.96) inset;
+  }
+
+  .ecosystem-light .ecosystem-wallet-card {
+    background: linear-gradient(135deg, #062f17 0%, #0d5b2a 58%, #0a3d1d 100%) !important;
+    border-color: rgba(112, 243, 143, 0.28);
+    color: #ffffff;
+    box-shadow: 0 18px 34px rgba(4, 62, 25, 0.24), 0 1px 0 rgba(255, 255, 255, 0.12) inset;
+  }
+
+  .ecosystem-light .ecosystem-wallet-card [class*="bg-white/"] {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.11);
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .ecosystem-light .ecosystem-wallet-card [class*="bg-black/"] {
+    background: rgba(0, 0, 0, 0.26);
+    color: #ffffff;
+  }
+
+  .ecosystem-light .ecosystem-wallet-card [class*="bg-gray-"] {
+    background: rgba(2, 29, 13, 0.44);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .ecosystem-light .ecosystem-wallet-card .text-white,
+  .ecosystem-light .ecosystem-wallet-card [class*="text-white/"] {
+    color: #ffffff;
+  }
+
+  .ecosystem-light .ecosystem-wallet-card [class*="text-gray-"] {
+    color: rgba(229, 247, 232, 0.68);
+  }
+
+  .ecosystem-light .ecosystem-wallet-card [class*="text-[#15EA3E"] {
+    color: #7bf398;
+  }
+
+  .ecosystem-light .ecosystem-wallet-card [class*="text-amber-"] {
+    color: #ffd77a;
+  }
+
+  .ecosystem-light .ecosystem-quick-action {
+    border-color: rgba(13, 123, 45, 0.15);
+    background: linear-gradient(145deg, #ffffff, #e6f4e5);
+    box-shadow: 0 10px 20px rgba(17, 83, 34, 0.10), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  }
+
+  .ecosystem-light .ecosystem-quick-action:active {
+    box-shadow: 0 4px 12px rgba(17, 83, 34, 0.10);
+  }
+
+  .ecosystem-light .quick-action-label {
+    background: transparent;
+    color: #30583b;
+    box-shadow: none;
+  }
+
+  .ecosystem-light .ecosystem-promo-card,
+  .ecosystem-light .ecosystem-motion-card {
+    background: linear-gradient(135deg, #07351a 0%, #0e6730 56%, #06351a 100%) !important;
+    border-color: rgba(94, 236, 130, 0.26);
+    color: #ffffff;
+    box-shadow: 0 18px 38px rgba(5, 72, 27, 0.22), 0 1px 0 rgba(255, 255, 255, 0.10) inset;
+  }
+
+  .ecosystem-light .ecosystem-promo-card > [class*="bg-[radial-gradient"],
+  .ecosystem-light .ecosystem-motion-card > [class*="bg-[radial-gradient"] {
+    background: radial-gradient(circle at 86% 14%, rgba(148, 255, 173, 0.24), transparent 38%);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .ecosystem-light .ecosystem-promo-card .text-white,
+  .ecosystem-light .ecosystem-promo-card [class*="text-white/"],
+  .ecosystem-light .ecosystem-motion-card .text-white,
+  .ecosystem-light .ecosystem-motion-card [class*="text-white/"] {
+    color: #ffffff;
+  }
+
+  .ecosystem-light .ecosystem-promo-card [class*="text-[#15EA3E"],
+  .ecosystem-light .ecosystem-motion-card [class*="text-[#15EA3E"] {
+    color: #8df4a6;
+  }
+
+  .ecosystem-light .ecosystem-motion-card [class*="bg-white/"] {
+    border-color: rgba(255, 255, 255, 0.13);
+    background: rgba(255, 255, 255, 0.10);
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .ecosystem-light .ecosystem-media-card {
+    border-color: rgba(11, 96, 35, 0.16);
+    color: #ffffff;
+    box-shadow: 0 12px 24px rgba(10, 57, 25, 0.14);
+  }
+
+  .ecosystem-light .ecosystem-media-card > [class*="bg-[linear-gradient"] {
+    background: linear-gradient(180deg, transparent 26%, rgba(2, 21, 9, 0.88));
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .ecosystem-light .ecosystem-media-card .text-white,
+  .ecosystem-light .ecosystem-media-card [class*="text-white/"] {
+    color: #ffffff;
+  }
+
+  .ecosystem-light .ecosystem-media-card [class*="text-[#15EA3E"] {
+    color: #8df4a6;
+  }
+
+  .ecosystem-light .ecosystem-product-card,
+  .ecosystem-light .ecosystem-supplier-card,
+  .ecosystem-light .ecosystem-freelance-panel {
+    border-color: rgba(11, 96, 35, 0.14);
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 12px 26px rgba(10, 68, 28, 0.09), 0 1px 0 rgba(255, 255, 255, 0.92) inset;
+  }
+
+  .ecosystem-light .ecosystem-freelance-panel > [class*="bg-[radial-gradient"] {
+    background: radial-gradient(circle at 78% 12%, rgba(21, 181, 69, 0.16), transparent 38%);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .ecosystem-light .ecosystem-supplier-card > a {
+    color: #ffffff;
+  }
+
+  .ecosystem-light .ecosystem-supplier-card > a [class*="text-[#15EA3E"] {
+    color: #8df4a6;
+  }
+
+  /* Market: a clear commerce surface with a strong editorial hero. */
+  .app-light .market-home {
+    background:
+      radial-gradient(circle at 12% 0%, rgba(21, 234, 62, 0.14), transparent 24%),
+      linear-gradient(180deg, #f8fcf6 0%, #eff7ed 52%, #f9fcf8 100%);
+  }
+
+  .app-light .market-home-search-shell {
+    border-bottom: 1px solid rgba(13, 101, 38, 0.10);
+    background: rgba(248, 252, 246, 0.86);
+    box-shadow: 0 8px 22px rgba(11, 73, 29, 0.07);
+  }
+
+  .app-light .market-search-bar {
+    border-color: rgba(12, 119, 42, 0.20);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 12px 28px rgba(10, 69, 27, 0.10), 0 1px 0 rgba(255, 255, 255, 0.96) inset;
+  }
+
+  .app-light .market-hero,
+  .app-light .market-featured-card {
+    background: linear-gradient(135deg, #07351a 0%, #0d6230 56%, #063219 100%) !important;
+    border-color: rgba(114, 242, 145, 0.28);
+    color: #ffffff;
+    box-shadow: 0 20px 42px rgba(5, 72, 27, 0.22), 0 1px 0 rgba(255, 255, 255, 0.10) inset;
+  }
+
+  .app-light .market-hero > [class*="bg-[linear-gradient"],
+  .app-light .market-featured-card > [class*="bg-[radial-gradient"] {
+    background: linear-gradient(90deg, rgba(1, 29, 12, 0.82), rgba(3, 58, 25, 0.44), rgba(3, 44, 19, 0.08));
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .app-light .market-hero [class*="bg-black/"],
+  .app-light .market-featured-card [class*="bg-black/"] {
+    background-color: rgba(0, 0, 0, 0.28);
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .app-light .market-hero .text-white,
+  .app-light .market-hero [class*="text-white/"],
+  .app-light .market-featured-card .text-white,
+  .app-light .market-featured-card [class*="text-white/"] {
+    color: #ffffff;
+  }
+
+  .app-light .market-hero [class*="text-[#15EA3E"],
+  .app-light .market-featured-card [class*="text-[#15EA3E"] {
+    color: #8df4a6;
+  }
+
+  .app-light .market-filter-rail button,
+  .app-light .market-location-filters > label {
+    border-color: rgba(13, 105, 39, 0.14);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 7px 16px rgba(11, 72, 29, 0.06);
+  }
+
+  .app-light .market-filter-rail button[class~="bg-white"] {
+    background: #0c6930;
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(7, 92, 34, 0.18);
+  }
+
+  .app-light .market-location-filters select {
+    color: #1b3a23;
+  }
+
+  .app-light .market-shelf-card,
+  .app-light .market-home .market-product-card {
+    border-color: rgba(11, 96, 35, 0.14);
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 12px 25px rgba(10, 68, 28, 0.09), 0 1px 0 rgba(255, 255, 255, 0.92) inset;
+  }
+
+  .app-light .market-home .market-product-card [class*="text-[#15EA3E"],
+  .app-light .market-shelf-card [class*="text-[#15EA3E"] {
+    color: #087a28;
+  }
+
+  /* AfriChat: clean conversation lists, then a quiet wall for messages. */
+  .app-light .africhat-home,
+  .app-light .africhat-room {
+    background:
+      radial-gradient(circle at 8% 0%, rgba(21, 234, 62, 0.13), transparent 23%),
+      linear-gradient(180deg, #f8fcf7, #edf6ec 58%, #f7fbf5);
+  }
+
+  .app-light .africhat-home-header,
+  .app-light .africhat-room-header,
+  .app-light .africhat-composer {
+    border-color: rgba(12, 93, 34, 0.12);
+    background: rgba(255, 255, 255, 0.90);
+    box-shadow: 0 8px 20px rgba(11, 70, 28, 0.07);
+  }
+
+  .app-light .africhat-space-controls {
+    border-color: rgba(12, 93, 34, 0.10);
+    background: rgba(248, 252, 246, 0.72);
+  }
+
+  .app-light .africhat-mode-switch {
+    border-color: rgba(12, 100, 38, 0.14);
+    background: rgba(255, 255, 255, 0.84);
+    box-shadow: 0 8px 18px rgba(11, 72, 29, 0.06);
+  }
+
+  .app-light .africhat-filter-chip {
+    border: 1px solid rgba(12, 100, 38, 0.12);
+    background: rgba(255, 255, 255, 0.78);
+    color: #426149;
+  }
+
+  .app-light .africhat-filter-chip[class~="bg-white"] {
+    border-color: #0c6930;
+    background: #0c6930;
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(7, 92, 34, 0.18);
+  }
+
+  .app-light .africhat-thread-row,
+  .app-light .africhat-contact-row {
+    border-color: rgba(11, 95, 35, 0.13);
+    background: rgba(255, 255, 255, 0.90);
+    box-shadow: 0 9px 20px rgba(10, 68, 28, 0.07), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+  }
+
+  .app-light .africhat-thread-row:hover,
+  .app-light .africhat-contact-row:hover {
+    border-color: rgba(12, 121, 43, 0.28);
+    background: #ffffff;
+  }
+
+  .app-light .africhat-thread-row[class*="bg-[#15EA3E]"] {
+    border-color: rgba(12, 137, 49, 0.28);
+    background: linear-gradient(135deg, #e2f8e4, #f8fff7);
+  }
+
+  .app-light .africhat-room .africhat-message-wall {
+    background-color: #eef7ed;
+    box-shadow: inset 0 10px 24px rgba(12, 79, 29, 0.05);
+  }
+
+  .app-light .africhat-room .africhat-message-wall [class*="bg-[#0A0A0A"] {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(11, 95, 35, 0.12);
+    color: #18331e;
+  }
+
+  .app-light .africhat-composer [class*="bg-[#0A0A0A"] {
+    background: #f8fcf7;
+    border-color: rgba(12, 103, 38, 0.16);
+  }
+
+  /* WeZandofy: storefront clarity around a rich commerce demonstration. */
+  .app-light .zandofy-home {
+    background:
+      radial-gradient(circle at 82% 0%, rgba(21, 234, 62, 0.16), transparent 24%),
+      radial-gradient(circle at 6% 24%, rgba(14, 105, 43, 0.08), transparent 22%),
+      linear-gradient(180deg, #f8fcf6 0%, #edf7ec 54%, #f8fcf7 100%);
+  }
+
+  .app-light .zandofy-home-header > [class*="bg-[radial-gradient"] {
+    background: radial-gradient(circle at 80% 8%, rgba(21, 189, 65, 0.18), transparent 37%);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .app-light .zandofy-menu-bar a {
+    border-color: rgba(10, 102, 37, 0.14);
+    background: rgba(255, 255, 255, 0.84);
+    color: #46644c;
+    box-shadow: 0 8px 18px rgba(11, 70, 28, 0.07);
+  }
+
+  .app-light .zandofy-storefront-hero {
+    border-color: rgba(103, 239, 136, 0.30);
+    background: #07341a;
+    color: #ffffff;
+    box-shadow: 0 20px 42px rgba(5, 70, 26, 0.24), 0 1px 0 rgba(255, 255, 255, 0.12) inset;
+  }
+
+  .app-light .zandofy-storefront-hero > [class*="bg-[linear-gradient"] {
+    background: linear-gradient(180deg, rgba(2, 27, 11, 0.08), rgba(2, 34, 14, 0.84));
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .app-light .zandofy-storefront-hero .text-white,
+  .app-light .zandofy-storefront-hero [class*="text-white/"] {
+    color: #ffffff;
+  }
+
+  .app-light .zandofy-storefront-hero [class*="text-[#15EA3E"] {
+    color: #8df4a6;
+  }
+
+  .app-light .zandofy-flow-panel {
+    border-color: rgba(11, 103, 38, 0.16);
+    background: rgba(255, 255, 255, 0.90);
+    box-shadow: 0 16px 32px rgba(10, 71, 28, 0.10), 0 1px 0 rgba(255, 255, 255, 0.94) inset;
+  }
+
+  .app-light .zandofy-flow-demo {
+    border-color: rgba(104, 242, 140, 0.28);
+    background: radial-gradient(circle at 18% 18%, rgba(21, 234, 62, 0.20), transparent 34%), linear-gradient(135deg, #062e16, #0b5a2b 58%, #063719);
+    color: #ffffff;
+    box-shadow: 0 18px 38px rgba(5, 68, 25, 0.24);
+  }
+
+  .app-light .zandofy-flow-demo [class*="bg-black/"] {
+    background-color: rgba(0, 0, 0, 0.42);
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .app-light .zandofy-flow-demo [class*="bg-white/"] {
+    border-color: rgba(255, 255, 255, 0.16);
+    background-color: rgba(255, 255, 255, 0.10);
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .app-light .zandofy-flow-demo [class*="text-[#15EA3E"] {
+    color: #8df4a6;
+  }
+
+  .app-light .zandofy-category-rail > span {
+    border-color: rgba(11, 105, 39, 0.14);
+    background: rgba(255, 255, 255, 0.84);
+    color: #45634b;
+    box-shadow: 0 7px 16px rgba(11, 71, 29, 0.06);
+  }
+
+  .app-light .zandofy-store-card {
+    border-color: rgba(11, 97, 35, 0.14);
+    background: rgba(255, 255, 255, 0.90);
+    box-shadow: 0 11px 24px rgba(10, 68, 28, 0.08), 0 1px 0 rgba(255, 255, 255, 0.92) inset;
+  }
+
+  /* Profiles: clear workspaces below an editorial identity header. */
+  .app-light .profile-private,
+  .app-light .profile-public {
+    background:
+      radial-gradient(circle at 90% 0%, rgba(21, 234, 62, 0.15), transparent 24%),
+      linear-gradient(180deg, #f8fcf7 0%, #edf6ec 56%, #f8fcf7 100%);
+  }
+
+  .app-light .profile-public-header {
+    border-bottom: 1px solid rgba(11, 92, 34, 0.10);
+    background: rgba(248, 252, 246, 0.88);
+    box-shadow: 0 8px 20px rgba(10, 67, 27, 0.07);
+  }
+
+  .app-light .profile-private-hero,
+  .app-light .profile-public-hero {
+    background: #07361a;
+    border-color: rgba(106, 241, 140, 0.26);
+    color: #ffffff;
+    box-shadow: 0 18px 36px rgba(5, 71, 27, 0.20);
+  }
+
+  .app-light .profile-private-hero [class*="bg-[linear-gradient"],
+  .app-light .profile-public-hero [class*="bg-[linear-gradient"] {
+    background: linear-gradient(180deg, rgba(2, 25, 10, 0.08), rgba(2, 31, 12, 0.86));
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .app-light .profile-private-hero [class*="bg-[radial-gradient"],
+  .app-light .profile-public-hero [class*="bg-[radial-gradient"] {
+    background: radial-gradient(circle at 82% 12%, rgba(124, 247, 153, 0.24), transparent 38%);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .app-light .profile-private-hero .text-white,
+  .app-light .profile-private-hero [class*="text-white/"],
+  .app-light .profile-public-hero .text-white,
+  .app-light .profile-public-hero [class*="text-white/"] {
+    color: #ffffff;
+  }
+
+  .app-light .profile-private-hero [class*="text-[#15EA3E"],
+  .app-light .profile-public-hero [class*="text-[#15EA3E"] {
+    color: #8df4a6;
+  }
+
+  .app-light .profile-private-hero [class*="bg-white/"],
+  .app-light .profile-public-hero [class*="bg-white/"] {
+    border-color: rgba(255, 255, 255, 0.17);
+    background-color: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .app-light .profile-private-header [class*="bg-black/"] {
+    border-color: rgba(255, 255, 255, 0.16);
+    background-color: rgba(0, 0, 0, 0.34);
+    color: #ffffff;
+  }
+
+  .app-light .profile-private-business-card,
+  .app-light .profile-private-action-card,
+  .app-light .profile-public-business-card,
+  .app-light .profile-public-review-panel,
+  .app-light .profile-public-product-card {
+    border-color: rgba(11, 97, 35, 0.14);
+    background: rgba(255, 255, 255, 0.91);
+    box-shadow: 0 12px 26px rgba(10, 68, 28, 0.09), 0 1px 0 rgba(255, 255, 255, 0.94) inset;
+  }
+
+  .app-light .profile-private-action-card {
+    background: linear-gradient(145deg, #ffffff, #eaf6e9);
+  }
+
+  .app-light .profile-public-content-card {
+    border-color: rgba(11, 97, 35, 0.16);
+    color: #ffffff;
+    box-shadow: 0 12px 25px rgba(10, 58, 25, 0.14);
+  }
+
+  .app-light .profile-public-content-card > [class*="bg-[linear-gradient"] {
+    background: linear-gradient(180deg, transparent 28%, rgba(2, 22, 9, 0.88));
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  .app-light .profile-public-content-card .text-white,
+  .app-light .profile-public-content-card [class*="text-white/"] {
+    color: #ffffff;
+  }
+
+  .app-light .profile-public-review-panel [class*="bg-black/"] {
+    background: #f6fbf5;
+    border-color: rgba(11, 97, 35, 0.12);
+    color: #17351e;
+  }
+
+  /* The main navigation is its own control surface: it should stay crisp in light mode. */
+  .app-light .afri-bottom-navigation-shell {
+    border-color: rgba(9, 92, 34, 0.20);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(227, 244, 228, 0.96));
+    box-shadow: 0 14px 32px rgba(8, 62, 25, 0.18), 0 1px 0 rgba(255, 255, 255, 0.98) inset;
+    color: #17351e;
+  }
+
+  .app-light .afri-bottom-navigation-link {
+    color: #536b59;
+  }
+
+  .app-light .afri-bottom-navigation-link:hover {
+    background: rgba(13, 126, 47, 0.08);
+  }
+
+  .app-light .afri-bottom-navigation-link[aria-current="page"] {
+    background: linear-gradient(145deg, rgba(20, 214, 68, 0.22), rgba(255, 255, 255, 0.82));
+    box-shadow: inset 0 0 0 1px rgba(10, 125, 42, 0.20);
+  }
+
+  .app-light .afri-bottom-navigation-link .afrisell-nav-image {
+    filter: none;
+    mix-blend-mode: multiply;
+    opacity: 0.92;
+  }
+
+  .app-light .afri-bottom-navigation-link[aria-current="page"] .afrisell-nav-image {
+    opacity: 1;
+    filter: saturate(1.18) contrast(1.12);
+  }
+
+  .app-light .afri-bottom-navigation-link svg {
+    color: #0b782d;
+  }
+
+  .app-light .afri-bottom-navigation-label {
+    color: #52695a;
+  }
+
+  .app-light .afri-bottom-navigation-link[aria-current="page"] .afri-bottom-navigation-label {
+    color: #075f24;
+  }
+
+  .app-light .afri-bottom-navigation-create {
+    border-color: rgba(8, 97, 33, 0.42);
+    background: linear-gradient(145deg, #16df45, #0eac35);
+    color: #031706;
+    box-shadow: 0 8px 18px rgba(13, 150, 48, 0.30), 0 1px 0 rgba(255, 255, 255, 0.38) inset;
+  }
+
+  /* White profile panels always receive dark typography; media cards keep their intentional overlay. */
+  .app-light .profile-settings .text-white,
+  .app-light .profile-settings [class*="text-white/"],
+  .app-light .profile-private-content .text-white,
+  .app-light .profile-private-content [class*="text-white/"],
+  .app-light .profile-public-content > :not(.profile-public-hero) .text-white,
+  .app-light .profile-public-content > :not(.profile-public-hero) [class*="text-white/"] {
+    color: #17351e;
+  }
+
+  .app-light .profile-settings [class*="bg-[#15EA3E]"],
+  .app-light .profile-private-content [class*="bg-[#15EA3E]"],
+  .app-light .profile-public-content > :not(.profile-public-hero) [class*="bg-[#15EA3E]"] {
+    color: #071b0c;
+  }
+
+  .app-light .profile-public-content .profile-public-content-card .text-white,
+  .app-light .profile-public-content .profile-public-content-card [class*="text-white/"] {
+    color: #ffffff;
+  }
+
+  .app-light .profile-private-hero .profile-hero-action,
+  .app-light .profile-public-hero .profile-hero-action,
+  .app-light .profile-private-hero .profile-hero-stat,
+  .app-light .profile-public-hero .profile-hero-stat {
+    border-color: rgba(167, 255, 190, 0.28);
+    background: rgba(2, 40, 14, 0.70);
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(0, 25, 8, 0.24);
+  }
+
+  .app-light .profile-private-hero .profile-hero-action .text-white,
+  .app-light .profile-public-hero .profile-hero-action .text-white,
+  .app-light .profile-private-hero .profile-hero-stat .text-white,
+  .app-light .profile-public-hero .profile-hero-stat .text-white,
+  .app-light .profile-private-hero .profile-hero-stat [class*="text-white/"],
+  .app-light .profile-public-hero .profile-hero-stat [class*="text-white/"] {
+    color: #ffffff;
   }
 }
 
@@ -431,4 +1097,117 @@
     opacity: 1;
     transform: scaleY(1);
   }
+}
+
+/* The desktop preview keeps the app inside a phone-sized frame. Tailwind's
+ * viewport breakpoints still see the desktop width, so pin this storefront to
+ * its phone-first layout while it is rendered in that frame. */
+@media (min-width: 768px) {
+  .zandofy-public-store #products > div > div:first-child {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .zandofy-public-store #products > div > div:first-child > div:last-child {
+    max-width: none;
+    width: 100%;
+  }
+
+  .zandofy-public-store #products > div > div:nth-child(3) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zandofy-public-store #about > div,
+  .zandofy-public-store #about > div > div:last-child,
+  .zandofy-public-store #contact + section > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zandofy-public-store #contact > div,
+  .zandofy-public-store footer > div:first-child,
+  .zandofy-public-store footer > div:last-child {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .zandofy-public-store #contact > div > div {
+    width: 100%;
+  }
+
+  .zandofy-public-store #contact > div > div > * {
+    flex: 1 1 0%;
+  }
+}
+
+/* Shared Lottie states keep feedback visible on dark and light module surfaces. */
+.afrizia-loading-state {
+  color: #15EA3E;
+}
+
+.afrizia-lottie-frame,
+.afrizia-lottie-frame > svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.afrizia-splash {
+  background: #030704;
+}
+
+.afrizia-splash-grid {
+  background-image: linear-gradient(rgba(21, 234, 62, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(21, 234, 62, 0.045) 1px, transparent 1px);
+  background-position: center;
+  background-size: 26px 26px;
+  mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent);
+}
+
+.afrizia-splash-scan {
+  border: 1px solid rgba(21, 234, 62, 0.18);
+  border-radius: 50%;
+  height: 17rem;
+  transform: translate(-50%, -50%);
+  width: 17rem;
+  animation: afrizia-splash-scan 4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.afrizia-splash-logo {
+  animation: afrizia-splash-logo 4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  filter: drop-shadow(0 0 28px rgba(21, 234, 62, 0.36));
+}
+
+.afrizia-splash-line {
+  background: #15EA3E;
+  height: 2px;
+  width: 2.5rem;
+  animation: afrizia-splash-line 4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes afrizia-splash-logo {
+  0% { opacity: 0; transform: scale(0.72); }
+  28% { opacity: 1; transform: scale(1.05); }
+  48% { transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes afrizia-splash-scan {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.45); }
+  34% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0.34; transform: translate(-50%, -50%) scale(1.18); }
+}
+
+@keyframes afrizia-splash-line {
+  0%, 26% { opacity: 0; transform: scaleX(0); }
+  48% { opacity: 1; transform: scaleX(1.22); }
+  100% { opacity: 1; transform: scaleX(1); }
+}
+
+.app-light .afrizia-loading-state {
+  color: #087A28;
+}
+
+/* The brand opening is intentionally immersive, regardless of the selected UI theme. */
+.app-light .afrizia-splash {
+  background: #050705 !important;
+  color: #fff !important;
 }

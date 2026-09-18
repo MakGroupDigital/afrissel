@@ -8,7 +8,7 @@ const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
-  '/afrisell-super-app-icon.png',
+  '/afrizia-super-app-icon.png',
   '/afrispay.jpeg',
   '/afrimarket.jpeg',
   '/africhat.jpeg',
@@ -160,8 +160,8 @@ self.addEventListener('fetch', (event) => {
 
 self.addEventListener('push', (event) => {
   let payload = {
-    title: 'AfriSell',
-    body: 'Nouvelle alerte AfriSell.',
+    title: 'AfriZia',
+    body: 'Nouvelle alerte AfriZia.',
     url: '/'
   };
 
@@ -176,8 +176,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: '/afrisell-super-app-icon.png',
-      badge: '/afrisell-super-app-icon.png',
+      icon: '/afrizia-super-app-icon.png',
+      badge: '/afrizia-super-app-icon.png',
       data: {
         url: payload.url || '/'
       }

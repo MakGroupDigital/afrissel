@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AfriSellIcon } from './AfriSellIcon';
+import { AfriZiaIcon } from './AfriZiaIcon';
 import { cn } from '../lib/utils';
 import { isTauriNative } from '../lib/nativePlatform';
 
@@ -9,7 +9,18 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 const SNOOZE_KEY = 'afrisell:pwa-install-snooze-until';
+const ELIGIBLE_AT_KEY = 'afrisell:pwa-install-eligible-at';
 const NOTIFICATION_READY_KEY = 'afrisell:notifications-ready';
+const INSTALL_PROMPT_DELAY_MS = 3 * 24 * 60 * 60 * 1000;
+
+const getInstallEligibleAt = () => {
+  const storedValue = Number(window.localStorage.getItem(ELIGIBLE_AT_KEY) || 0);
+  if (Number.isFinite(storedValue) && storedValue > 0) return storedValue;
+
+  const eligibleAt = Date.now() + INSTALL_PROMPT_DELAY_MS;
+  window.localStorage.setItem(ELIGIBLE_AT_KEY, String(eligibleAt));
+  return eligibleAt;
+};
 
 const isStandaloneApp = () => {
   if (typeof window === 'undefined') return false;
@@ -42,11 +53,19 @@ export default function PwaInstallPrompt() {
   useEffect(() => {
     if (isTauriNative()) return;
 
+    const showWhenEligible = () => {
+      const snoozeUntil = Number(window.localStorage.getItem(SNOOZE_KEY) || 0);
+      const eligibleAt = getInstallEligibleAt();
+      const canShow = Date.now() >= Math.max(eligibleAt, snoozeUntil) &&
+        (!isStandaloneApp() || (!notificationsEnabled && !notificationsUnsupported));
+      setVisible(canShow);
+    };
+
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event as BeforeInstallPromptEvent);
       setInstalled(isStandaloneApp());
-      setVisible(true);
+      showWhenEligible();
     };
 
     const handleInstalled = () => {
@@ -59,10 +78,11 @@ export default function PwaInstallPrompt() {
     window.addEventListener('appinstalled', handleInstalled);
 
     const snoozeUntil = Number(window.localStorage.getItem(SNOOZE_KEY) || 0);
-    const shouldShow = Date.now() > snoozeUntil && (!isStandaloneApp() || (!notificationsEnabled && !notificationsUnsupported));
+    const eligibleAt = getInstallEligibleAt();
+    const showAt = Math.max(eligibleAt, snoozeUntil);
     const timer = window.setTimeout(() => {
-      if (shouldShow) setVisible(true);
-    }, 1400);
+      showWhenEligible();
+    }, Math.max(0, showAt - Date.now()));
 
     return () => {
       window.clearTimeout(timer);
@@ -129,10 +149,10 @@ export default function PwaInstallPrompt() {
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black">
-              <AfriSellIcon name="app" size={20} />
+              <AfriZiaIcon name="app" size={20} />
             </div>
             <div>
-              <p className="text-sm font-black">{isIOS ? 'Installer AfriSell' : 'Telecharger AfriSell'}</p>
+              <p className="text-sm font-black">{isIOS ? 'Installer AfriZia' : 'Telecharger AfriZia'}</p>
               <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/56">
                 {isIOS
                   ? "Ajoute l'app à ton écran et active les alertes en temps réel."
@@ -146,7 +166,7 @@ export default function PwaInstallPrompt() {
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/48"
             aria-label="Fermer"
           >
-            <AfriSellIcon name="close" size={15} />
+            <AfriZiaIcon name="close" size={15} />
           </button>
         </div>
 
@@ -160,7 +180,7 @@ export default function PwaInstallPrompt() {
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black disabled:opacity-60"
               >
                 Telecharger
-                <AfriSellIcon name="arrow" size={16} />
+                <AfriZiaIcon name="arrow" size={16} />
               </button>
             ) : canInstallWithPrompt ? (
               <button
@@ -170,7 +190,7 @@ export default function PwaInstallPrompt() {
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black disabled:opacity-60"
               >
                 Telecharger
-                <AfriSellIcon name="arrow" size={16} />
+                <AfriZiaIcon name="arrow" size={16} />
               </button>
             ) : (
               <div className="rounded-2xl border border-white/10 bg-black/30 p-3">
@@ -186,7 +206,7 @@ export default function PwaInstallPrompt() {
                         {index + 1}
                       </span>
                       <span>{step}</span>
-                      {index < 2 && <AfriSellIcon name="arrow" size={13} className="mt-1 shrink-0 text-[#15EA3E]" />}
+                      {index < 2 && <AfriZiaIcon name="arrow" size={13} className="mt-1 shrink-0 text-[#15EA3E]" />}
                     </div>
                   ))}
                 </div>
@@ -200,7 +220,7 @@ export default function PwaInstallPrompt() {
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
             notificationsEnabled ? 'bg-[#15EA3E] text-black' : 'bg-white/[0.05] text-[#15EA3E]'
           )}>
-            <AfriSellIcon name={notificationsEnabled ? 'check' : 'notifications'} size={17} />
+            <AfriZiaIcon name={notificationsEnabled ? 'check' : 'notifications'} size={17} />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-black">Notifications</p>

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "AfriSell",
-  "version": "1.0.2",
+  "productName": "AfriZia",
+  "version": "1.0.4",
   "identifier": "com.makgroupdigital.afrissel",
   "build": {
     "frontendDist": "../dist",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "AfriSell",
+        "title": "AfriZia",
         "width": 430,
         "height": 932,
         "minWidth": 390,

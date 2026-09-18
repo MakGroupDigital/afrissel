@@ -1,7 +1,7 @@
-import type { AfriSellServiceName } from './apiClient';
+import type { AfriZiaServiceName } from './apiClient';
 
 export type DomainDefinition = {
-  id: AfriSellServiceName;
+  id: AfriZiaServiceName;
   label: string;
   responsibility: string;
   frontendScope: string[];
@@ -76,6 +76,6 @@ export const domainRegistry: DomainDefinition[] = [
   }
 ];
 
-export const getDomainDefinition = (id: AfriSellServiceName) => (
+export const getDomainDefinition = (id: AfriZiaServiceName) => (
   domainRegistry.find((domain) => domain.id === id)
 );
