@@ -155,7 +155,7 @@ export default function PublicProfileScreen() {
           <p className="mt-2 text-sm font-semibold leading-relaxed text-white/45">Cet utilisateur n'est pas encore visible publiquement.</p>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto pb-8 scrollbar-hide">
+        <div className="profile-public-content min-h-0 flex-1 overflow-y-auto pb-8 scrollbar-hide">
           <section className="profile-public-hero relative overflow-hidden border-b border-white/10 bg-[#050805]">
             <div className="relative h-44">
               <img src={coverImage} alt="" className="h-full w-full object-cover" />

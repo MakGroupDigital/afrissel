@@ -36,8 +36,8 @@ export default function BottomNavigation() {
 
   return (
     <>
-      <nav className="absolute bottom-3 inset-x-3 z-40">
-        <div className="relative flex h-[4.25rem] items-center justify-between gap-0.5 rounded-[2rem] border border-white/10 bg-black/82 px-2 py-1.5 shadow-[0_18px_42px_rgba(0,0,0,0.62),0_1px_0_rgba(255,255,255,0.08)_inset] backdrop-blur-2xl">
+      <nav className="afri-bottom-navigation absolute bottom-3 inset-x-3 z-40">
+        <div className="afri-bottom-navigation-shell relative flex h-[4.25rem] items-center justify-between gap-0.5 rounded-[2rem] border border-white/10 bg-black/82 px-2 py-1.5 shadow-[0_18px_42px_rgba(0,0,0,0.62),0_1px_0_rgba(255,255,255,0.08)_inset] backdrop-blur-2xl">
           {navItems.slice(0, 2).map((item) => (
             <NavigationLink key={item.path} item={item} pathname={location.pathname} />
           ))}
@@ -46,7 +46,7 @@ export default function BottomNavigation() {
             type="button"
             onClick={openCreatePage}
             className={cn(
-              'mx-0.5 flex h-[2.78rem] w-[2.78rem] shrink-0 items-center justify-center rounded-[1.18rem] border transition-all active:scale-95',
+              'afri-bottom-navigation-create mx-0.5 flex h-[2.78rem] w-[2.78rem] shrink-0 items-center justify-center rounded-[1.18rem] border transition-all active:scale-95',
               'border-[#15EA3E]/35 bg-[#15EA3E] text-black shadow-[0_0_20px_rgba(21,234,62,0.34)]'
             )}
             aria-label="Ajouter"
@@ -87,7 +87,7 @@ function NavigationLink({ item, pathname }: { key?: React.Key; item: NavigationI
     <NavLink
       to={item.path}
       className={cn(
-        'group flex h-full shrink-0 flex-col items-center justify-center gap-0.5 transition-all duration-300',
+        'afri-bottom-navigation-link group flex h-full shrink-0 flex-col items-center justify-center gap-0.5 transition-all duration-300',
         shellClass,
         isActive ? 'bg-white/[0.075]' : 'hover:bg-white/[0.035]',
         item.shape === 'soft' && isActive && 'ring-1 ring-[#15EA3E]/24',
@@ -124,7 +124,7 @@ function NavigationLink({ item, pathname }: { key?: React.Key; item: NavigationI
       </span>
       {showLabel && (
         <span className={cn(
-          'max-w-full truncate text-center text-[7.2px] font-bold leading-none transition-colors duration-300',
+          'afri-bottom-navigation-label max-w-full truncate text-center text-[7.2px] font-bold leading-none transition-colors duration-300',
           isActive ? 'text-[#15EA3E]' : 'text-white/68 group-hover:text-white/86',
           item.shape === 'wide' && 'tracking-[-0.01em]'
         )}>

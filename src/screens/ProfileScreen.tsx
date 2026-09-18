@@ -971,7 +971,7 @@ export default function ProfileScreen() {
   return (
     <div className="profile-private relative min-h-full overflow-y-auto bg-black pb-8 text-white scrollbar-hide">
       {isSettingsPage ? (
-        <main className="min-h-full px-4 pb-8 pt-4">
+        <main className="profile-settings min-h-full px-4 pb-8 pt-4">
           <header className="flex items-center justify-between">
             <button type="button" onClick={() => navigate('/profile')} className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white/70">
               <AfriZiaIcon name="arrow" size={18} className="rotate-180" />
@@ -1104,7 +1104,7 @@ export default function ProfileScreen() {
         </div>
       </section>
 
-      <div className="px-4">
+      <div className="profile-private-content px-4">
         {ownedBusinessAccounts.length > 0 && (
           <section className="mt-5">
             <h2 className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-white/52">Comptes business</h2>
