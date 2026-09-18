@@ -65,6 +65,9 @@ export interface AfriZiaUserProfile {
   affiliateReferrerCode?: string;
   affiliateRewardedAt?: unknown;
   businessName?: string;
+  zandofyStoreId?: string;
+  zandofyStoreSlug?: string;
+  zandofyStoreIds?: Record<string, true>;
   businessAccount?: {
     categoryId?: string;
     categoryLabel?: string;

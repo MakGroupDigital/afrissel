@@ -340,6 +340,7 @@ export function useZandofyStore(slug?: string) {
   const [products, setProducts] = useState<ZandofyDigitalProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeOwnerStoreId, setActiveOwnerStoreId] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -365,9 +366,29 @@ export function useZandofyStore(slug?: string) {
     return () => unsubscribe();
   }, []);
 
-  const ownerStore = useMemo(
-    () => stores.find((store) => store.ownerId === user?.uid) || null,
+  const ownerStores = useMemo(
+    () => stores.filter((store) => store.ownerId === user?.uid),
     [stores, user?.uid]
+  );
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setActiveOwnerStoreId('');
+      return;
+    }
+
+    const storageKey = `afrizia:zandofy-active-store:${user.uid}`;
+    const savedStoreId = window.localStorage.getItem(storageKey);
+    const candidates = [activeOwnerStoreId, savedStoreId, profile?.zandofyStoreId];
+    const nextStoreId = candidates.find((id) => id && ownerStores.some((store) => store.id === id)) || ownerStores[0]?.id || '';
+
+    if (nextStoreId && nextStoreId !== savedStoreId) window.localStorage.setItem(storageKey, nextStoreId);
+    if (nextStoreId !== activeOwnerStoreId) setActiveOwnerStoreId(nextStoreId);
+  }, [activeOwnerStoreId, ownerStores, profile?.zandofyStoreId, user?.uid]);
+
+  const ownerStore = useMemo(
+    () => ownerStores.find((store) => store.id === activeOwnerStoreId) || ownerStores[0] || null,
+    [activeOwnerStoreId, ownerStores]
   );
 
   const publicStore = useMemo(
@@ -485,7 +506,9 @@ export function useZandofyStore(slug?: string) {
       suffix += 1;
     }
 
-    const id = user.uid;
+    const storeRef = push(ref(realtimeDb, 'zandofyStores'));
+    const id = storeRef.key;
+    if (!id) throw new Error('Création Zandofy impossible. Réessaie dans un instant.');
     const logoUpload = input.logoFile
       ? await uploadMediaToCloudinary(input.logoFile, user.uid)
       : null;
@@ -526,11 +549,30 @@ export function useZandofyStore(slug?: string) {
       [`zandofySlugs/${slug}`]: id,
       [`users/${user.uid}/zandofyStoreId`]: id,
       [`users/${user.uid}/zandofyStoreSlug`]: slug,
+      [`users/${user.uid}/zandofyStoreIds/${id}`]: true,
       [`users/${user.uid}/updatedAt`]: serverTimestamp()
     });
 
+    window.localStorage.setItem(`afrizia:zandofy-active-store:${user.uid}`, id);
+    setActiveOwnerStoreId(id);
     await refreshProfile();
     return normalizeStore(id, store);
+  };
+
+  const switchOwnerStore = async (storeId: string) => {
+    if (!user) throw new Error('Connecte-toi pour gérer tes boutiques.');
+    const targetStore = ownerStores.find((store) => store.id === storeId);
+    if (!targetStore) throw new Error('Cette boutique ne fait pas partie de ton compte.');
+
+    await update(ref(realtimeDb), {
+      [`users/${user.uid}/zandofyStoreId`]: targetStore.id,
+      [`users/${user.uid}/zandofyStoreSlug`]: targetStore.slug,
+      [`users/${user.uid}/zandofyStoreIds/${targetStore.id}`]: true,
+      [`users/${user.uid}/updatedAt`]: serverTimestamp()
+    });
+    window.localStorage.setItem(`afrizia:zandofy-active-store:${user.uid}`, targetStore.id);
+    setActiveOwnerStoreId(targetStore.id);
+    await refreshProfile();
   };
 
   const updateCustomDomain = async (domain: string, action: 'connect' | 'verify' | 'status' = 'connect'): Promise<ZandofyDomainResult> => {
@@ -1010,12 +1052,15 @@ export function useZandofyStore(slug?: string) {
 
   return {
     stores,
+    ownerStores,
     ownerStore,
+    activeOwnerStoreId,
     publicStore,
     products,
     loading,
     error,
     createStore,
+    switchOwnerStore,
     updateCustomDomain,
     updateStoreProfile,
     createDigitalProduct,

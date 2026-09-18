@@ -481,8 +481,10 @@ export default function ZandofyMarketplaceScreen() {
 
 export function ZandofyCreateStoreScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, profile } = useFirebaseAuth();
   const { ownerStore, createStore } = useZandofyStore();
+  const isAdditionalStore = new URLSearchParams(location.search).get('new') === '1';
   const detectedCountryCode = getInitialCountryCode();
   const detectedCountry = getCountryByCode(detectedCountryCode) || AFRICAN_COUNTRIES_BY_PRIORITY[0];
   const [step, setStep] = useState(0);
@@ -509,7 +511,7 @@ export function ZandofyCreateStoreScreen() {
     );
   }
 
-  if (ownerStore) {
+  if (ownerStore && !isAdditionalStore) {
     return (
       <main className="flex min-h-full flex-col justify-center bg-[#030604] p-5 text-white">
         <div className="rounded-[2rem] border border-[#15EA3E]/18 bg-[#071007] p-5 text-center">
@@ -604,7 +606,7 @@ export function ZandofyCreateStoreScreen() {
         </button>
         <div className="text-center">
           <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#15EA3E]">Zandofy</p>
-          <h1 className="text-sm font-black">Création boutique</h1>
+          <h1 className="text-sm font-black">{isAdditionalStore ? 'Nouvelle boutique' : 'Création boutique'}</h1>
         </div>
         <span className="text-[10px] font-black text-white/38">{step + 1}/4</span>
       </header>
@@ -2690,7 +2692,7 @@ export function ZandofyProductsScreen() {
 
 export function ZandofyDomainScreen() {
   const navigate = useNavigate();
-  const { ownerStore, loading, updateCustomDomain, updateStoreProfile } = useZandofyStore();
+  const { ownerStore, ownerStores, loading, switchOwnerStore, updateCustomDomain, updateStoreProfile } = useZandofyStore();
   const [domain, setDomain] = useState('');
   const [name, setName] = useState('');
   const [tagline, setTagline] = useState('');
@@ -2701,6 +2703,7 @@ export function ZandofyDomainScreen() {
   const [logoPreview, setLogoPreview] = useState('');
   const [status, setStatus] = useState('');
   const [domainResult, setDomainResult] = useState<Awaited<ReturnType<typeof updateCustomDomain>> | null>(null);
+  const [switchingStoreId, setSwitchingStoreId] = useState('');
 
   useEffect(() => {
     if (!ownerStore) return;
@@ -2746,6 +2749,21 @@ export function ZandofyDomainScreen() {
       setStatus('Réglages enregistrés. La boutique publique est à jour.');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Personnalisation impossible.');
+    }
+  };
+
+  const selectStore = async (storeId: string) => {
+    if (storeId === ownerStore.id) return;
+    setSwitchingStoreId(storeId);
+    setStatus('Changement de boutique...');
+    try {
+      await switchOwnerStore(storeId);
+      setDomainResult(null);
+      setStatus('Boutique active mise à jour.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Changement de boutique impossible.');
+    } finally {
+      setSwitchingStoreId('');
     }
   };
 
@@ -2795,6 +2813,36 @@ export function ZandofyDomainScreen() {
               </Link>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="px-4 pt-5">
+        <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Mes boutiques</p>
+              <h2 className="mt-1 text-base font-black">Gérer une autre boutique</h2>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-white/46">Choisis la boutique dont tu veux gérer les produits, commandes et réglages.</p>
+            </div>
+            <Link to="/zandofy/create?new=1" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#15EA3E] text-black" aria-label="Créer une autre boutique">
+              <AfriZiaIcon name="plus" size={17} />
+            </Link>
+          </div>
+          <div className="mt-4 space-y-2">
+            {ownerStores.map((store) => {
+              const isActive = store.id === ownerStore.id;
+              return (
+                <button key={store.id} type="button" onClick={() => void selectStore(store.id)} disabled={isActive || switchingStoreId === store.id} className={cn('flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition active:scale-[0.99]', isActive ? 'border-[#15EA3E]/45 bg-[#15EA3E]/10' : 'border-white/10 bg-black/20')}>
+                  <img src={store.logoURL} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
+                  <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black text-white">{store.name}</span><span className="mt-0.5 block truncate text-[10px] font-semibold text-white/45">{store.city}, {store.country}</span></span>
+                  {isActive ? <span className="rounded-full bg-[#15EA3E] px-2 py-1 text-[8px] font-black uppercase tracking-wider text-black">Active</span> : <AfriZiaIcon name="arrow" size={15} className="text-white/45" />}
+                </button>
+              );
+            })}
+          </div>
+          <Link to="/zandofy/create?new=1" className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[#15EA3E]/35 bg-[#15EA3E]/6 py-3 text-[10px] font-black uppercase tracking-wider text-[#15EA3E]">
+            <AfriZiaIcon name="plus" size={15} /> Créer une autre boutique
+          </Link>
         </div>
       </section>
 
