@@ -101,7 +101,7 @@ const afriSpayHomeActions: HomeWalletAction[] = [
   { label: 'Retrait', icon: 'withdraw', type: 'withdraw' },
   { label: 'Envoyer', icon: 'send', type: 'transfer' },
   { label: 'Scanner', icon: 'scan' },
-  { label: 'Payer', icon: 'pay' }
+  { label: 'Encaisser', icon: 'pay' }
 ];
 
 const isLightThemePreferred = () => window.localStorage.getItem('afrisell:ecosystem-theme') !== 'dark';
@@ -628,7 +628,7 @@ export default function EcosystemHome() {
     }
 
     if (!action.type) {
-      navigate(action.icon === 'scan' ? '/scan' : '/wallet');
+      navigate(action.icon === 'scan' ? '/scan' : '/wallet?action=collect');
       return;
     }
 

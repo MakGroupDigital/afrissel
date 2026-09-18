@@ -8,6 +8,8 @@ import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { executeWalletOperation, WalletOperationType } from '../domains/payment';
 import { realtimeDb } from '../lib/firebase';
+import { createAfriSpayPaymentLink, getAfriSpayPaymentLinkURL, AfriSpayPaymentLink } from '../domains/payment/paymentLinks';
+import { copyShareLink, shareLink } from '../lib/shareLink';
 
 type WalletSecuritySettings = {
   pinEnabled: boolean;
@@ -17,6 +19,7 @@ type WalletSecuritySettings = {
 };
 
 type KycStatus = 'none' | 'pending' | 'verified' | 'rejected';
+type WalletDashboardAction = WalletOperationType | 'collect' | 'scan';
 
 const formatMoney = (amount: number, currency: string) =>
   new Intl.NumberFormat('fr-FR', {
@@ -78,7 +81,7 @@ export default function WalletDashboard() {
   const { wallet, balance, currency, accountLabel, transactions, loading, error } = useAfriSpayWallet();
   const [showBalance, setShowBalance] = React.useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeAction = searchParams.get('action') as WalletOperationType | 'scan' | null;
+  const activeAction = searchParams.get('action') as WalletDashboardAction | null;
   const [amount, setAmount] = React.useState('');
   const [recipient, setRecipient] = React.useState('');
   const [note, setNote] = React.useState('');
@@ -92,6 +95,13 @@ export default function WalletDashboard() {
     biometricEnabled: false
   });
   const [privacyShieldVisible, setPrivacyShieldVisible] = React.useState(false);
+  const [linkTitle, setLinkTitle] = React.useState('');
+  const [linkDescription, setLinkDescription] = React.useState('');
+  const [linkAmountMode, setLinkAmountMode] = React.useState<'fixed' | 'open'>('fixed');
+  const [linkAmount, setLinkAmount] = React.useState('');
+  const [paymentLink, setPaymentLink] = React.useState<AfriSpayPaymentLink | null>(null);
+  const [linkBusy, setLinkBusy] = React.useState(false);
+  const [linkStatus, setLinkStatus] = React.useState('');
   const [liveUserKycStatus, setLiveUserKycStatus] = React.useState<KycStatus>(normalizeKycStatus(profile?.kycStatus));
   const [latestRequestKycStatus, setLatestRequestKycStatus] = React.useState<KycStatus>('none');
   const profileKycStatus = normalizeKycStatus(profile?.kycStatus);
@@ -112,10 +122,11 @@ export default function WalletDashboard() {
   const hasWalletPin = Boolean(securitySettings.pinEnabled && securitySettings.pinHash);
   const canUseBiometric = Boolean(securitySettings.biometricEnabled && securitySettings.biometricCredentialId);
 
-  const actions = [
+  const actions: Array<{ label: string; action: WalletDashboardAction; icon: AfriZiaIconName; color: string }> = [
     { label: 'Dépôt', action: 'deposit', icon: 'deposit' as AfriZiaIconName, color: 'text-white' },
     { label: 'Retrait', action: 'withdraw', icon: 'withdraw' as AfriZiaIconName, color: 'text-white' },
     { label: 'Envoyer', action: 'transfer', icon: 'send' as AfriZiaIconName, color: 'text-white' },
+    { label: 'Encaisser', action: 'collect', icon: 'pay' as AfriZiaIconName, color: 'text-[#15EA3E]' },
     { label: 'Scan', action: 'scan', icon: 'scan' as AfriZiaIconName, color: 'text-[#15EA3E]' },
   ];
   const activeActionLabel = actions.find((action) => action.action === activeAction)?.label;
@@ -133,6 +144,8 @@ export default function WalletDashboard() {
     setRecipient('');
     setNote('');
     setOperationStatus('');
+    setPaymentLink(null);
+    setLinkStatus('');
   }, [activeAction]);
 
   React.useEffect(() => {
@@ -443,7 +456,7 @@ export default function WalletDashboard() {
 
   const submitOperation = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!activeAction || activeAction === 'scan') return;
+    if (!activeAction || activeAction === 'scan' || activeAction === 'collect') return;
 
     if (!user) {
       setOperationStatus('Connecte-toi pour utiliser AfriSpay.');
@@ -479,6 +492,58 @@ export default function WalletDashboard() {
       setOperationStatus(operationError instanceof Error ? operationError.message : 'Operation AfriSpay impossible.');
     } finally {
       setOperationBusy(false);
+    }
+  };
+
+  const createPaymentLink = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user) return;
+    setLinkBusy(true);
+    setLinkStatus('');
+    try {
+      const link = await createAfriSpayPaymentLink({
+        user,
+        ownerName: profile?.displayName || user.displayName || 'AfriSpay',
+        ownerPhotoURL: profile?.photoURL || user.photoURL || '',
+        title: linkTitle,
+        description: linkDescription,
+        amountMode: linkAmountMode,
+        amount: Number(linkAmount),
+        currency
+      });
+      setPaymentLink(link);
+      setLinkStatus('Lien de paiement créé. Tu peux le partager immédiatement.');
+    } catch (error) {
+      setLinkStatus(error instanceof Error ? error.message : 'Création du lien impossible.');
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
+  const sharePaymentLink = async () => {
+    if (!paymentLink) return;
+    try {
+      const result = await shareLink({
+        url: getAfriSpayPaymentLinkURL(paymentLink.id),
+        title: `Paiement AfriSpay · ${paymentLink.title}`,
+        text: paymentLink.amountMode === 'fixed'
+          ? `Règle ${formatMoney(Number(paymentLink.amount || 0), paymentLink.currency)} de façon sécurisée.`
+          : 'Utilise ce lien AfriSpay pour régler ce paiement.'
+      });
+      setLinkStatus(result === 'shared' ? 'Lien partagé.' : 'Lien copié.');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setLinkStatus('Partage du lien impossible.');
+    }
+  };
+
+  const copyPaymentLink = async () => {
+    if (!paymentLink) return;
+    try {
+      await copyShareLink(getAfriSpayPaymentLinkURL(paymentLink.id));
+      setLinkStatus('Lien copié.');
+    } catch {
+      setLinkStatus('Copie du lien impossible.');
     }
   };
 
@@ -634,7 +699,7 @@ export default function WalletDashboard() {
       )}
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-5 gap-2">
          {actions.map((act) => {
            const isAccent = act.label === 'Scan';
            return (
@@ -648,7 +713,7 @@ export default function WalletDashboard() {
                     setSearchParams({ action: act.action });
                   }}
                   className={cn(
-                  "w-14 h-14 rounded-xl flex items-center justify-center transition-all bg-[#0A0A0A] border hover:-translate-y-1",
+                  "h-12 w-full rounded-xl flex items-center justify-center transition-all bg-[#0A0A0A] border hover:-translate-y-1",
                   isAccent 
                     ? "border-[#15EA3E]/40 shadow-[0_0_15px_rgba(21,234,62,0.15)]" 
                     : "border-gray-800 hover:border-gray-700 active:scale-95"
@@ -661,7 +726,40 @@ export default function WalletDashboard() {
          })}
       </div>
 
-      {activeActionLabel && activeAction !== 'scan' && (
+      {activeAction === 'collect' && (
+        <form onSubmit={createPaymentLink} className="rounded-2xl border border-[#15EA3E]/20 bg-[#0A0A0A] p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Encaisser</p>
+              <h2 className="mt-1 text-lg font-black text-white">Lien de paiement AfriSpay</h2>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-gray-500">Crée un lien personnel. Toute personne peut payer par Mobile Money, même sans compte.</p>
+            </div>
+            <button type="button" onClick={() => setSearchParams({})} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-800 text-gray-500"><AfriZiaIcon name="close" size={16} /></button>
+          </div>
+
+          {!paymentLink ? <>
+            <input value={linkTitle} onChange={(event) => setLinkTitle(event.target.value)} placeholder="Objet du paiement, ex. Consultation" className="mt-4 h-12 w-full rounded-2xl border border-gray-800 bg-black px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50" />
+            <textarea value={linkDescription} onChange={(event) => setLinkDescription(event.target.value)} rows={2} placeholder="Détail optionnel" className="mt-2 w-full resize-none rounded-2xl border border-gray-800 bg-black px-4 py-3 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50" />
+            <p className="mt-3 text-[10px] font-black uppercase tracking-wider text-gray-500">Montant</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setLinkAmountMode('fixed')} className={cn('rounded-xl border px-3 py-3 text-left text-xs font-black', linkAmountMode === 'fixed' ? 'border-[#15EA3E] bg-[#15EA3E]/10 text-white' : 'border-gray-800 bg-black text-gray-400')}>Montant fixe<span className="mt-1 block text-[9px] font-semibold text-white/40">Le client règle ce montant.</span></button>
+              <button type="button" onClick={() => setLinkAmountMode('open')} className={cn('rounded-xl border px-3 py-3 text-left text-xs font-black', linkAmountMode === 'open' ? 'border-[#15EA3E] bg-[#15EA3E]/10 text-white' : 'border-gray-800 bg-black text-gray-400')}>Montant libre<span className="mt-1 block text-[9px] font-semibold text-white/40">Le client choisit le montant.</span></button>
+            </div>
+            {linkAmountMode === 'fixed' && <div className="mt-2 flex overflow-hidden rounded-2xl border border-gray-800 bg-black"><input value={linkAmount} onChange={(event) => setLinkAmount(event.target.value)} inputMode="decimal" placeholder="Montant" className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm font-semibold text-white outline-none" /><span className="flex items-center border-l border-gray-800 px-3 text-xs font-black text-[#15EA3E]">{currency}</span></div>}
+            {linkStatus && <p className={cn('mt-3 rounded-xl border px-3 py-2 text-[11px] font-bold leading-relaxed', /impossible|valide|donne/i.test(linkStatus) ? 'border-red-500/25 bg-red-500/10 text-red-100' : 'border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]')}>{linkStatus}</p>}
+            <button type="submit" disabled={linkBusy} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black disabled:opacity-60">{linkBusy ? 'Création...' : 'Créer le lien'}<AfriZiaIcon name="arrow" size={16} /></button>
+          </> : <>
+            <div className="mt-4 rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/8 p-3">
+              <div className="flex items-center gap-3"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(getAfriSpayPaymentLinkURL(paymentLink.id))}`} alt="QR code du lien de paiement" className="h-20 w-20 rounded-xl bg-white p-1" /><div className="min-w-0 flex-1"><p className="text-xs font-black text-white">{paymentLink.title}</p><p className="mt-1 break-all text-[10px] font-semibold leading-relaxed text-white/46">{getAfriSpayPaymentLinkURL(paymentLink.id)}</p><p className="mt-2 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">{paymentLink.reference}</p></div></div>
+              <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => void sharePaymentLink()} className="rounded-xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black">Partager</button><button type="button" onClick={() => void copyPaymentLink()} className="rounded-xl border border-white/12 bg-white/[0.05] py-3 text-[10px] font-black uppercase tracking-wider text-white/72">Copier</button></div>
+            </div>
+            {linkStatus && <p className="mt-3 rounded-xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-3 py-2 text-[11px] font-bold leading-relaxed text-[#15EA3E]">{linkStatus}</p>}
+            <button type="button" onClick={() => { setPaymentLink(null); setLinkTitle(''); setLinkDescription(''); setLinkAmount(''); setLinkStatus(''); }} className="mt-3 w-full py-2 text-[10px] font-black uppercase tracking-wider text-white/48">Créer un autre lien</button>
+          </>}
+        </form>
+      )}
+
+      {activeActionLabel && activeAction !== 'scan' && activeAction !== 'collect' && (
         <form onSubmit={submitOperation} className="rounded-2xl border border-[#15EA3E]/20 bg-[#0A0A0A] p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
