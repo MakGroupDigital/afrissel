@@ -186,7 +186,7 @@ export default function PublicProfileScreen() {
                     type="button"
                     disabled={!followSample || isFollowed}
                     onClick={() => followSample && void followAuthor(followSample)}
-                    className="flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-[10px] font-black uppercase tracking-widest text-white disabled:text-[#15EA3E]"
+                    className="profile-hero-action flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-[10px] font-black uppercase tracking-widest text-white disabled:text-[#15EA3E]"
                   >
                     {isFollowed ? 'Suivi' : 'Suivre'}
                   </button>
@@ -218,7 +218,7 @@ export default function PublicProfileScreen() {
                   { value: businessAccounts.length, label: 'Apps' },
                   { value: reviews.length ? reviewAverage.toFixed(1) : '0.0', label: 'Note' }
                 ].map((stat) => (
-                  <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-3 text-center">
+                  <div key={stat.label} className="profile-hero-stat rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-3 text-center">
                     <p className="text-base font-black text-white">{stat.value}</p>
                     <p className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-white/38">{stat.label}</p>
                   </div>

@@ -937,6 +937,25 @@
   .app-light .profile-public-content .profile-public-content-card [class*="text-white/"] {
     color: #ffffff;
   }
+
+  .app-light .profile-private-hero .profile-hero-action,
+  .app-light .profile-public-hero .profile-hero-action,
+  .app-light .profile-private-hero .profile-hero-stat,
+  .app-light .profile-public-hero .profile-hero-stat {
+    border-color: rgba(167, 255, 190, 0.28);
+    background: rgba(2, 40, 14, 0.70);
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(0, 25, 8, 0.24);
+  }
+
+  .app-light .profile-private-hero .profile-hero-action .text-white,
+  .app-light .profile-public-hero .profile-hero-action .text-white,
+  .app-light .profile-private-hero .profile-hero-stat .text-white,
+  .app-light .profile-public-hero .profile-hero-stat .text-white,
+  .app-light .profile-private-hero .profile-hero-stat [class*="text-white/"],
+  .app-light .profile-public-hero .profile-hero-stat [class*="text-white/"] {
+    color: #ffffff;
+  }
 }
 
 @keyframes afrisell-promo-marquee {

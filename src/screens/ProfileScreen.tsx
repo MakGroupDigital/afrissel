@@ -1062,7 +1062,7 @@ export default function ProfileScreen() {
             <div className="mb-2 flex items-center gap-2">
               <Link
                 to={`/u/${user?.uid || ''}`}
-                className="flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-[10px] font-black uppercase tracking-widest text-white"
+                className="profile-hero-action flex h-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.08] px-4 text-[10px] font-black uppercase tracking-widest text-white"
               >
                 Voir public
               </Link>
@@ -1095,7 +1095,7 @@ export default function ProfileScreen() {
               { value: ownedBusinessAccounts.length, label: 'Apps' },
               { value: profile?.kycStatus === 'verified' ? 'OK' : 'ID', label: 'KYC' }
             ].map((stat) => (
-              <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-3 text-center">
+              <div key={stat.label} className="profile-hero-stat rounded-2xl border border-white/10 bg-white/[0.055] px-2 py-3 text-center">
                 <p className="text-base font-black text-white">{stat.value}</p>
                 <p className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-white/38">{stat.label}</p>
               </div>
