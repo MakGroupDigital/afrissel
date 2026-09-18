@@ -2,6 +2,7 @@ import { User } from 'firebase/auth';
 import { get, push, ref, runTransaction, serverTimestamp, update } from 'firebase/database';
 import { realtimeDb } from '../../lib/firebase';
 import { getWonyaPayStatus, initiateWonyaPayPayment, WonyaPayPaymentResponse } from '../../lib/wonyapay';
+import { getAfriZiaPublicOrigin } from '../../lib/zandofyShare';
 
 export type AfriSpayPaymentLink = {
   id: string;
@@ -69,7 +70,7 @@ const maskPhoneNumber = (value: string) => {
   return `${normalized.slice(0, 3)}••••${normalized.slice(-2)}`;
 };
 
-export const getAfriSpayPaymentLinkURL = (linkId: string) => `${window.location.origin}/pay/${encodeURIComponent(linkId)}`;
+export const getAfriSpayPaymentLinkURL = (linkId: string) => `${getAfriZiaPublicOrigin()}/share/pay/${encodeURIComponent(linkId)}`;
 
 export async function createAfriSpayPaymentLink(input: CreatePaymentLinkInput) {
   const title = input.title.trim();

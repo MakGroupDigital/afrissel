@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/share/pay/:paymentLinkId",
+      "destination": "/api/share/afrispay-payment?paymentLinkId=:paymentLinkId"
+    },
+    {
       "source": "/share/zandofy/:storeId/:productId",
       "destination": "/api/share/zandofy-product?storeId=:storeId&productId=:productId"
     },

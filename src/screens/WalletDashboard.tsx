@@ -547,6 +547,27 @@ export default function WalletDashboard() {
     }
   };
 
+  const downloadPaymentLinkQr = async () => {
+    if (!paymentLink) return;
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=900x900&margin=18&format=png&data=${encodeURIComponent(getAfriSpayPaymentLinkURL(paymentLink.id))}`;
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('QR indisponible');
+      const blob = await response.blob();
+      const objectURL = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectURL;
+      anchor.download = `afrispay-qr-${paymentLink.reference.toLowerCase()}.png`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectURL), 1000);
+      setLinkStatus('QR code PNG téléchargé.');
+    } catch {
+      setLinkStatus('Téléchargement du QR code impossible. Réessaie.');
+    }
+  };
+
   return (
     <div className="relative min-h-full bg-[#000000] p-4 flex flex-col gap-6">
       
@@ -751,7 +772,7 @@ export default function WalletDashboard() {
           </> : <>
             <div className="mt-4 rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/8 p-3">
               <div className="flex items-center gap-3"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(getAfriSpayPaymentLinkURL(paymentLink.id))}`} alt="QR code du lien de paiement" className="h-20 w-20 rounded-xl bg-white p-1" /><div className="min-w-0 flex-1"><p className="text-xs font-black text-white">{paymentLink.title}</p><p className="mt-1 break-all text-[10px] font-semibold leading-relaxed text-white/46">{getAfriSpayPaymentLinkURL(paymentLink.id)}</p><p className="mt-2 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">{paymentLink.reference}</p></div></div>
-              <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => void sharePaymentLink()} className="rounded-xl bg-[#15EA3E] py-3 text-[10px] font-black uppercase tracking-wider text-black">Partager</button><button type="button" onClick={() => void copyPaymentLink()} className="rounded-xl border border-white/12 bg-white/[0.05] py-3 text-[10px] font-black uppercase tracking-wider text-white/72">Copier</button></div>
+              <div className="mt-3 grid grid-cols-3 gap-2"><button type="button" onClick={() => void sharePaymentLink()} className="rounded-xl bg-[#15EA3E] py-3 text-[9px] font-black uppercase tracking-wider text-black">Partager</button><button type="button" onClick={() => void copyPaymentLink()} className="rounded-xl border border-white/12 bg-white/[0.05] py-3 text-[9px] font-black uppercase tracking-wider text-white/72">Copier</button><button type="button" onClick={() => void downloadPaymentLinkQr()} className="rounded-xl border border-white/12 bg-white/[0.05] py-3 text-[9px] font-black uppercase tracking-wider text-white/72">QR PNG</button></div>
             </div>
             {linkStatus && <p className="mt-3 rounded-xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-3 py-2 text-[11px] font-bold leading-relaxed text-[#15EA3E]">{linkStatus}</p>}
             <button type="button" onClick={() => { setPaymentLink(null); setLinkTitle(''); setLinkDescription(''); setLinkAmount(''); setLinkStatus(''); }} className="mt-3 w-full py-2 text-[10px] font-black uppercase tracking-wider text-white/48">Créer un autre lien</button>

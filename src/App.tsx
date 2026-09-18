@@ -92,6 +92,7 @@ function AppRoutes() {
     || /^\/zandofy\/[^/]+(?:\/product\/[^/]+)?$/.test(location.pathname)
     || /^\/order\/[^/]+$/.test(location.pathname)
     || /^\/pay\/[^/]+$/.test(location.pathname)
+    || /^\/share\/pay\/[^/]+$/.test(location.pathname)
     || /^\/zandofy\/access\/[^/]+$/.test(location.pathname)
     || location.pathname === '/zikmart'
     || (user?.isAnonymous && location.pathname === '/market/orders');
@@ -195,6 +196,7 @@ function AppRoutes() {
         <Route path="/market/orders" element={<MarketOrdersScreen />} />
         <Route path="/order/:orderId" element={<OrderVerificationScreen />} />
         <Route path="/pay/:paymentLinkId" element={<PaymentLinkScreen />} />
+        <Route path="/share/pay/:paymentLinkId" element={<PaymentLinkScreen />} />
         <Route path="/zandofy/access/:orderId" element={<RequireAuth allowAnonymous><DigitalAccessScreen /></RequireAuth>} />
         <Route path="/market/stand/:sellerId" element={<SellerStandScreen />} />
         <Route path="/market/:productId" element={<ProductDetailScreen />} />
