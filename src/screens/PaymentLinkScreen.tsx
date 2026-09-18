@@ -7,6 +7,7 @@ import { realtimeDb } from '../lib/firebase';
 import {
   AfriSpayPaymentLink,
   AfriSpayPaymentLinkPayment,
+  isAfriSpayPaymentLinkExpired,
   payAfriSpayPaymentLinkWithMobileMoney,
   payAfriSpayPaymentLinkWithWallet,
   reconcileAfriSpayPaymentLinkPayment
@@ -102,7 +103,8 @@ export default function PaymentLinkScreen() {
     return <main className="flex min-h-full items-center justify-center bg-[#020504] px-5 text-center text-white"><section><h1 className="text-xl font-black">Lien introuvable</h1><p className="mt-2 text-sm font-semibold text-white/48">Ce lien de paiement est invalide ou a été supprimé.</p><Link to="/ecosystem" className="mt-5 inline-flex rounded-2xl bg-[#15EA3E] px-4 py-3 text-xs font-black text-black">Ouvrir AfriZia</Link></section></main>;
   }
 
-  const isClosed = paymentLink.status !== 'active';
+  const isExpired = isAfriSpayPaymentLinkExpired(paymentLink);
+  const isClosed = paymentLink.status !== 'active' || isExpired;
   const isError = /impossible|refus|invalide|entre|insuffisant|actif/i.test(status);
 
   return (
@@ -127,7 +129,7 @@ export default function PaymentLinkScreen() {
       </section>
 
       <section className="mx-auto mt-4 w-full max-w-md rounded-[1.7rem] border border-white/10 bg-white/[0.045] p-4">
-        {isClosed ? <p className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-3 text-center text-xs font-bold text-amber-100">Ce lien de paiement est fermé.</p> : (
+        {isClosed ? <p className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-3 text-center text-xs font-bold text-amber-100">{isExpired ? 'Ce lien de paiement a expiré.' : 'Ce lien de paiement est fermé.'}</p> : (
           <>
             {paymentLink.amountMode === 'open' && <label className="block text-[10px] font-black uppercase tracking-wider text-white/48">Montant à payer
               <div className="mt-2 flex overflow-hidden rounded-2xl border border-white/10 bg-black/25"><input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="0" className="min-w-0 flex-1 bg-transparent px-4 py-3 text-lg font-black outline-none" /><span className="flex items-center border-l border-white/10 px-3 text-xs font-black text-[#15EA3E]">{paymentLink.currency}</span></div>

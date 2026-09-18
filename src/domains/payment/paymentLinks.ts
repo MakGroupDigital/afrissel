@@ -16,6 +16,7 @@ export type AfriSpayPaymentLink = {
   amount?: number;
   currency: 'USD' | 'CDF';
   status: 'active' | 'closed';
+  expiresAt?: number;
   paymentsCount: number;
   collectedAmount: number;
   createdAt: number;
@@ -48,6 +49,12 @@ type CreatePaymentLinkInput = {
   amountMode: 'fixed' | 'open';
   amount?: number;
   currency: string;
+  expiresAt?: number;
+};
+
+type UpdatePaymentLinkInput = Omit<CreatePaymentLinkInput, 'user' | 'ownerName' | 'ownerPhotoURL'> & {
+  user: User;
+  linkId: string;
 };
 
 const normalizeAmount = (value: number) => {
@@ -72,12 +79,18 @@ const maskPhoneNumber = (value: string) => {
 
 export const getAfriSpayPaymentLinkURL = (linkId: string) => `${getAfriZiaPublicOrigin()}/share/pay/${encodeURIComponent(linkId)}`;
 
+export const isAfriSpayPaymentLinkExpired = (link?: Pick<AfriSpayPaymentLink, 'expiresAt'> | null) => (
+  Boolean(link?.expiresAt && Number(link.expiresAt) <= Date.now())
+);
+
 export async function createAfriSpayPaymentLink(input: CreatePaymentLinkInput) {
   const title = input.title.trim();
   if (!title) throw new Error('Donne un objet à ce paiement.');
   const amountMode = input.amountMode;
   const amount = amountMode === 'fixed' ? normalizeAmount(Number(input.amount)) : undefined;
   const currency = normalizeCurrency(input.currency);
+  const expiresAt = Number(input.expiresAt);
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error('Choisis une date d’expiration à venir.');
   const paymentRef = push(ref(realtimeDb, 'afriSpayPaymentLinks'));
   const id = paymentRef.key;
   if (!id) throw new Error('Création du lien impossible. Réessaie.');
@@ -94,6 +107,7 @@ export async function createAfriSpayPaymentLink(input: CreatePaymentLinkInput) {
     ...(amount ? { amount } : {}),
     currency,
     status: 'active',
+    expiresAt,
     paymentsCount: 0,
     collectedAmount: 0,
     createdAt: Date.now(),
@@ -105,6 +119,46 @@ export async function createAfriSpayPaymentLink(input: CreatePaymentLinkInput) {
     [`afriSpayPaymentLinksByOwner/${input.user.uid}/${id}`]: true
   });
   return link;
+}
+
+export async function updateAfriSpayPaymentLink(input: UpdatePaymentLinkInput) {
+  const existingSnapshot = await get(ref(realtimeDb, `afriSpayPaymentLinks/${input.linkId}`));
+  if (!existingSnapshot.exists()) throw new Error('Lien de paiement introuvable.');
+  const existing = existingSnapshot.val() as AfriSpayPaymentLink;
+  if (existing.ownerId !== input.user.uid) throw new Error('Tu ne peux pas modifier ce lien.');
+  if (existing.status !== 'active') throw new Error('Ce lien est fermé. Crée un nouveau lien pour encaisser.');
+
+  const title = input.title.trim();
+  if (!title) throw new Error('Donne un objet à ce paiement.');
+  const amountMode = input.amountMode;
+  const amount = amountMode === 'fixed' ? normalizeAmount(Number(input.amount)) : undefined;
+  const currency = normalizeCurrency(input.currency);
+  const expiresAt = Number(input.expiresAt);
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw new Error('Choisis une date d’expiration à venir.');
+
+  await update(ref(realtimeDb), {
+    [`afriSpayPaymentLinks/${existing.id}/title`]: title,
+    [`afriSpayPaymentLinks/${existing.id}/description`]: input.description?.trim() || '',
+    [`afriSpayPaymentLinks/${existing.id}/amountMode`]: amountMode,
+    [`afriSpayPaymentLinks/${existing.id}/amount`]: amount ?? null,
+    [`afriSpayPaymentLinks/${existing.id}/currency`]: currency,
+    [`afriSpayPaymentLinks/${existing.id}/expiresAt`]: expiresAt,
+    [`afriSpayPaymentLinks/${existing.id}/updatedAt`]: serverTimestamp()
+  });
+  return { ...existing, title, description: input.description?.trim() || '', amountMode, amount, currency, expiresAt };
+}
+
+export async function deleteAfriSpayPaymentLink(user: User, linkId: string) {
+  const existingSnapshot = await get(ref(realtimeDb, `afriSpayPaymentLinks/${linkId}`));
+  if (!existingSnapshot.exists()) return;
+  const existing = existingSnapshot.val() as AfriSpayPaymentLink;
+  if (existing.ownerId !== user.uid) throw new Error('Tu ne peux pas supprimer ce lien.');
+  await update(ref(realtimeDb), {
+    [`afriSpayPaymentLinks/${linkId}/status`]: 'closed',
+    [`afriSpayPaymentLinks/${linkId}/closedAt`]: Date.now(),
+    [`afriSpayPaymentLinks/${linkId}/updatedAt`]: serverTimestamp(),
+    [`afriSpayPaymentLinksByOwner/${user.uid}/${linkId}`]: null
+  });
 }
 
 const updatePaymentLinkTotals = async (linkId: string, amount: number) => {
@@ -230,7 +284,7 @@ export async function payAfriSpayPaymentLinkWithMobileMoney(input: {
   const amount = input.link.amountMode === 'fixed' ? normalizeAmount(Number(input.link.amount)) : normalizeAmount(input.amount);
   const phoneNumber = input.phoneNumber.trim();
   if (!phoneNumber) throw new Error('Entre le numéro Mobile Money à débiter.');
-  if (input.link.status !== 'active') throw new Error('Ce lien de paiement n’est plus actif.');
+  if (input.link.status !== 'active' || isAfriSpayPaymentLinkExpired(input.link)) throw new Error('Ce lien de paiement n’est plus actif.');
 
   const paymentRef = push(ref(realtimeDb, `afriSpayPaymentLinkPayments/${input.link.id}`));
   const id = paymentRef.key;
@@ -291,7 +345,7 @@ export async function payAfriSpayPaymentLinkWithWallet(input: {
 }) {
   if (input.payer.isAnonymous) throw new Error('Connecte-toi pour payer avec AfriSpay.');
   if (input.link.ownerId === input.payer.uid) throw new Error('Tu ne peux pas payer ton propre lien.');
-  if (input.link.status !== 'active') throw new Error('Ce lien de paiement n’est plus actif.');
+  if (input.link.status !== 'active' || isAfriSpayPaymentLinkExpired(input.link)) throw new Error('Ce lien de paiement n’est plus actif.');
   const amount = input.link.amountMode === 'fixed' ? normalizeAmount(Number(input.link.amount)) : normalizeAmount(input.amount);
   const paymentRef = push(ref(realtimeDb, `afriSpayPaymentLinkPayments/${input.link.id}`));
   const id = paymentRef.key;

@@ -8,7 +8,7 @@ import { useAfriSpayWallet } from '../hooks/useAfriSpayWallet';
 import { useFirebaseAuth } from '../hooks/useFirebaseAuth';
 import { executeWalletOperation, WalletOperationType } from '../domains/payment';
 import { realtimeDb } from '../lib/firebase';
-import { createAfriSpayPaymentLink, getAfriSpayPaymentLinkURL, AfriSpayPaymentLink } from '../domains/payment/paymentLinks';
+import { AfriSpayPaymentLink, createAfriSpayPaymentLink, deleteAfriSpayPaymentLink, getAfriSpayPaymentLinkURL, isAfriSpayPaymentLinkExpired, updateAfriSpayPaymentLink } from '../domains/payment/paymentLinks';
 import { copyShareLink, shareLink } from '../lib/shareLink';
 
 type WalletSecuritySettings = {
@@ -20,6 +20,41 @@ type WalletSecuritySettings = {
 
 type KycStatus = 'none' | 'pending' | 'verified' | 'rejected';
 type WalletDashboardAction = WalletOperationType | 'collect' | 'scan';
+type LinkExpiryPreset = '24h' | '48h' | '72h' | 'week' | 'manual';
+
+const linkExpiryOptions: Array<{ value: LinkExpiryPreset; label: string; hours?: number }> = [
+  { value: '24h', label: '24 h', hours: 24 },
+  { value: '48h', label: '48 h', hours: 48 },
+  { value: '72h', label: '72 h', hours: 72 },
+  { value: 'week', label: '1 semaine', hours: 168 },
+  { value: 'manual', label: 'Manuel' }
+];
+
+const toDateTimeLocalValue = (timestamp: number) => {
+  const local = new Date(timestamp - new Date().getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+};
+
+const getExpiryTimestamp = (preset: LinkExpiryPreset, manualValue: string) => {
+  const option = linkExpiryOptions.find((item) => item.value === preset);
+  if (option?.hours) return Date.now() + option.hours * 60 * 60 * 1000;
+  return new Date(manualValue).getTime();
+};
+
+const getExpiryPreset = (expiresAt?: number): LinkExpiryPreset => {
+  const remainingHours = (Number(expiresAt || 0) - Date.now()) / (60 * 60 * 1000);
+  const matchingOption = linkExpiryOptions.find((option) => option.hours && Math.abs(remainingHours - option.hours) <= 1);
+  if (matchingOption) return matchingOption.value;
+  return 'manual';
+};
+
+const formatLinkExpiry = (expiresAt?: number) => {
+  if (!expiresAt) return 'Échéance non définie';
+  return new Intl.DateTimeFormat('fr-FR', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(new Date(expiresAt));
+};
 
 const formatMoney = (amount: number, currency: string) =>
   new Intl.NumberFormat('fr-FR', {
@@ -99,7 +134,11 @@ export default function WalletDashboard() {
   const [linkDescription, setLinkDescription] = React.useState('');
   const [linkAmountMode, setLinkAmountMode] = React.useState<'fixed' | 'open'>('fixed');
   const [linkAmount, setLinkAmount] = React.useState('');
+  const [linkExpiryPreset, setLinkExpiryPreset] = React.useState<LinkExpiryPreset>('24h');
+  const [manualLinkExpiry, setManualLinkExpiry] = React.useState(() => toDateTimeLocalValue(Date.now() + 24 * 60 * 60 * 1000));
   const [paymentLink, setPaymentLink] = React.useState<AfriSpayPaymentLink | null>(null);
+  const [paymentLinks, setPaymentLinks] = React.useState<AfriSpayPaymentLink[]>([]);
+  const [editingPaymentLink, setEditingPaymentLink] = React.useState<AfriSpayPaymentLink | null>(null);
   const [linkBusy, setLinkBusy] = React.useState(false);
   const [linkStatus, setLinkStatus] = React.useState('');
   const [liveUserKycStatus, setLiveUserKycStatus] = React.useState<KycStatus>(normalizeKycStatus(profile?.kycStatus));
@@ -149,8 +188,47 @@ export default function WalletDashboard() {
   }, [activeAction]);
 
   React.useEffect(() => {
+    if (!editingPaymentLink) return;
+    setLinkTitle(editingPaymentLink.title);
+    setLinkDescription(editingPaymentLink.description || '');
+    setLinkAmountMode(editingPaymentLink.amountMode);
+    setLinkAmount(editingPaymentLink.amount ? String(editingPaymentLink.amount) : '');
+    setLinkExpiryPreset(getExpiryPreset(editingPaymentLink.expiresAt));
+    setManualLinkExpiry(toDateTimeLocalValue(Number(editingPaymentLink.expiresAt || Date.now() + 24 * 60 * 60 * 1000)));
+  }, [editingPaymentLink]);
+
+  React.useEffect(() => {
     setLiveUserKycStatus(normalizeKycStatus(profile?.kycStatus));
   }, [profile?.kycStatus]);
+
+  React.useEffect(() => {
+    if (!user) {
+      setPaymentLinks([]);
+      return undefined;
+    }
+
+    let mounted = true;
+    const ownerLinksRef = ref(realtimeDb, `afriSpayPaymentLinksByOwner/${user.uid}`);
+    const unsubscribe = onValue(ownerLinksRef, (snapshot) => {
+      const linkIds = Object.keys(snapshot.val() as Record<string, boolean> || {});
+      void Promise.all(linkIds.map((linkId) => get(ref(realtimeDb, `afriSpayPaymentLinks/${linkId}`))))
+        .then((snapshots) => {
+          if (!mounted) return;
+          const links = snapshots
+            .filter((linkSnapshot) => linkSnapshot.exists())
+            .map((linkSnapshot) => linkSnapshot.val() as AfriSpayPaymentLink)
+            .filter((link) => link.ownerId === user.uid && link.status === 'active')
+            .sort((first, second) => Number(second.createdAt || 0) - Number(first.createdAt || 0));
+          setPaymentLinks(links);
+        })
+        .catch(() => mounted && setPaymentLinks([]));
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [user]);
 
   React.useEffect(() => {
     if (!user) return undefined;
@@ -501,23 +579,72 @@ export default function WalletDashboard() {
     setLinkBusy(true);
     setLinkStatus('');
     try {
-      const link = await createAfriSpayPaymentLink({
-        user,
-        ownerName: profile?.displayName || user.displayName || 'AfriSpay',
-        ownerPhotoURL: profile?.photoURL || user.photoURL || '',
-        title: linkTitle,
-        description: linkDescription,
-        amountMode: linkAmountMode,
-        amount: Number(linkAmount),
-        currency
-      });
+      const expiresAt = getExpiryTimestamp(linkExpiryPreset, manualLinkExpiry);
+      const link = editingPaymentLink
+        ? await updateAfriSpayPaymentLink({
+            user,
+            linkId: editingPaymentLink.id,
+            title: linkTitle,
+            description: linkDescription,
+            amountMode: linkAmountMode,
+            amount: Number(linkAmount),
+            currency,
+            expiresAt
+          })
+        : await createAfriSpayPaymentLink({
+            user,
+            ownerName: profile?.displayName || user.displayName || 'AfriSpay',
+            ownerPhotoURL: profile?.photoURL || user.photoURL || '',
+            title: linkTitle,
+            description: linkDescription,
+            amountMode: linkAmountMode,
+            amount: Number(linkAmount),
+            currency,
+            expiresAt
+          });
       setPaymentLink(link);
-      setLinkStatus('Lien de paiement créé. Tu peux le partager immédiatement.');
+      setEditingPaymentLink(null);
+      setLinkStatus(editingPaymentLink ? 'Lien de paiement modifié.' : 'Lien de paiement créé. Tu peux le partager immédiatement.');
     } catch (error) {
       setLinkStatus(error instanceof Error ? error.message : 'Création du lien impossible.');
     } finally {
       setLinkBusy(false);
     }
+  };
+
+  const editPaymentLink = (link: AfriSpayPaymentLink) => {
+    setEditingPaymentLink(link);
+    setPaymentLink(null);
+    setLinkStatus('');
+    setSearchParams({ action: 'collect' });
+  };
+
+  const deletePaymentLink = async (link: AfriSpayPaymentLink) => {
+    if (!user || !window.confirm(`Supprimer le lien « ${link.title} » ? Il ne pourra plus recevoir de paiement.`)) return;
+    setLinkBusy(true);
+    setLinkStatus('');
+    try {
+      await deleteAfriSpayPaymentLink(user, link.id);
+      if (paymentLink?.id === link.id) setPaymentLink(null);
+      if (editingPaymentLink?.id === link.id) setEditingPaymentLink(null);
+      setLinkStatus('Lien supprimé et désactivé.');
+    } catch (error) {
+      setLinkStatus(error instanceof Error ? error.message : 'Suppression du lien impossible.');
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
+  const resetPaymentLinkEditor = () => {
+    setPaymentLink(null);
+    setEditingPaymentLink(null);
+    setLinkTitle('');
+    setLinkDescription('');
+    setLinkAmountMode('fixed');
+    setLinkAmount('');
+    setLinkExpiryPreset('24h');
+    setManualLinkExpiry(toDateTimeLocalValue(Date.now() + 24 * 60 * 60 * 1000));
+    setLinkStatus('');
   };
 
   const sharePaymentLink = async () => {
@@ -752,10 +879,10 @@ export default function WalletDashboard() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Encaisser</p>
-              <h2 className="mt-1 text-lg font-black text-white">Lien de paiement AfriSpay</h2>
-              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-gray-500">Crée un lien personnel. Toute personne peut payer par Mobile Money, même sans compte.</p>
+              <h2 className="mt-1 text-lg font-black text-white">{editingPaymentLink ? 'Modifier le lien' : 'Lien de paiement AfriSpay'}</h2>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-gray-500">Toute personne peut payer par Mobile Money, même sans compte AfriZia.</p>
             </div>
-            <button type="button" onClick={() => setSearchParams({})} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-800 text-gray-500"><AfriZiaIcon name="close" size={16} /></button>
+            <button type="button" onClick={() => { resetPaymentLinkEditor(); setSearchParams({}); }} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-800 text-gray-500"><AfriZiaIcon name="close" size={16} /></button>
           </div>
 
           {!paymentLink ? <>
@@ -767,17 +894,87 @@ export default function WalletDashboard() {
               <button type="button" onClick={() => setLinkAmountMode('open')} className={cn('rounded-xl border px-3 py-3 text-left text-xs font-black', linkAmountMode === 'open' ? 'border-[#15EA3E] bg-[#15EA3E]/10 text-white' : 'border-gray-800 bg-black text-gray-400')}>Montant libre<span className="mt-1 block text-[9px] font-semibold text-white/40">Le client choisit le montant.</span></button>
             </div>
             {linkAmountMode === 'fixed' && <div className="mt-2 flex overflow-hidden rounded-2xl border border-gray-800 bg-black"><input value={linkAmount} onChange={(event) => setLinkAmount(event.target.value)} inputMode="decimal" placeholder="Montant" className="min-w-0 flex-1 bg-transparent px-4 py-3 text-sm font-semibold text-white outline-none" /><span className="flex items-center border-l border-gray-800 px-3 text-xs font-black text-[#15EA3E]">{currency}</span></div>}
+            <p className="mt-4 text-[10px] font-black uppercase tracking-wider text-gray-500">Délai de paiement</p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {linkExpiryOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setLinkExpiryPreset(option.value);
+                    if (option.hours) setManualLinkExpiry(toDateTimeLocalValue(Date.now() + option.hours * 60 * 60 * 1000));
+                  }}
+                  className={cn(
+                    'rounded-xl border px-2 py-2.5 text-[10px] font-black',
+                    linkExpiryPreset === option.value ? 'border-[#15EA3E] bg-[#15EA3E]/10 text-white' : 'border-gray-800 bg-black text-gray-400'
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {linkExpiryPreset === 'manual' && <label className="mt-2 block text-[10px] font-black uppercase tracking-wider text-gray-500">Date et heure
+              <input
+                type="datetime-local"
+                value={manualLinkExpiry}
+                min={toDateTimeLocalValue(Date.now() + 5 * 60 * 1000)}
+                onChange={(event) => setManualLinkExpiry(event.target.value)}
+                className="mt-2 h-12 w-full rounded-2xl border border-gray-800 bg-black px-4 text-sm font-semibold text-white outline-none focus:border-[#15EA3E]/50"
+              />
+            </label>}
+            <p className="mt-2 text-[10px] font-semibold leading-relaxed text-gray-500">Le lien sera automatiquement désactivé après cette échéance.</p>
             {linkStatus && <p className={cn('mt-3 rounded-xl border px-3 py-2 text-[11px] font-bold leading-relaxed', /impossible|valide|donne/i.test(linkStatus) ? 'border-red-500/25 bg-red-500/10 text-red-100' : 'border-[#15EA3E]/25 bg-[#15EA3E]/10 text-[#15EA3E]')}>{linkStatus}</p>}
-            <button type="submit" disabled={linkBusy} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black disabled:opacity-60">{linkBusy ? 'Création...' : 'Créer le lien'}<AfriZiaIcon name="arrow" size={16} /></button>
+            <button type="submit" disabled={linkBusy} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#15EA3E] text-xs font-black uppercase tracking-[0.14em] text-black disabled:opacity-60">{linkBusy ? 'Enregistrement...' : editingPaymentLink ? 'Enregistrer les changements' : 'Créer le lien'}<AfriZiaIcon name="arrow" size={16} /></button>
+            {editingPaymentLink && <button type="button" onClick={resetPaymentLinkEditor} className="mt-2 w-full py-2 text-[10px] font-black uppercase tracking-wider text-white/48">Annuler la modification</button>}
           </> : <>
             <div className="mt-4 rounded-2xl border border-[#15EA3E]/20 bg-[#15EA3E]/8 p-3">
               <div className="flex items-center gap-3"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(getAfriSpayPaymentLinkURL(paymentLink.id))}`} alt="QR code du lien de paiement" className="h-20 w-20 rounded-xl bg-white p-1" /><div className="min-w-0 flex-1"><p className="text-xs font-black text-white">{paymentLink.title}</p><p className="mt-1 break-all text-[10px] font-semibold leading-relaxed text-white/46">{getAfriSpayPaymentLinkURL(paymentLink.id)}</p><p className="mt-2 text-[9px] font-black uppercase tracking-wider text-[#15EA3E]">{paymentLink.reference}</p></div></div>
               <div className="mt-3 grid grid-cols-3 gap-2"><button type="button" onClick={() => void sharePaymentLink()} className="rounded-xl bg-[#15EA3E] py-3 text-[9px] font-black uppercase tracking-wider text-black">Partager</button><button type="button" onClick={() => void copyPaymentLink()} className="rounded-xl border border-white/12 bg-white/[0.05] py-3 text-[9px] font-black uppercase tracking-wider text-white/72">Copier</button><button type="button" onClick={() => void downloadPaymentLinkQr()} className="rounded-xl border border-white/12 bg-white/[0.05] py-3 text-[9px] font-black uppercase tracking-wider text-white/72">QR PNG</button></div>
             </div>
             {linkStatus && <p className="mt-3 rounded-xl border border-[#15EA3E]/25 bg-[#15EA3E]/10 px-3 py-2 text-[11px] font-bold leading-relaxed text-[#15EA3E]">{linkStatus}</p>}
-            <button type="button" onClick={() => { setPaymentLink(null); setLinkTitle(''); setLinkDescription(''); setLinkAmount(''); setLinkStatus(''); }} className="mt-3 w-full py-2 text-[10px] font-black uppercase tracking-wider text-white/48">Créer un autre lien</button>
+            <button type="button" onClick={resetPaymentLinkEditor} className="mt-3 w-full py-2 text-[10px] font-black uppercase tracking-wider text-white/48">Créer un autre lien</button>
           </>}
         </form>
+      )}
+
+      {activeAction === 'collect' && (
+        <section className="rounded-2xl border border-gray-800 bg-[#0A0A0A] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#15EA3E]">Suivi</p>
+              <h2 className="mt-1 text-base font-black text-white">Mes liens de paiement</h2>
+            </div>
+            <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-black text-white/55">{paymentLinks.length}</span>
+          </div>
+
+          {paymentLinks.length === 0 ? (
+            <p className="mt-4 rounded-xl border border-dashed border-white/10 bg-black/25 p-4 text-center text-[11px] font-semibold leading-relaxed text-gray-500">Tes liens actifs et expirés apparaîtront ici pour être partagés, modifiés ou supprimés.</p>
+          ) : (
+            <div className="mt-4 grid gap-2">
+              {paymentLinks.map((link) => {
+                const expired = isAfriSpayPaymentLinkExpired(link);
+                const publicUrl = getAfriSpayPaymentLinkURL(link.id);
+                return (
+                  <article key={link.id} className="rounded-2xl border border-white/10 bg-black/30 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <a href={publicUrl} target="_blank" rel="noreferrer" className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-black text-white">{link.title}</p>
+                        <p className="mt-1 text-[10px] font-semibold text-white/46">{link.amountMode === 'fixed' ? formatMoney(Number(link.amount || 0), link.currency) : `Montant libre · ${link.currency}`}</p>
+                      </a>
+                      <span className={cn('shrink-0 rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-wider', expired ? 'bg-amber-300/10 text-amber-200' : 'bg-[#15EA3E]/10 text-[#15EA3E]')}>{expired ? 'Expiré' : 'Actif'}</span>
+                    </div>
+                    <p className="mt-2 text-[10px] font-semibold text-white/38">{expired ? 'Expiré le' : 'Expire le'} {formatLinkExpiry(link.expiresAt)}</p>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <a href={publicUrl} target="_blank" rel="noreferrer" className="flex h-9 items-center justify-center rounded-xl bg-[#15EA3E] px-2 text-[9px] font-black uppercase tracking-wider text-black">Ouvrir</a>
+                      <button type="button" onClick={() => editPaymentLink(link)} disabled={linkBusy} className="h-9 rounded-xl border border-white/12 bg-white/[0.05] px-2 text-[9px] font-black uppercase tracking-wider text-white/75 disabled:opacity-50">Modifier</button>
+                      <button type="button" onClick={() => void deletePaymentLink(link)} disabled={linkBusy} className="h-9 rounded-xl border border-red-400/20 bg-red-400/[0.06] px-2 text-[9px] font-black uppercase tracking-wider text-red-200 disabled:opacity-50">Supprimer</button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
       )}
 
       {activeActionLabel && activeAction !== 'scan' && activeAction !== 'collect' && (
